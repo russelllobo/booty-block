@@ -1,13 +1,27 @@
 {
   "expo": {
-    "name": "bootyblock",
+    "name": "Bootyblock",
     "slug": "bootyblock",
+    "scheme": "bootyblock",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bootyblock.app",
+      "appleTeamId": "SZ78KGUF6B",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
+        "NSMotionUsageDescription": "Bootyblock may use device motion to improve squat detection.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.bootyblock.app",
+          "group.com.bootyblock.app"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +30,87 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      [
+        "react-native-device-activity",
+        {
+          "appleTeamId": "SZ78KGUF6B",
+          "appGroup": "group.com.bootyblock.app"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.bootyblock.app.ShieldConfiguration",
+                  "targetName": "ShieldConfiguration",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.bootyblock.app"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.bootyblock.app.ShieldAction",
+                  "targetName": "ShieldAction",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.bootyblock.app"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.bootyblock.app.ActivityMonitorExtension",
+                  "targetName": "ActivityMonitorExtension",
+                  "entitlements": {
+                    "com.apple.developer.family-controls": true,
+                    "com.apple.security.application-groups": [
+                      "group.com.bootyblock.app"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
+      }
+    },
+    "owner": "russelllobo"
   }
 }

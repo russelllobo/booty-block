@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bootyblock-landing",
+  "main": "./worker.js",
+  "compatibility_date": "2026-06-19",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "SUPABASE_URL": "https://hiswlrweciottgskunlc.supabase.co",
+    "WAITLIST_TABLE": "waitlist_signups"
+  },
+  "routes": [
+    {
+      "pattern": "bootyblock.app/*",
+      "zone_name": "bootyblock.app"
+    },
+    {
+      "pattern": "www.bootyblock.app/*",
+      "zone_name": "bootyblock.app"
+    }
+  ]
+}
