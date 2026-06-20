@@ -93,4 +93,31 @@ describe('squat state machine', () => {
 
     expect(state.count).toBe(0);
   });
+
+  it('counts a moderate front-facing squat without requiring an extreme knee angle', () => {
+    let state = calibrate(2);
+
+    state = updateSquatMachine(state, sample(1000, 0.48, 0.82, true, 145, 150));
+    state = updateSquatMachine(state, sample(1250, 0.51, 0.82, true, 123, 142));
+    state = updateSquatMachine(state, sample(1400, 0.51, 0.82, true, 123, 142));
+    state = updateSquatMachine(state, sample(1700, 0.47, 0.82, true, 148, 150));
+    state = updateSquatMachine(state, sample(1900, 0.4, 0.82, true, 156, 154));
+    state = updateSquatMachine(state, sample(2000, 0.4, 0.82, true, 156, 154));
+
+    expect(state.count).toBe(1);
+  });
+
+  it('counts when tracking jumps directly from bottom to standing', () => {
+    let state = calibrate(2);
+
+    state = updateSquatMachine(state, sample(1000, 0.51, 0.9, true, 122, 140));
+    state = updateSquatMachine(state, sample(1200, 0.51, 0.9, true, 122, 140));
+    expect(state.phase).toBe('bottom');
+
+    state = updateSquatMachine(state, sample(1800, 0.4, 0.9, true, 160, 158));
+    state = updateSquatMachine(state, sample(1900, 0.4, 0.9, true, 160, 158));
+
+    expect(state.count).toBe(1);
+    expect(state.phase).toBe('standing');
+  });
 });

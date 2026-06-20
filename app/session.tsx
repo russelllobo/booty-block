@@ -2,11 +2,10 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { Camera, CheckCircle2, X } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { PoseOverlay } from '../components/PoseOverlay';
-import { ProgressPill } from '../components/ProgressPill';
 import { Screen } from '../components/Screen';
 import { MINUTES_TO_SQUATS } from '../constants/bootyblock';
 import { colors } from '../constants/theme';
@@ -20,6 +19,11 @@ export default function Session() {
   const [permission, requestPermission] = useCameraPermissions();
   const pose = usePoseSession({ target, active: Boolean(permission?.granted) });
   const progress = useMemo(() => Math.min(1, pose.count / target), [pose.count, target]);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const cameraFrame = useMemo(() => {
+    const width = Math.min(screenWidth, Math.max(280, (screenHeight - 180) * 0.75));
+    return { width, height: width * (4 / 3) };
+  }, [screenHeight, screenWidth]);
 
   useEffect(() => {
     if (pose.count >= target) {
@@ -31,20 +35,37 @@ export default function Session() {
     <Screen scroll={false} flush>
       <View className="flex-1 bg-cocoa">
         {permission?.granted ? (
-          Platform.OS === 'ios' ? (
-            <BootyPoseCameraView
-              style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
-            />
-          ) : (
-            <CameraView
-              facing="front"
-              mirror
-              active
-              className="absolute inset-0"
-              style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
-              onMountError={(error) => console.error('Session camera failed to mount:', error.message)}
-            />
-          )
+          <View className="flex-1 items-center justify-center">
+            <View
+              className="overflow-hidden bg-black"
+              style={[cameraFrame, { borderRadius: 24 }]}
+            >
+              {Platform.OS === 'ios' ? (
+                <BootyPoseCameraView style={StyleSheet.absoluteFill} />
+              ) : (
+                <CameraView
+                  facing="front"
+                  mirror
+                  active
+                  style={StyleSheet.absoluteFill}
+                  onMountError={(error) => console.error('Session camera failed to mount:', error.message)}
+                />
+              )}
+              <PoseOverlay
+                landmarks={pose.landmarks}
+                phase={pose.phase}
+                visible={pose.visible}
+                frameWidth={pose.frameWidth}
+                frameHeight={pose.frameHeight}
+              />
+              {!pose.visible && (
+                <View
+                  className="absolute bottom-7 left-5 right-5 top-7 rounded-[28px] border border-dashed border-white/60"
+                  pointerEvents="none"
+                />
+              )}
+            </View>
+          </View>
         ) : (
           <View className="absolute inset-0 items-center justify-center bg-cocoa px-8">
             <Camera size={48} stroke={colors.petal} />
@@ -58,67 +79,65 @@ export default function Session() {
           </View>
         )}
 
-        <View className="absolute inset-0 border-[18px] border-white/10" pointerEvents="none" />
-        <PoseOverlay
-          landmarks={pose.landmarks}
-          phase={pose.phase}
-          visible={pose.visible}
-          frameWidth={pose.frameWidth}
-          frameHeight={pose.frameHeight}
-        />
-        {!pose.visible && (
-          <View className="absolute left-8 right-8 top-28 rounded-[32px] border-2 border-dashed border-white/60 py-36" pointerEvents="none" />
-        )}
-
-        <View className="absolute left-0 right-0 top-0 flex-row items-center justify-between px-6 pt-16">
+        <View className="absolute left-0 right-0 top-0 flex-row items-center justify-between px-4 pt-3">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close workout"
             onPress={() => router.back()}
-            className="h-12 w-12 items-center justify-center rounded-full bg-white/20"
+            className="h-10 w-10 items-center justify-center rounded-full border border-white/20"
+            style={{ backgroundColor: 'rgba(58, 31, 44, 0.48)' }}
           >
-            <X size={22} stroke={colors.white} />
+            <X size={19} stroke={colors.white} />
           </Pressable>
-          <View className="rounded-full bg-white/20 px-5 py-3">
-            <Text className="text-sm font-black text-white">{requestedMinutes} min unlock</Text>
+          <View
+            className="rounded-full border border-white/20 px-4 py-2"
+            style={{ backgroundColor: 'rgba(58, 31, 44, 0.48)' }}
+          >
+            <Text className="text-xs font-black text-white">{requestedMinutes} min unlock</Text>
           </View>
         </View>
 
-        <View className="absolute bottom-0 left-0 right-0 rounded-t-[38px] bg-blush px-6 pb-10 pt-6">
-          <View className="mb-5 h-3 overflow-hidden rounded-full bg-petal">
-            <View className="h-full rounded-full bg-raspberry" style={{ width: `${progress * 100}%` }} />
-          </View>
+        {permission?.granted && (
+          <View
+            className="absolute bottom-3 left-3 right-3 rounded-[26px] border border-white/20 px-4 pb-4 pt-3"
+            style={{ backgroundColor: 'rgba(58, 31, 44, 0.7)' }}
+          >
+            <View className="mb-3 h-1 overflow-hidden rounded-full bg-white/20">
+              <View className="h-full rounded-full bg-lime" style={{ width: `${progress * 100}%` }} />
+            </View>
 
-          <View className="flex-row items-end justify-between">
-            <View>
-              <Text className="text-sm font-black uppercase tracking-[2px] text-mink">Squats</Text>
-              <Text className="text-7xl font-black text-cocoa">
-                {pose.count}
-                <Text className="text-3xl text-mink">/{target}</Text>
-              </Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-baseline">
+                <Text className="text-4xl font-black text-white">{pose.count}</Text>
+                <Text className="ml-1 text-lg font-black text-petal">/{target} squats</Text>
+              </View>
+              <View className="h-9 w-9 items-center justify-center rounded-full bg-mint">
+                <CheckCircle2 size={20} stroke={colors.cocoa} />
+              </View>
             </View>
-            <View className="mb-3 h-16 w-16 items-center justify-center rounded-full bg-mint">
-              <CheckCircle2 size={30} stroke={colors.cocoa} />
+
+            <Text className="mt-1 text-sm font-black text-white">{pose.hint}</Text>
+
+            <View className="mt-2 flex-row items-center gap-2">
+              <View className="rounded-full bg-white/10 px-3 py-1.5">
+                <Text className="text-[11px] font-bold uppercase tracking-wider text-petal">
+                  {pose.phase}
+                </Text>
+              </View>
+              <View className="rounded-full bg-white/10 px-3 py-1.5">
+                <Text className="text-[11px] font-bold text-petal">
+                  {Math.round(pose.confidence * 100)}% confidence
+                </Text>
+              </View>
+              {(pose.metrics?.kneeAngle ?? 0) > 0 && (
+                <Text className="ml-auto text-[10px] font-bold text-white/70">
+                  {Math.round(pose.metrics?.kneeAngle ?? 0)}° knee ·{' '}
+                  {Math.round((pose.metrics?.depth ?? 0) * 100)}% depth
+                </Text>
+              )}
             </View>
           </View>
-
-          <Text className="mt-2 text-lg font-black text-raspberry">{pose.hint}</Text>
-
-          <View className="mt-5 flex-row gap-3">
-            <View className="flex-1">
-              <ProgressPill label="Phase" value={pose.phase} tone="cream" />
-            </View>
-            <View className="flex-1">
-              <ProgressPill label="Confidence" value={`${Math.round(pose.confidence * 100)}%`} tone="mint" />
-            </View>
-          </View>
-          {pose.metrics.kneeAngle > 0 && (
-            <Text className="mt-3 text-center text-xs font-bold text-mink">
-              Knee {Math.round(pose.metrics.kneeAngle)}° · Torso {Math.round(pose.metrics.torsoLean)}° · Depth{' '}
-              {Math.round(pose.metrics.depth * 100)}%
-            </Text>
-          )}
-        </View>
+        )}
       </View>
     </Screen>
   );

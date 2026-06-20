@@ -16,7 +16,9 @@ public class BootyPoseModule: Module {
 
     Events("poseUpdate", "sessionComplete")
 
-    View(BootyPoseCameraView.self)
+    View(BootyPoseCameraView.self) {
+      // The explicit builder selects Expo's UIKit native-view definition.
+    }
 
     AsyncFunction("startSessionAsync") { (targetSquats: Int) in
       self.poseSession.start(targetSquats: targetSquats) { eventName, payload in
@@ -36,7 +38,7 @@ private final class BootyPoseCameraView: ExpoView {
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     backgroundColor = .black
-    previewLayer.videoGravity = .resizeAspectFill
+    previewLayer.videoGravity = .resizeAspect
     layer.addSublayer(previewLayer)
   }
 
@@ -217,10 +219,25 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       ("rightAnkle", .rightAnkle, rightAnkle)
     ]
 
-    let confidence = Double(recognizedPoints.map { $0.2.confidence }.min() ?? 0)
-    updateLandmarks(recognizedPoints)
+    var overlayPoints = recognizedPoints
+    let optionalArmJoints: [(String, VNHumanBodyPoseObservation.JointName)] = [
+      ("leftElbow", .leftElbow),
+      ("rightElbow", .rightElbow),
+      ("leftWrist", .leftWrist),
+      ("rightWrist", .rightWrist)
+    ]
+    for (name, joint) in optionalArmJoints {
+      if let point = try? observation.recognizedPoint(joint), point.confidence >= 0.2 {
+        overlayPoints.append((name, joint, point))
+      }
+    }
 
-    guard confidence >= 0.55 else {
+    let confidence = Double(
+      recognizedPoints.map { CGFloat($0.2.confidence) }.reduce(0, +) / CGFloat(recognizedPoints.count)
+    )
+    updateLandmarks(overlayPoints)
+
+    guard confidence >= 0.42 else {
       emit(hint: "Find brighter light so the squat can count cleanly.", confidence: confidence, visible: true)
       return
     }
@@ -264,7 +281,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     ]
 
     if phase == "calibrating" {
-      let standingTall = kneeAngle >= 155 && hipAngle >= 150 && torsoLean <= 30
+      let standingTall = kneeAngle >= 150 && hipAngle >= 148 && torsoLean <= 35
       guard standingTall else {
         calibrationSamples.removeAll()
         calibrationSpanSamples.removeAll()
@@ -274,12 +291,12 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
 
       calibrationSamples.append(hipY)
       calibrationSpanSamples.append(max(hipY - kneeMid.y, 0.04))
-      if calibrationSamples.count > 15 {
+      if calibrationSamples.count > 12 {
         calibrationSamples.removeFirst()
         calibrationSpanSamples.removeFirst()
       }
 
-      if calibrationSamples.count == 15 {
+      if calibrationSamples.count == 12 {
         baselineHipY = median(calibrationSamples)
         baselineHipKneeSpan = median(calibrationSpanSamples)
         phase = "standing"
@@ -300,12 +317,24 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     let kneeWidth = abs(leftKneePoint.x - rightKneePoint.x)
     let kneesCaving = ankleWidth > 0.06 && kneeWidth / ankleWidth < 0.62
     let hipKneeRatio = max(0, hipY - kneeMid.y) / max(baselineHipKneeSpan, 0.04)
-    // Hip-to-knee compression keeps front-facing squats accurate, where a
-    // sagittal knee angle is less pronounced than it is from a side view.
-    let hasGoodDepth = dropRatio >= 0.45 && hipKneeRatio <= 0.58 && kneeAngle <= 150 && hipAngle <= 155
-    let isStanding = dropRatio <= 0.24 && hipKneeRatio >= 0.78 && kneeAngle >= 155 && hipAngle >= 150
+    // Front-facing joints can make any one angle noisy, so combine several
+    // independent depth signals instead of requiring every threshold at once.
+    let depthSignals = [
+      dropRatio >= 0.34,
+      hipKneeRatio <= 0.68,
+      kneeAngle <= 158,
+      hipAngle <= 160
+    ].filter { $0 }.count
+    let standingSignals = [
+      dropRatio <= 0.25,
+      hipKneeRatio >= 0.74,
+      kneeAngle >= 150,
+      hipAngle >= 148
+    ].filter { $0 }.count
+    let hasGoodDepth = depthSignals >= 3 && (dropRatio >= 0.28 || hipKneeRatio <= 0.72)
+    let isStanding = standingSignals >= 3 && dropRatio <= 0.32
 
-    if torsoLean > 48 {
+    if torsoLean > 52 {
       emit(hint: "Keep your chest up.", confidence: confidence, visible: true)
       return
     }
@@ -317,7 +346,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     if hasGoodDepth && (phase == "standing" || phase == "descending") {
       repStartedAt = repStartedAt ?? timestamp
       bottomFrames += 1
-      if bottomFrames >= 3 {
+      if bottomFrames >= 2 {
         phase = "bottom"
         sawBottomAt = sawBottomAt ?? timestamp
         emit(hint: kneesCaving ? "Press your knees out, then stand tall." : "Nice depth. Stand tall to lock it in.", confidence: confidence, visible: true)
@@ -328,7 +357,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
-    if (dropRatio > 0.18 || kneeAngle < 148) && phase == "standing" {
+    if (dropRatio > 0.14 || hipKneeRatio < 0.86 || kneeAngle < 152) && phase == "standing" {
       phase = "descending"
       repStartedAt = timestamp
       bottomFrames = 0
@@ -351,15 +380,18 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
-    if phase == "rising" && isStanding, let sawBottomAt {
+    // Vision can occasionally drop the intermediate rising frame. Accept a
+    // direct bottom-to-standing transition while still requiring stable
+    // standing frames and the normal rep timing checks.
+    if (phase == "rising" || phase == "bottom") && isStanding, let sawBottomAt {
       standFrames += 1
-      guard standFrames >= 3 else {
+      guard standFrames >= 2 else {
         emit(hint: "Finish tall.", confidence: confidence, visible: true)
         return
       }
 
       let repElapsed = repStartedAt.map { timestamp - $0 } ?? 0
-      let canCount = repElapsed >= 0.7 && timestamp - sawBottomAt >= 0.25 && timestamp - lastCountAt >= 0.7
+      let canCount = repElapsed >= 0.6 && timestamp - sawBottomAt >= 0.18 && timestamp - lastCountAt >= 0.6
       if canCount {
         count = min(targetSquats, count + 1)
         lastCountAt = timestamp
@@ -414,7 +446,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   }
 
   private func updateLandmarks(_ points: [(String, VNHumanBodyPoseObservation.JointName, VNRecognizedPoint)]) {
-    let smoothing: CGFloat = 0.38
+    let smoothing: CGFloat = 0.5
     var landmarks: [String: [String: Any]] = [:]
 
     for (name, joint, recognizedPoint) in points {

@@ -18,7 +18,6 @@
       },
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.bootyblock.app",
           "group.com.bootyblock.app"
         ]
       }
@@ -111,6 +110,12 @@
         "projectId": "80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
       }
     },
-    "owner": "russelllobo"
+    "owner": "russelllobo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
+    }
   }
 }

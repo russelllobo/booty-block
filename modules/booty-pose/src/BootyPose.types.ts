@@ -3,6 +3,10 @@ export type PosePhase = 'calibrating' | 'standing' | 'descending' | 'bottom' | '
 export type PoseLandmarkName =
   | 'leftShoulder'
   | 'rightShoulder'
+  | 'leftElbow'
+  | 'rightElbow'
+  | 'leftWrist'
+  | 'rightWrist'
   | 'leftHip'
   | 'rightHip'
   | 'leftKnee'
@@ -26,16 +30,16 @@ export type PoseMetrics = {
 };
 
 export type PoseUpdateEvent = {
-  count: number;
-  target: number;
-  phase: PosePhase;
-  confidence: number;
-  visible: boolean;
-  hint: string;
-  landmarks: PoseLandmarks;
-  metrics: PoseMetrics;
-  frameWidth: number;
-  frameHeight: number;
+  count?: number;
+  target?: number;
+  phase?: PosePhase;
+  confidence?: number;
+  visible?: boolean;
+  hint?: string;
+  landmarks?: PoseLandmarks;
+  metrics?: Partial<PoseMetrics>;
+  frameWidth?: number;
+  frameHeight?: number;
 };
 
 export type SessionCompleteEvent = {

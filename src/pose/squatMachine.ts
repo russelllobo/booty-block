@@ -32,15 +32,15 @@ type MachineInternals = SquatState & {
 };
 
 const calibrationCount = 12;
-const lowConfidence = 0.55;
-const bottomDelta = 0.12;
-const standDelta = 0.05;
-const minRepMs = 700;
-const bottomKneeAngle = 108;
-const standingKneeAngle = 158;
-const descendingKneeAngle = 148;
-const standingHipAngle = 155;
-const maximumTorsoLean = 48;
+const lowConfidence = 0.42;
+const bottomDelta = 0.1;
+const standDelta = 0.055;
+const minRepMs = 600;
+const bottomKneeAngle = 125;
+const standingKneeAngle = 152;
+const descendingKneeAngle = 150;
+const standingHipAngle = 148;
+const maximumTorsoLean = 52;
 const stableFrames = 2;
 
 function hipDrop(sample: PoseSample, baseline: number | null) {
@@ -121,8 +121,18 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
   const kneeAngle = sample.kneeAngle ?? (drop > bottomDelta ? bottomKneeAngle : standingKneeAngle);
   const hipAngle = sample.hipAngle ?? (drop > bottomDelta ? 110 : standingHipAngle);
   const torsoLean = sample.torsoLean ?? 0;
-  const hasGoodDepth = drop > bottomDelta && kneeAngle <= bottomKneeAngle && hipAngle <= 135;
-  const isStanding = drop <= standDelta && kneeAngle >= standingKneeAngle && hipAngle >= standingHipAngle;
+  const depthSignals = [
+    drop >= bottomDelta,
+    kneeAngle <= bottomKneeAngle,
+    hipAngle <= 145,
+  ].filter(Boolean).length;
+  const standingSignals = [
+    drop <= standDelta,
+    kneeAngle >= standingKneeAngle,
+    hipAngle >= standingHipAngle,
+  ].filter(Boolean).length;
+  const hasGoodDepth = depthSignals >= 2 && drop >= bottomDelta * 0.8;
+  const isStanding = standingSignals >= 2 && drop <= standDelta * 1.5;
   const torsoIsSafe = torsoLean <= maximumTorsoLean;
 
   if (hasGoodDepth && torsoIsSafe && (state.phase === 'standing' || state.phase === 'descending')) {
@@ -174,7 +184,14 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     };
   }
 
-  if (state.phase === 'rising' && isStanding && state.sawBottomAt != null) {
+  // A fast rep or a dropped Vision frame can jump directly from bottom to
+  // standing. Count that path too instead of requiring an intermediate
+  // non-standing "rising" frame.
+  if (
+    (state.phase === 'rising' || state.phase === 'bottom') &&
+    isStanding &&
+    state.sawBottomAt != null
+  ) {
     const standFrames = state.standFrames + 1;
     if (standFrames < stableFrames) {
       return {

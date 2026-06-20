@@ -14,12 +14,17 @@ type UnlockSession = {
 type BootyblockState = {
   hydrated: boolean;
   onboardingComplete: boolean;
+  profileName: string;
+  dailyScreenTimeHours: number;
+  dailyScreenTimeGoalHours: number;
   screenTimeStatus: ScreenTimeStatus;
   selectedAppsConfigured: boolean;
   selectedAppsLabel: string;
   requestedMinutes: number;
   activeUnlock: UnlockSession | null;
   completeOnboarding: () => Promise<void>;
+  setProfileName: (name: string) => void;
+  setUsageTargets: (currentHours: number, goalHours: number) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<void>;
   setRequestedMinutes: (minutes: number) => void;
@@ -35,6 +40,9 @@ const BootyblockContext = createContext<BootyblockState | null>(null);
 function defaultPayload() {
   return {
     onboardingComplete: false,
+    profileName: '',
+    dailyScreenTimeHours: 4,
+    dailyScreenTimeGoalHours: 3,
     screenTimeStatus: screenTimeService.getAuthorizationStatus(),
     selectedAppsConfigured: false,
     requestedMinutes: 10,
@@ -69,6 +77,18 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
   const completeOnboarding = useCallback(async () => {
     setPayload((current) => ({ ...current, onboardingComplete: true }));
+  }, []);
+
+  const setProfileName = useCallback((name: string) => {
+    setPayload((current) => ({ ...current, profileName: name.trim() }));
+  }, []);
+
+  const setUsageTargets = useCallback((currentHours: number, goalHours: number) => {
+    setPayload((current) => ({
+      ...current,
+      dailyScreenTimeHours: currentHours,
+      dailyScreenTimeGoalHours: goalHours,
+    }));
   }, []);
 
   const requestScreenTime = useCallback(async () => {
@@ -120,6 +140,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       ...payload,
       selectedAppsLabel: payload.selectedAppsConfigured ? selectedAppPlaceholders.join(', ') : 'No apps selected yet',
       completeOnboarding,
+      setProfileName,
+      setUsageTargets,
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,
@@ -131,6 +153,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       hydrated,
       payload,
       completeOnboarding,
+      setProfileName,
+      setUsageTargets,
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,

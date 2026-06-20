@@ -19,6 +19,10 @@ type PoseOverlayProps = {
 
 const connections: [PoseLandmarkName, PoseLandmarkName][] = [
   ['leftShoulder', 'rightShoulder'],
+  ['leftShoulder', 'leftElbow'],
+  ['leftElbow', 'leftWrist'],
+  ['rightShoulder', 'rightElbow'],
+  ['rightElbow', 'rightWrist'],
   ['leftShoulder', 'leftHip'],
   ['rightShoulder', 'rightHip'],
   ['leftHip', 'rightHip'],
@@ -48,7 +52,7 @@ export function PoseOverlay({
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`} preserveAspectRatio="xMidYMid slice">
+      <Svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`} preserveAspectRatio="xMidYMid meet">
         {connections.map(([fromName, toName]) => {
           const from = landmarks[fromName];
           const to = landmarks[toName];

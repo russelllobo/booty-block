@@ -15,10 +15,14 @@ export default function RootLayout() {
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="index" />
-            <Stack.Screen name="onboarding/index" />
-            <Stack.Screen name="onboarding/permissions" />
-            <Stack.Screen name="onboarding/apps" />
-            <Stack.Screen name="onboarding/calibration" />
+            <Stack.Screen name="onboarding/index" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/permissions" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/quiz" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/usage" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/insights" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/screentime" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/apps" options={{ animation: 'none' }} />
+            <Stack.Screen name="onboarding/calibration" options={{ animation: 'none' }} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="session" />
             <Stack.Screen name="success" />

@@ -27,6 +27,10 @@ const emptyMetrics: PoseMetrics = {
   depth: 0,
 };
 
+function finiteNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 function initialPoseState(target: number): PoseSessionState {
   return {
     ...publicSquatState(createSquatMachine(target)),
@@ -52,17 +56,26 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
 
     if (nativeAvailable) {
       const updateSub = BootyPoseModule.addListener('poseUpdate', (event) => {
-        setState({
-          count: event.count,
-          target: event.target,
-          phase: event.phase,
-          confidence: event.confidence,
-          visible: event.visible,
-          hint: event.hint,
-          landmarks: event.landmarks,
-          metrics: event.metrics,
-          frameWidth: event.frameWidth,
-          frameHeight: event.frameHeight,
+        setState((previous) => {
+          const metrics = event.metrics ?? previous.metrics ?? emptyMetrics;
+
+          return {
+            count: finiteNumber(event.count, previous.count),
+            target: finiteNumber(event.target, previous.target),
+            phase: event.phase ?? previous.phase,
+            confidence: finiteNumber(event.confidence, previous.confidence),
+            visible: event.visible ?? previous.visible,
+            hint: event.hint ?? previous.hint,
+            landmarks: event.landmarks ?? previous.landmarks ?? {},
+            metrics: {
+              kneeAngle: finiteNumber(metrics.kneeAngle, previous.metrics.kneeAngle),
+              hipAngle: finiteNumber(metrics.hipAngle, previous.metrics.hipAngle),
+              torsoLean: finiteNumber(metrics.torsoLean, previous.metrics.torsoLean),
+              depth: finiteNumber(metrics.depth, previous.metrics.depth),
+            },
+            frameWidth: finiteNumber(event.frameWidth, previous.frameWidth),
+            frameHeight: finiteNumber(event.frameHeight, previous.frameHeight),
+          };
         });
       });
       void BootyPoseModule.startSessionAsync(target);

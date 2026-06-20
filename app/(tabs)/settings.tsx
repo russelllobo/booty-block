@@ -1,6 +1,8 @@
+import * as Updates from 'expo-updates';
 import { router } from 'expo-router';
-import { AppWindow, Camera, RotateCcw, ShieldCheck } from 'lucide-react-native';
-import { Text, View } from 'react-native';
+import { AppWindow, Camera, Download, RotateCcw, ShieldCheck } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -11,6 +13,36 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Settings() {
   const { screenTimeStatus, selectedAppsConfigured, selectedAppsLabel, resetLocalDemo } = useBootyblock();
+  const [checkingForUpdate, setCheckingForUpdate] = useState(false);
+
+  const checkForUpdate = async () => {
+    if (!Updates.isEnabled) {
+      Alert.alert(
+        'Updates unavailable',
+        'This development build uses Metro reloads. Install the preview build once to use one-tap updates.',
+      );
+      return;
+    }
+
+    setCheckingForUpdate(true);
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert('Up to date', 'You already have the latest published version.');
+        return;
+      }
+
+      await Updates.fetchUpdateAsync();
+      Alert.alert('Update ready', 'Restart now to apply it?', [
+        { text: 'Later', style: 'cancel' },
+        { text: 'Restart', onPress: () => void Updates.reloadAsync() },
+      ]);
+    } catch {
+      Alert.alert('Update failed', 'Could not check for an update. Check your connection and try again.');
+    } finally {
+      setCheckingForUpdate(false);
+    }
+  };
 
   return (
     <Screen>
@@ -35,6 +67,16 @@ export default function Settings() {
 
         <SectionPanel title="Camera calibration" subtitle="Re-run the setup tips if squat counting feels off.">
           <Button label="Open calibration" icon={Camera} variant="secondary" onPress={() => router.push('/onboarding/calibration')} />
+        </SectionPanel>
+
+        <SectionPanel title="App updates" subtitle="Download UI and JavaScript fixes without reinstalling the app.">
+          <Button
+            label="Check for update"
+            icon={Download}
+            variant="secondary"
+            loading={checkingForUpdate}
+            onPress={() => void checkForUpdate()}
+          />
         </SectionPanel>
 
         <SectionPanel title="Local reset" subtitle="Clears onboarding and demo state on this device only.">
