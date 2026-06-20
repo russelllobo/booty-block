@@ -5,7 +5,6 @@ import {
   Easing,
   LayoutChangeEvent,
   Pressable,
-  Text,
   View,
 } from 'react-native';
 
@@ -80,10 +79,6 @@ export function OnboardingProgress({ step, onBack }: OnboardingProgressProps) {
           }}
         />
       </View>
-
-      <Text className="text-xs font-black text-raspberry">
-        {step} of {ONBOARDING_TOTAL}
-      </Text>
     </View>
   );
 }

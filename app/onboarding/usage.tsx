@@ -73,12 +73,25 @@ function TimeSlider({
 
   return (
     <View
-      className="rounded-[30px] border border-white/80 bg-white/75 px-5 pb-5 pt-6"
+      className="rounded-[32px] border border-white/80 bg-white/80 px-6 pb-6 pt-7"
       style={shadow}
     >
-      <View className="mb-4 flex-row items-end justify-between">
-        <Text className="text-sm font-bold text-mink">Drag to choose</Text>
-        <Text className="text-[44px] font-black leading-[48px] tracking-[-1.5px]" style={{ color: accent }}>
+      <View className="items-center">
+        <View
+          className="mb-3 rounded-full px-3.5 py-1"
+          style={{ backgroundColor: tone === 'pink' ? colors.petal : colors.mint }}
+        >
+          <Text
+            className="text-[11px] font-black uppercase tracking-[1.6px]"
+            style={{ color: accent }}
+          >
+            Drag to choose
+          </Text>
+        </View>
+        <Text
+          className="text-[54px] font-black leading-[56px] tracking-[-2px]"
+          style={{ color: accent }}
+        >
           {formatHours(value)}
         </Text>
       </View>
@@ -104,9 +117,9 @@ function TimeSlider({
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(event) => updateFromPosition(event.nativeEvent.locationX)}
         onResponderMove={(event) => updateFromPosition(event.nativeEvent.locationX)}
-        className="h-12 justify-center"
+        className="mt-6 h-12 justify-center"
       >
-        <View className="h-2 overflow-hidden rounded-full bg-petal">
+        <View className="h-2.5 overflow-hidden rounded-full bg-petal">
           <View
             className="h-full rounded-full"
             style={{ width: `${progress * 100}%`, backgroundColor: accent }}
@@ -125,7 +138,7 @@ function TimeSlider({
         />
       </View>
 
-      <View className="flex-row justify-between px-1">
+      <View className="mt-2.5 flex-row justify-between px-1">
         <Text className="text-xs font-black text-mink">30m</Text>
         <Text className="text-xs font-black text-mink">{formatHours(maximumValue)}</Text>
       </View>
@@ -142,7 +155,7 @@ export default function Usage() {
   const [goalHours, setGoalHours] = useState(
     Math.min(dailyScreenTimeGoalHours, dailyScreenTimeHours),
   );
-  const artworkHeight = Math.min(235, Math.max(175, height * 0.24));
+  const artworkHeight = Math.min(205, Math.max(150, height * 0.2));
   const direction = useStepDirection(step);
 
   const isGoal = step === 2;
@@ -189,10 +202,10 @@ export default function Usage() {
             </Text>
           </View>
 
-          <View className="flex-1 justify-center py-5">
+          <View className="items-center pt-5">
             <View
               className="relative items-center justify-center overflow-hidden rounded-[36px] border border-white/80"
-              style={[{ height: artworkHeight }, shadow]}
+              style={[{ height: artworkHeight, width: '100%' }, shadow]}
             >
               <LinearGradient
                 colors={
@@ -230,14 +243,16 @@ export default function Usage() {
             </View>
           </View>
 
-          <TimeSlider
-            value={isGoal ? goalHours : currentHours}
-            maximumValue={isGoal ? goalMaximum : MAX_HOURS}
-            onChange={isGoal ? setGoalHours : setCurrentHours}
-            tone={isGoal ? 'mint' : 'pink'}
-          />
+          <View className="flex-1 justify-center py-4">
+            <TimeSlider
+              value={isGoal ? goalHours : currentHours}
+              maximumValue={isGoal ? goalMaximum : MAX_HOURS}
+              onChange={isGoal ? setGoalHours : setCurrentHours}
+              tone={isGoal ? 'mint' : 'pink'}
+            />
+          </View>
 
-          <View className="pt-5">
+          <View className="pt-3">
             <Button
               label={isGoal ? 'Build my plan' : 'Continue'}
               onPress={continueFlow}
