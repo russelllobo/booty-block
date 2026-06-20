@@ -1,0 +1,154 @@
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { Text, View } from 'react-native';
+
+type Token = { kind: 'digit'; value: number } | { kind: 'char'; value: string };
+
+function tokenize(input: string): Token[] {
+  return Array.from(input).map((ch) => {
+    if (ch >= '0' && ch <= '9') return { kind: 'digit', value: Number(ch) };
+    return { kind: 'char', value: ch };
+  });
+}
+
+const SPRING = {
+  damping: 18,
+  stiffness: 320,
+  mass: 0.55,
+};
+
+type RollingDigitProps = {
+  value: number;
+  color: string;
+  fontSize: number;
+  fontWeight: '900' | '800' | '700' | '600';
+  letterSpacing?: number;
+};
+
+function RollingDigit({ value, color, fontSize, fontWeight, letterSpacing }: RollingDigitProps) {
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const translateY = useSharedValue(0);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!size) return;
+    const target = -value * size.h;
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      translateY.value = target;
+      return;
+    }
+    translateY.value = withSpring(target, SPRING);
+  }, [value, size, translateY]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  if (!size) {
+    return (
+      <Text
+        onLayout={(event) => {
+          setSize({
+            w: event.nativeEvent.layout.width,
+            h: event.nativeEvent.layout.height,
+          });
+        }}
+        style={{
+          fontSize,
+          fontWeight,
+          color: 'transparent',
+          fontVariant: ['tabular-nums'],
+          letterSpacing,
+          includeFontPadding: false,
+        }}
+      >
+        0
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ width: size.w, height: size.h, overflow: 'hidden' }}>
+      <Animated.View style={animatedStyle}>
+        {Array.from({ length: 10 }, (_, i) => (
+          <View
+            key={i}
+            style={{
+              width: size.w,
+              height: size.h,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize,
+                fontWeight,
+                color,
+                fontVariant: ['tabular-nums'],
+                letterSpacing,
+                includeFontPadding: false,
+              }}
+            >
+              {i}
+            </Text>
+          </View>
+        ))}
+      </Animated.View>
+    </View>
+  );
+}
+
+type RollingNumberProps = {
+  value: string;
+  color: string;
+  fontSize: number;
+  fontWeight?: '900' | '800' | '700' | '600';
+  letterSpacing?: number;
+};
+
+export function RollingNumber({
+  value,
+  color,
+  fontSize,
+  fontWeight = '900',
+  letterSpacing = 0,
+}: RollingNumberProps) {
+  const tokens = tokenize(value);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {tokens.map((token, index) =>
+        token.kind === 'digit' ? (
+          <RollingDigit
+            key={index}
+            value={token.value}
+            color={color}
+            fontSize={fontSize}
+            fontWeight={fontWeight}
+            letterSpacing={letterSpacing}
+          />
+        ) : (
+          <Text
+            key={index}
+            style={{
+              fontSize,
+              fontWeight,
+              color,
+              fontVariant: ['tabular-nums'],
+              letterSpacing,
+              includeFontPadding: false,
+            }}
+          >
+            {token.value}
+          </Text>
+        ),
+      )}
+    </View>
+  );
+}

@@ -18,7 +18,10 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding/index" options={{ animation: 'none' }} />
             <Stack.Screen name="onboarding/permissions" options={{ animation: 'none' }} />
             <Stack.Screen name="onboarding/quiz" options={{ animation: 'none' }} />
-            <Stack.Screen name="onboarding/usage" options={{ animation: 'none' }} />
+            <Stack.Screen
+              name="onboarding/usage"
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
             <Stack.Screen name="onboarding/insights" options={{ animation: 'none' }} />
             <Stack.Screen name="onboarding/screentime" options={{ animation: 'none' }} />
             <Stack.Screen name="onboarding/apps" options={{ animation: 'none' }} />

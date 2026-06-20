@@ -13,6 +13,7 @@ import {
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
+import { RollingNumber } from '../../components/RollingNumber';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
@@ -88,12 +89,13 @@ function TimeSlider({
             Drag to choose
           </Text>
         </View>
-        <Text
-          className="text-[54px] font-black leading-[56px] tracking-[-2px]"
-          style={{ color: accent }}
-        >
-          {formatHours(value)}
-        </Text>
+        <RollingNumber
+          value={formatHours(value)}
+          color={accent}
+          fontSize={54}
+          fontWeight="900"
+          letterSpacing={-2}
+        />
       </View>
 
       <View
