@@ -2,7 +2,6 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
-  Easing,
   LayoutChangeEvent,
   Pressable,
   View,
@@ -11,6 +10,26 @@ import {
 import { colors } from '../constants/theme';
 
 export const ONBOARDING_TOTAL = 11;
+
+let lastStep = 0;
+
+function springToStep(
+  fillWidth: Animated.Value,
+  trackWidth: number,
+  fromStep: number,
+  toStep: number,
+) {
+  const fromPos = (fromStep / ONBOARDING_TOTAL) * trackWidth;
+  const toPos = (toStep / ONBOARDING_TOTAL) * trackWidth;
+  fillWidth.setValue(fromPos);
+  Animated.spring(fillWidth, {
+    toValue: toPos,
+    useNativeDriver: false,
+    stiffness: 150,
+    damping: 18,
+    mass: 0.8,
+  }).start();
+}
 
 type OnboardingProgressProps = {
   step: number;
@@ -23,31 +42,21 @@ export function OnboardingProgress({ step, onBack }: OnboardingProgressProps) {
   const didLayout = useRef(false);
 
   useEffect(() => {
-    if (trackWidth.current > 0) {
-      Animated.spring(fillWidth, {
-        toValue: (step / ONBOARDING_TOTAL) * trackWidth.current,
-        useNativeDriver: false,
-        stiffness: 150,
-        damping: 18,
-        mass: 0.8,
-      }).start();
+    if (didLayout.current && trackWidth.current > 0) {
+      springToStep(fillWidth, trackWidth.current, lastStep, step);
+      lastStep = step;
     }
   }, [step, fillWidth]);
 
   function handleLayout(e: LayoutChangeEvent) {
     const w = e.nativeEvent.layout.width;
     trackWidth.current = w;
-    const target = (step / ONBOARDING_TOTAL) * w;
     if (!didLayout.current) {
       didLayout.current = true;
-      Animated.timing(fillWidth, {
-        toValue: target,
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
+      springToStep(fillWidth, w, lastStep, step);
+      lastStep = step;
     } else {
-      fillWidth.setValue(target);
+      fillWidth.setValue((step / ONBOARDING_TOTAL) * w);
     }
   }
 
