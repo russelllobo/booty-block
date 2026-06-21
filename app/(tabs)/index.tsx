@@ -36,7 +36,12 @@ export default function Home() {
 
   return (
     <Screen>
-      <Header title="Bootyblock" subtitle="Squat first. Scroll after." settings={() => router.push('/(tabs)/settings')} />
+      <Header
+        title="Bootyblock"
+        subtitle="Squat first. Scroll after."
+        logo
+        settings={() => router.push('/(tabs)/settings')}
+      />
 
       <View className="overflow-hidden rounded-[36px] bg-raspberry p-6">
         <View className="flex-row items-start justify-between">

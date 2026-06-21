@@ -35,13 +35,15 @@ const calibrationCount = 12;
 const lowConfidence = 0.42;
 const bottomDelta = 0.1;
 const standDelta = 0.055;
-const minRepMs = 600;
+const minRepMs = 450;
+const minRiseMs = 120;
 const bottomKneeAngle = 125;
 const standingKneeAngle = 152;
 const descendingKneeAngle = 150;
 const standingHipAngle = 148;
 const maximumTorsoLean = 52;
-const stableFrames = 2;
+const bottomStableFrames = 3;
+const standingStableFrames = 2;
 
 function hipDrop(sample: PoseSample, baseline: number | null) {
   if (baseline == null) return 0;
@@ -133,6 +135,13 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
   ].filter(Boolean).length;
   const hasGoodDepth = depthSignals >= 2 && drop >= bottomDelta * 0.8;
   const isStanding = standingSignals >= 2 && drop <= standDelta * 1.5;
+  const isClearlyRising =
+    !hasGoodDepth &&
+    [
+      drop <= bottomDelta * 0.72,
+      kneeAngle >= 145,
+      hipAngle >= 150,
+    ].filter(Boolean).length >= 2;
   const torsoIsSafe = torsoLean <= maximumTorsoLean;
 
   if (hasGoodDepth && torsoIsSafe && (state.phase === 'standing' || state.phase === 'descending')) {
@@ -141,11 +150,15 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
       ...state,
       confidence: sample.confidence,
       visible: true,
-      phase: bottomFrames >= stableFrames ? 'bottom' : 'descending',
-      sawBottomAt: bottomFrames >= stableFrames ? (state.sawBottomAt ?? sample.timestamp) : null,
+      phase: bottomFrames >= bottomStableFrames ? 'bottom' : 'descending',
+      sawBottomAt:
+        bottomFrames >= bottomStableFrames ? (state.sawBottomAt ?? sample.timestamp) : null,
       repStartedAt: state.repStartedAt ?? sample.timestamp,
       bottomFrames,
-      hint: bottomFrames >= stableFrames ? 'Nice depth. Stand tall to lock it in.' : 'Hold that depth.',
+      hint:
+        bottomFrames >= bottomStableFrames
+          ? 'Nice depth. Stand tall to lock it in.'
+          : 'Hold that depth.',
     };
   }
 
@@ -161,7 +174,7 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     };
   }
 
-  if (state.phase === 'bottom' && !isStanding) {
+  if (state.phase === 'bottom' && isClearlyRising && !isStanding) {
     return {
       ...state,
       confidence: sample.confidence,
@@ -193,7 +206,7 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     state.sawBottomAt != null
   ) {
     const standFrames = state.standFrames + 1;
-    if (standFrames < stableFrames) {
+    if (standFrames < standingStableFrames) {
       return {
         ...state,
         confidence: sample.confidence,
@@ -207,7 +220,7 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     const riseElapsed = sample.timestamp - state.sawBottomAt;
     const canCount =
       repElapsed >= minRepMs &&
-      riseElapsed >= 250 &&
+      riseElapsed >= minRiseMs &&
       sample.timestamp - state.lastCountAt >= minRepMs;
     const nextCount = canCount ? Math.min(state.target, state.count + 1) : state.count;
     return {

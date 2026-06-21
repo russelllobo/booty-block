@@ -17,6 +17,8 @@ type PoseOverlayProps = {
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
+const MIN_LANDMARK_CONFIDENCE = 0.35;
+
 const connections: [PoseLandmarkName, PoseLandmarkName][] = [
   ['leftShoulder', 'rightShoulder'],
   ['leftShoulder', 'leftElbow'],
@@ -35,8 +37,34 @@ const connections: [PoseLandmarkName, PoseLandmarkName][] = [
 function overlayColor(phase: PosePhase, visible: boolean) {
   if (!visible) return '#FFD166';
   if (phase === 'bottom' || phase === 'complete') return '#89F38C';
-  if (phase === 'descending' || phase === 'rising') return '#66E3FF';
   return '#FFFFFF';
+}
+
+function connectionPoint(landmarks: PoseLandmarks, name: PoseLandmarkName) {
+  const point = landmarks[name];
+  if (point && point.confidence >= MIN_LANDMARK_CONFIDENCE) return point;
+
+  if (name !== 'leftAnkle' && name !== 'rightAnkle') return undefined;
+
+  const side = name === 'leftAnkle' ? 'left' : 'right';
+  const hip = landmarks[`${side}Hip`];
+  const knee = landmarks[`${side}Knee`];
+  if (
+    !hip ||
+    !knee ||
+    hip.confidence < MIN_LANDMARK_CONFIDENCE ||
+    knee.confidence < MIN_LANDMARK_CONFIDENCE
+  ) {
+    return undefined;
+  }
+
+  // If the foot is outside the frame, continue the thigh's direction to
+  // approximate the shin. SVG clipping makes the line end at the camera edge.
+  return {
+    x: knee.x + (knee.x - hip.x),
+    y: knee.y + (knee.y - hip.y),
+    confidence: Math.min(hip.confidence, knee.confidence),
+  };
 }
 
 export function PoseOverlay({
@@ -54,9 +82,9 @@ export function PoseOverlay({
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>
       <Svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`} preserveAspectRatio="xMidYMid meet">
         {connections.map(([fromName, toName]) => {
-          const from = landmarks[fromName];
-          const to = landmarks[toName];
-          if (!from || !to || from.confidence < 0.35 || to.confidence < 0.35) return null;
+          const from = connectionPoint(landmarks, fromName);
+          const to = connectionPoint(landmarks, toName);
+          if (!from || !to) return null;
 
           return (
             <Line
@@ -66,24 +94,24 @@ export function PoseOverlay({
               x2={to.x * frameWidth}
               y2={(1 - to.y) * frameHeight}
               stroke={color}
-              strokeWidth={5}
+              strokeWidth={8}
               strokeLinecap="round"
-              opacity={0.92}
+              opacity={1}
             />
           );
         })}
 
         {points.map(([name, point]) => {
-          if (!point || point.confidence < 0.35) return null;
+          if (!point || point.confidence < MIN_LANDMARK_CONFIDENCE) return null;
           return (
             <Circle
               key={name}
               cx={point.x * frameWidth}
               cy={(1 - point.y) * frameHeight}
-              r={7}
+              r={9}
               fill={color}
               stroke="#3A1F2C"
-              strokeWidth={2}
+              strokeWidth={3}
             />
           );
         })}

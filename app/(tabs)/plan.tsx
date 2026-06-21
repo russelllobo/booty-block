@@ -60,7 +60,7 @@ export default function Plan() {
         ))}
       </View>
 
-      <SectionPanel title="The rule" subtitle="MVP default is intentionally simple: one minute costs one squat. No confusing points, streaks, or hidden multipliers." />
+      <SectionPanel title="The rule" subtitle="One minute costs one squat. No confusing points, streaks, or hidden multipliers." />
 
       <View className="mt-auto pt-6">
         <Button label={`Start ${target} squats`} icon={Dumbbell} onPress={() => router.push('/session')} />

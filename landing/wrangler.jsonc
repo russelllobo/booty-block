@@ -3,6 +3,9 @@
   "name": "bootyblock-landing",
   "main": "./worker.js",
   "compatibility_date": "2026-06-19",
+  "assets": {
+    "directory": "./public"
+  },
   "observability": {
     "enabled": true
   },

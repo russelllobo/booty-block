@@ -16,14 +16,167 @@ export default {
       return json({ error: 'Method not allowed' }, 405, request);
     }
 
-    return new Response(renderLanding(), {
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        'cache-control': 'public, max-age=120',
-      },
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    const pages = {
+      '/privacy': renderPrivacy,
+      '/support': renderSupport,
+    };
+    const renderPage = pages[pathname];
+
+    if (renderPage) {
+      return html(renderPage(), 200);
+    }
+
+    if (pathname !== '/') {
+      return html(renderNotFound(), 404);
+    }
+
+    return html(renderLanding(), 200, {
+      'cache-control': 'public, max-age=120',
     });
   },
 };
+
+function html(body, status = 200, extraHeaders = {}) {
+  return new Response(body, {
+    status,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'public, max-age=3600',
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'strict-origin-when-cross-origin',
+      ...extraHeaders,
+    },
+  });
+}
+
+function renderPrivacy() {
+  return renderInfoPage({
+    title: 'Privacy Policy',
+    description: 'How Bootyblock handles information in the app and on this website.',
+    content: `
+      <p class="updated">Effective June 21, 2026</p>
+      <p>Bootyblock is designed to keep your workout and app-blocking activity private. This policy explains what information Bootyblock processes and why.</p>
+
+      <h2>Information the app processes</h2>
+      <p>Bootyblock uses the camera to count squats. Camera frames and pose measurements are processed on your device and are not recorded, stored as video, or uploaded to our servers.</p>
+      <p>If you grant Screen Time access, Apple provides Bootyblock with the controls needed to let you choose and temporarily block apps. Your selections are handled through Apple’s Family Controls and Device Activity frameworks. Bootyblock does not receive your browsing history, messages, passwords, or the contents of other apps.</p>
+      <p>Preferences such as onboarding status, goals, selected-app setup status, and earned unlock sessions are stored locally on your device.</p>
+
+      <h2>Website and waitlist information</h2>
+      <p>If you join the waitlist, we collect your email address. We may also store limited technical information sent with the request, such as your browser user agent and referring page, to operate and protect the waitlist.</p>
+
+      <h2>How information is used</h2>
+      <ul>
+        <li>Provide app-blocking, squat-counting, and unlock features.</li>
+        <li>Remember your settings on your device.</li>
+        <li>Send product availability or launch updates if you joined the waitlist.</li>
+        <li>Maintain security, prevent abuse, and troubleshoot the service.</li>
+      </ul>
+
+      <h2>Sharing and service providers</h2>
+      <p>We do not sell your personal information. We use service providers, including Cloudflare for website delivery and Supabase for waitlist storage, only to operate the service. They process information under their own applicable terms and privacy commitments.</p>
+
+      <h2>Retention and deletion</h2>
+      <p>App preferences remain on your device until you reset the app or remove it. Waitlist information is retained while it is needed for launch communications and service administration. You may request deletion of your waitlist information by contacting us.</p>
+
+      <h2>Children</h2>
+      <p>Bootyblock is not directed to children under 13, and we do not knowingly collect personal information from children under 13.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>We may update this policy as Bootyblock evolves. The effective date at the top of this page will show when the latest version took effect.</p>
+
+      <h2>Contact</h2>
+      <p>Questions or privacy requests can be sent to <a href="mailto:russell@russell.systems">russell@russell.systems</a>.</p>
+    `,
+  });
+}
+
+function renderSupport() {
+  return renderInfoPage({
+    title: 'Bootyblock Support',
+    description: 'Help with camera access, Screen Time setup, app selection, and local Bootyblock data.',
+    content: `
+      <p class="updated">We’re here to help.</p>
+      <p>For support, email <a href="mailto:russell@russell.systems?subject=Bootyblock%20support">russell@russell.systems</a>. Include your iPhone model, iOS version, and a short description of what happened. Please do not send passwords or other sensitive information.</p>
+
+      <h2>Camera or squat counting</h2>
+      <p>Open iPhone Settings, find Bootyblock, and confirm Camera access is enabled. Place your phone where your full body is visible, use even lighting, and keep the camera steady while completing each squat.</p>
+
+      <h2>Screen Time access</h2>
+      <p>Bootyblock needs Apple’s Screen Time permission to block selected apps. If access was declined, review Bootyblock’s permission in iPhone Settings and try the setup again from Bootyblock Settings.</p>
+
+      <h2>Changing blocked apps</h2>
+      <p>Open Bootyblock, go to Settings, and choose “Change selection” under Blocked apps. Apple’s app picker lets you update the apps and categories managed by Bootyblock.</p>
+
+      <h2>Resetting local data</h2>
+      <p>Use “Reset app data” in Bootyblock Settings to clear onboarding, goals, and local session state from the device. You can also remove local app data by deleting the app.</p>
+
+      <h2>Privacy</h2>
+      <p>Read the <a href="/privacy">Bootyblock Privacy Policy</a> for details about on-device camera processing, Screen Time access, and waitlist information.</p>
+    `,
+  });
+}
+
+function renderNotFound() {
+  return renderInfoPage({
+    title: 'Page not found',
+    description: 'The page you requested does not exist.',
+    content: '<p>That page is not available. Return to the <a href="/">Bootyblock home page</a>.</p>',
+  });
+}
+
+function renderInfoPage({ title, description, content }) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Bootyblock</title>
+  <meta name="description" content="${description}">
+  <meta name="theme-color" content="#fff1f6">
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <style>
+    :root { color-scheme: light; --ink:#29101b; --muted:#805c6a; --line:#ffd0e3; --accent:#e91e73; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:#fff7fa; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    a { color:#af1555; font-weight:700; }
+    .shell { width:min(100% - 2rem, 48rem); margin:0 auto; }
+    header { padding:1.5rem 0; border-bottom:1px solid var(--line); }
+    .brand { display:inline-flex; align-items:center; gap:.65rem; color:var(--ink); font-size:1.18rem; font-weight:850; text-decoration:none; }
+    .brand img { width:2rem; height:2rem; object-fit:contain; }
+    main { padding:clamp(3rem,8vw,6rem) 0; }
+    article { padding:clamp(1.5rem,5vw,3.5rem); border:1px solid #ffe0ec; border-radius:1.5rem; background:white; box-shadow:0 1.5rem 4rem rgba(175,21,85,.07); }
+    h1 { margin:0; font-size:clamp(2.4rem,7vw,4.25rem); line-height:1; letter-spacing:-.045em; }
+    h2 { margin:2.25rem 0 .65rem; font-size:1.3rem; line-height:1.25; }
+    p, li { color:#573343; font-size:1rem; line-height:1.72; }
+    p { margin:.75rem 0; }
+    ul { padding-left:1.25rem; }
+    .updated { margin:1rem 0 1.75rem; color:var(--muted); font-weight:700; }
+    footer { display:flex; flex-wrap:wrap; gap:1rem 1.5rem; padding:0 0 3rem; color:var(--muted); font-size:.9rem; }
+    footer a { color:inherit; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell">
+      <a class="brand" href="/"><img src="/logo.png" alt="" width="87" height="128"><span>Bootyblock</span></a>
+    </div>
+  </header>
+  <main class="shell">
+    <article>
+      <h1>${title}</h1>
+      ${content}
+    </article>
+  </main>
+  <footer class="shell">
+    <span>© 2026 Bootyblock</span>
+    <a href="/privacy">Privacy</a>
+    <a href="/support">Support</a>
+  </footer>
+</body>
+</html>`;
+}
 
 async function handleWaitlist(request, env) {
   if (request.method !== 'POST') {
@@ -118,6 +271,7 @@ function renderLanding() {
   <meta property="og:description" content="Block your distracting apps. Unlock them with squats.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#fff1f6">
+  <link rel="icon" href="/favicon.png" type="image/png">
   <style>
     :root {
       color-scheme: light;
@@ -187,13 +341,8 @@ function renderLanding() {
     .mark {
       width: 2.35rem;
       height: 2.35rem;
-      display: grid;
-      place-items: center;
-      border-radius: .58rem;
-      background: linear-gradient(145deg, var(--pink), var(--accent));
-      color: white;
-      box-shadow: 0 1rem 2rem rgba(233, 30, 115, .24);
-      font-size: 1.35rem;
+      object-fit: contain;
+      filter: drop-shadow(0 .65rem .8rem rgba(175, 21, 85, .2));
     }
 
     h1 {
@@ -286,6 +435,19 @@ function renderLanding() {
     .follow:hover {
       color: var(--ink);
       transform: translateY(-1px);
+    }
+
+    .site-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .7rem 1.1rem;
+      margin-top: 1.4rem;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .site-links a {
+      text-underline-offset: .2rem;
     }
 
     .visual {
@@ -426,7 +588,7 @@ function renderLanding() {
     <section class="hero" aria-labelledby="headline">
       <div class="copy">
         <div class="brand" aria-label="Bootyblock">
-          <div class="mark" aria-hidden="true">🍑</div>
+          <img class="mark" src="/logo.png" alt="" width="87" height="128">
           <span>Bootyblock</span>
         </div>
         <h1 id="headline">App blocks with a squat tax</h1>
@@ -437,7 +599,11 @@ function renderLanding() {
           <button type="submit">Join waitlist</button>
         </form>
         <p class="form-note" id="form-note" role="status" aria-live="polite"></p>
-        <a class="follow" href="https://x.com/bootyblockapp" rel="noreferrer" target="_blank">Follow for updates ↗</a>
+        <a class="follow" href="https://www.tiktok.com/@booty.block" rel="noreferrer" target="_blank">Follow on TikTok ↗</a>
+        <nav class="site-links" aria-label="Legal and support">
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/support">Support</a>
+        </nav>
       </div>
 
       <div class="visual" aria-hidden="true">

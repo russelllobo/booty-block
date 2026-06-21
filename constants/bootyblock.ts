@@ -7,11 +7,9 @@ export const MINUTES_TO_SQUATS = 1;
 
 export const minuteOptions = [5, 10, 15, 20, 30] as const;
 
-export const selectedAppPlaceholders = ['TikTok', 'Instagram', 'X', 'YouTube Shorts'];
-
 export const entitlementBundleIds = [
   'com.bootyblock.app',
-  'com.bootyblock.app.ActivityMonitor',
+  'com.bootyblock.app.ActivityMonitorExtension',
   'com.bootyblock.app.ShieldAction',
   'com.bootyblock.app.ShieldConfiguration',
 ];

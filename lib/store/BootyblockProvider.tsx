@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { MINUTES_TO_SQUATS, selectedAppPlaceholders } from '../../constants/bootyblock';
-import { screenTimeService, ScreenTimeStatus } from '../services/screenTime';
+import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
+import {
+  screenTimeService,
+  ScreenTimeSelectionSummary,
+  ScreenTimeStatus,
+} from '../services/screenTime';
 
 type UnlockSession = {
   minutes: number;
@@ -19,6 +23,7 @@ type BootyblockState = {
   dailyScreenTimeGoalHours: number;
   screenTimeStatus: ScreenTimeStatus;
   selectedAppsConfigured: boolean;
+  selectionSummary: ScreenTimeSelectionSummary | null;
   selectedAppsLabel: string;
   requestedMinutes: number;
   activeUnlock: UnlockSession | null;
@@ -26,11 +31,11 @@ type BootyblockState = {
   setProfileName: (name: string) => void;
   setUsageTargets: (currentHours: number, goalHours: number) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
-  markSelectionConfigured: () => Promise<void>;
+  markSelectionConfigured: () => Promise<boolean>;
   setRequestedMinutes: (minutes: number) => void;
   grantUnlock: (minutes: number) => Promise<UnlockSession>;
   clearUnlockIfExpired: () => void;
-  resetLocalDemo: () => Promise<void>;
+  resetAppData: () => Promise<void>;
 };
 
 const STORAGE_KEY = 'bootyblock:v1';
@@ -45,6 +50,7 @@ function defaultPayload() {
     dailyScreenTimeGoalHours: 3,
     screenTimeStatus: screenTimeService.getAuthorizationStatus(),
     selectedAppsConfigured: false,
+    selectionSummary: null as ScreenTimeSelectionSummary | null,
     requestedMinutes: 10,
     activeUnlock: null as UnlockSession | null,
   };
@@ -59,9 +65,16 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
         if (!mounted) return;
-        if (raw) {
-          setPayload({ ...defaultPayload(), ...JSON.parse(raw) });
-        }
+        const stored = raw ? { ...defaultPayload(), ...JSON.parse(raw) } : defaultPayload();
+        const selectionSummary = screenTimeService.getSelectionSummary();
+        setPayload({
+          ...stored,
+          screenTimeStatus: screenTimeService.getAuthorizationStatus(),
+          selectedAppsConfigured: screenTimeService.isAvailable()
+            ? Boolean(selectionSummary)
+            : stored.selectedAppsConfigured,
+          selectionSummary: selectionSummary ?? stored.selectionSummary ?? null,
+        });
       })
       .finally(() => mounted && setHydrated(true));
 
@@ -98,9 +111,17 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   const markSelectionConfigured = useCallback(async () => {
+    const selectionSummary = screenTimeService.getSelectionSummary();
+    if (!selectionSummary) return false;
+
     screenTimeService.saveNativeSelectionConfigured();
     await screenTimeService.startAlwaysBlockMonitor();
-    setPayload((current) => ({ ...current, selectedAppsConfigured: true }));
+    setPayload((current) => ({
+      ...current,
+      selectedAppsConfigured: true,
+      selectionSummary,
+    }));
+    return true;
   }, []);
 
   const setRequestedMinutes = useCallback((minutes: number) => {
@@ -128,7 +149,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     });
   }, []);
 
-  const resetLocalDemo = useCallback(async () => {
+  const resetAppData = useCallback(async () => {
+    screenTimeService.resetNativeSetup();
     const fresh = defaultPayload();
     setPayload(fresh);
     await AsyncStorage.removeItem(STORAGE_KEY);
@@ -138,7 +160,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     () => ({
       hydrated,
       ...payload,
-      selectedAppsLabel: payload.selectedAppsConfigured ? selectedAppPlaceholders.join(', ') : 'No apps selected yet',
+      selectedAppsLabel: payload.selectedAppsConfigured
+        ? payload.selectionSummary
+          ? screenTimeService.formatSelectionSummary(payload.selectionSummary)
+          : 'Selected apps configured'
+        : 'No apps or categories selected',
       completeOnboarding,
       setProfileName,
       setUsageTargets,
@@ -147,7 +173,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRequestedMinutes,
       grantUnlock,
       clearUnlockIfExpired,
-      resetLocalDemo,
+      resetAppData,
     }),
     [
       hydrated,
@@ -160,7 +186,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRequestedMinutes,
       grantUnlock,
       clearUnlockIfExpired,
-      resetLocalDemo,
+      resetAppData,
     ],
   );
 

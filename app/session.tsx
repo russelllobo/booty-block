@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
-import { Camera, CheckCircle2, X } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Camera, CheckCircle2, X } from 'lucide-react-native';
 import { useEffect, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -24,6 +24,27 @@ export default function Session() {
     const width = Math.min(screenWidth, Math.max(280, (screenHeight - 180) * 0.75));
     return { width, height: width * (4 / 3) };
   }, [screenHeight, screenWidth]);
+  const instruction = !pose.visible
+    ? 'STEP BACK'
+    : pose.phase === 'calibrating'
+      ? 'STAND TALL'
+      : pose.phase === 'standing'
+        ? 'SQUAT DOWN'
+        : pose.phase === 'descending'
+          ? 'GO LOWER'
+          : pose.phase === 'bottom'
+            ? 'SQUAT DETECTED'
+            : pose.phase === 'rising'
+              ? 'STAND UP'
+              : 'COMPLETE';
+  const instructionColor =
+    pose.phase === 'bottom' || pose.phase === 'complete' ? colors.lime : colors.white;
+  const PhaseIcon =
+    pose.phase === 'bottom' || pose.phase === 'rising'
+      ? ArrowUp
+      : pose.phase === 'complete'
+        ? CheckCircle2
+        : ArrowDown;
 
   useEffect(() => {
     if (pose.count >= target) {
@@ -58,9 +79,34 @@ export default function Session() {
                 frameWidth={pose.frameWidth}
                 frameHeight={pose.frameHeight}
               />
+              <View
+                className="absolute left-3 right-3 top-3 items-center rounded-[24px] border border-white/20 px-3 py-3"
+                pointerEvents="none"
+                style={{ backgroundColor: 'rgba(58, 31, 44, 0.82)' }}
+              >
+                <Text
+                  className="text-center font-black"
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: instructionColor,
+                    fontSize: Math.min(48, Math.max(34, screenWidth * 0.1)),
+                    lineHeight: Math.min(50, Math.max(36, screenWidth * 0.105)),
+                    letterSpacing: -1.5,
+                  }}
+                >
+                  {instruction}
+                </Text>
+                <PhaseIcon
+                  size={78}
+                  strokeWidth={4}
+                  stroke={instructionColor}
+                  style={{ marginTop: 2 }}
+                />
+              </View>
               {!pose.visible && (
                 <View
-                  className="absolute bottom-7 left-5 right-5 top-7 rounded-[28px] border border-dashed border-white/60"
+                  className="absolute bottom-7 left-5 right-5 top-32 rounded-[28px] border-4 border-dashed border-white/80"
                   pointerEvents="none"
                 />
               )}
@@ -111,31 +157,30 @@ export default function Session() {
                 <Text className="text-4xl font-black text-white">{pose.count}</Text>
                 <Text className="ml-1 text-lg font-black text-petal">/{target} squats</Text>
               </View>
-              <View className="h-9 w-9 items-center justify-center rounded-full bg-mint">
-                <CheckCircle2 size={20} stroke={colors.cocoa} />
+              <View
+                className="rounded-2xl px-3 py-2"
+                style={{
+                  backgroundColor:
+                    pose.phase === 'bottom' || pose.phase === 'complete'
+                      ? colors.lime
+                      : 'rgba(255,255,255,0.12)',
+                }}
+              >
+                <Text
+                  className="text-sm font-black"
+                  style={{
+                    color:
+                      pose.phase === 'bottom' || pose.phase === 'complete'
+                        ? colors.cocoa
+                        : colors.white,
+                  }}
+                >
+                  {pose.phase === 'bottom' ? 'SQUAT FOUND' : `${Math.round(pose.confidence * 100)}%`}
+                </Text>
               </View>
             </View>
 
-            <Text className="mt-1 text-sm font-black text-white">{pose.hint}</Text>
-
-            <View className="mt-2 flex-row items-center gap-2">
-              <View className="rounded-full bg-white/10 px-3 py-1.5">
-                <Text className="text-[11px] font-bold uppercase tracking-wider text-petal">
-                  {pose.phase}
-                </Text>
-              </View>
-              <View className="rounded-full bg-white/10 px-3 py-1.5">
-                <Text className="text-[11px] font-bold text-petal">
-                  {Math.round(pose.confidence * 100)}% confidence
-                </Text>
-              </View>
-              {(pose.metrics?.kneeAngle ?? 0) > 0 && (
-                <Text className="ml-auto text-[10px] font-bold text-white/70">
-                  {Math.round(pose.metrics?.kneeAngle ?? 0)}° knee ·{' '}
-                  {Math.round((pose.metrics?.depth ?? 0) * 100)}% depth
-                </Text>
-              )}
-            </View>
+            <Text className="mt-1 text-base font-black text-white">{pose.hint}</Text>
           </View>
         )}
       </View>

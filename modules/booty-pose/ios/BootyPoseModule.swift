@@ -322,8 +322,8 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     let depthSignals = [
       dropRatio >= 0.34,
       hipKneeRatio <= 0.68,
-      kneeAngle <= 158,
-      hipAngle <= 160
+      kneeAngle <= 148,
+      hipAngle <= 152
     ].filter { $0 }.count
     let standingSignals = [
       dropRatio <= 0.25,
@@ -331,8 +331,15 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       kneeAngle >= 150,
       hipAngle >= 148
     ].filter { $0 }.count
-    let hasGoodDepth = depthSignals >= 3 && (dropRatio >= 0.28 || hipKneeRatio <= 0.72)
+    let hasGoodDepth = depthSignals >= 3 && (dropRatio >= 0.3 || hipKneeRatio <= 0.68)
     let isStanding = standingSignals >= 3 && dropRatio <= 0.32
+    let risingSignals = [
+      dropRatio <= 0.25,
+      hipKneeRatio >= 0.76,
+      kneeAngle >= 148,
+      hipAngle >= 150
+    ].filter { $0 }.count
+    let isClearlyRising = !hasGoodDepth && risingSignals >= 2
 
     if torsoLean > 52 {
       emit(hint: "Keep your chest up.", confidence: confidence, visible: true)
@@ -346,7 +353,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     if hasGoodDepth && (phase == "standing" || phase == "descending") {
       repStartedAt = repStartedAt ?? timestamp
       bottomFrames += 1
-      if bottomFrames >= 2 {
+      if bottomFrames >= 3 {
         phase = "bottom"
         sawBottomAt = sawBottomAt ?? timestamp
         emit(hint: kneesCaving ? "Press your knees out, then stand tall." : "Nice depth. Stand tall to lock it in.", confidence: confidence, visible: true)
@@ -365,7 +372,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
-    if phase == "bottom" && !isStanding {
+    if phase == "bottom" && isClearlyRising && !isStanding {
       phase = "rising"
       standFrames = 0
       emit(hint: "Stand tall.", confidence: confidence, visible: true)
@@ -391,7 +398,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       }
 
       let repElapsed = repStartedAt.map { timestamp - $0 } ?? 0
-      let canCount = repElapsed >= 0.6 && timestamp - sawBottomAt >= 0.18 && timestamp - lastCountAt >= 0.6
+      let canCount = repElapsed >= 0.45 && timestamp - sawBottomAt >= 0.12 && timestamp - lastCountAt >= 0.45
       if canCount {
         count = min(targetSquats, count + 1)
         lastCountAt = timestamp

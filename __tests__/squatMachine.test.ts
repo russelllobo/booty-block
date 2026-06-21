@@ -36,6 +36,7 @@ describe('squat state machine', () => {
     state = updateSquatMachine(state, sample(1000, 0.48));
     state = updateSquatMachine(state, sample(1300, 0.56));
     state = updateSquatMachine(state, sample(1400, 0.56));
+    state = updateSquatMachine(state, sample(1500, 0.56));
     state = updateSquatMachine(state, sample(1800, 0.47));
     state = updateSquatMachine(state, sample(2100, 0.4));
     state = updateSquatMachine(state, sample(2200, 0.4));
@@ -77,6 +78,7 @@ describe('squat state machine', () => {
 
     state = updateSquatMachine(state, sample(1000, 0.56));
     state = updateSquatMachine(state, sample(1100, 0.56));
+    state = updateSquatMachine(state, sample(1200, 0.56));
     state = updateSquatMachine(state, sample(1500, 0.47));
     state = updateSquatMachine(state, sample(1800, 0.4));
     state = updateSquatMachine(state, sample(1900, 0.4));
@@ -100,6 +102,7 @@ describe('squat state machine', () => {
     state = updateSquatMachine(state, sample(1000, 0.48, 0.82, true, 145, 150));
     state = updateSquatMachine(state, sample(1250, 0.51, 0.82, true, 123, 142));
     state = updateSquatMachine(state, sample(1400, 0.51, 0.82, true, 123, 142));
+    state = updateSquatMachine(state, sample(1500, 0.51, 0.82, true, 123, 142));
     state = updateSquatMachine(state, sample(1700, 0.47, 0.82, true, 148, 150));
     state = updateSquatMachine(state, sample(1900, 0.4, 0.82, true, 156, 154));
     state = updateSquatMachine(state, sample(2000, 0.4, 0.82, true, 156, 154));
@@ -112,10 +115,39 @@ describe('squat state machine', () => {
 
     state = updateSquatMachine(state, sample(1000, 0.51, 0.9, true, 122, 140));
     state = updateSquatMachine(state, sample(1200, 0.51, 0.9, true, 122, 140));
+    state = updateSquatMachine(state, sample(1300, 0.51, 0.9, true, 122, 140));
     expect(state.phase).toBe('bottom');
 
     state = updateSquatMachine(state, sample(1800, 0.4, 0.9, true, 160, 158));
     state = updateSquatMachine(state, sample(1900, 0.4, 0.9, true, 160, 158));
+
+    expect(state.count).toBe(1);
+    expect(state.phase).toBe('standing');
+  });
+
+  it('stays at the bottom through small tracking movements', () => {
+    let state = calibrate(2);
+
+    state = updateSquatMachine(state, sample(1000, 0.52, 0.9, true, 122, 140));
+    state = updateSquatMachine(state, sample(1100, 0.52, 0.9, true, 122, 140));
+    state = updateSquatMachine(state, sample(1200, 0.52, 0.9, true, 122, 140));
+    expect(state.phase).toBe('bottom');
+
+    state = updateSquatMachine(state, sample(1300, 0.505, 0.9, true, 140, 146));
+
+    expect(state.phase).toBe('bottom');
+    expect(state.count).toBe(0);
+  });
+
+  it('counts a brisk full-range rep', () => {
+    let state = calibrate(2);
+
+    state = updateSquatMachine(state, sample(1000, 0.49, 0.9, true, 142, 148));
+    state = updateSquatMachine(state, sample(1100, 0.53, 0.9, true, 120, 138));
+    state = updateSquatMachine(state, sample(1200, 0.53, 0.9, true, 120, 138));
+    state = updateSquatMachine(state, sample(1300, 0.53, 0.9, true, 120, 138));
+    state = updateSquatMachine(state, sample(1450, 0.4, 0.9, true, 160, 160));
+    state = updateSquatMachine(state, sample(1550, 0.4, 0.9, true, 160, 160));
 
     expect(state.count).toBe(1);
     expect(state.phase).toBe('standing');

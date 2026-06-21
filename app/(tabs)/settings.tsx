@@ -1,7 +1,6 @@
-import * as Updates from 'expo-updates';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { AppWindow, Camera, Download, RotateCcw, ShieldCheck } from 'lucide-react-native';
-import { useState } from 'react';
+import { AppWindow, Camera, FileText, LifeBuoy, RotateCcw, ShieldCheck } from 'lucide-react-native';
 import { Alert, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
@@ -12,41 +11,28 @@ import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Settings() {
-  const { screenTimeStatus, selectedAppsConfigured, selectedAppsLabel, resetLocalDemo } = useBootyblock();
-  const [checkingForUpdate, setCheckingForUpdate] = useState(false);
+  const { screenTimeStatus, selectedAppsConfigured, selectedAppsLabel, resetAppData } = useBootyblock();
 
-  const checkForUpdate = async () => {
-    if (!Updates.isEnabled) {
-      Alert.alert(
-        'Updates unavailable',
-        'This development build uses Metro reloads. Install the preview build once to use one-tap updates.',
-      );
-      return;
-    }
-
-    setCheckingForUpdate(true);
-    try {
-      const result = await Updates.checkForUpdateAsync();
-      if (!result.isAvailable) {
-        Alert.alert('Up to date', 'You already have the latest published version.');
-        return;
-      }
-
-      await Updates.fetchUpdateAsync();
-      Alert.alert('Update ready', 'Restart now to apply it?', [
-        { text: 'Later', style: 'cancel' },
-        { text: 'Restart', onPress: () => void Updates.reloadAsync() },
-      ]);
-    } catch {
-      Alert.alert('Update failed', 'Could not check for an update. Check your connection and try again.');
-    } finally {
-      setCheckingForUpdate(false);
-    }
+  const reset = () => {
+    Alert.alert(
+      'Reset Bootyblock?',
+      'This clears your setup and immediately removes Bootyblock’s app restrictions on this iPhone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            void resetAppData().then(() => router.replace('/onboarding'));
+          },
+        },
+      ],
+    );
   };
 
   return (
     <Screen>
-      <Header title="Settings" subtitle="MVP controls and native setup status." />
+      <Header title="Settings" subtitle="Manage app blocking, calibration, privacy, and support." />
 
       <View className="gap-4">
         <SectionPanel title="Screen Time">
@@ -56,7 +42,7 @@ export default function Settings() {
             </View>
             <View className="flex-1">
               <Text className="text-base font-black text-cocoa">{screenTimeStatus}</Text>
-              <Text className="text-sm font-semibold text-mink">Family Controls entitlement required for distribution.</Text>
+              <Text className="text-sm font-semibold text-mink">Controls access to the apps you choose to block.</Text>
             </View>
           </View>
         </SectionPanel>
@@ -69,18 +55,25 @@ export default function Settings() {
           <Button label="Open calibration" icon={Camera} variant="secondary" onPress={() => router.push('/onboarding/calibration')} />
         </SectionPanel>
 
-        <SectionPanel title="App updates" subtitle="Download UI and JavaScript fixes without reinstalling the app.">
-          <Button
-            label="Check for update"
-            icon={Download}
-            variant="secondary"
-            loading={checkingForUpdate}
-            onPress={() => void checkForUpdate()}
-          />
+        <SectionPanel title="Privacy & support" subtitle="Learn how your data is handled or get help with Bootyblock.">
+          <View className="gap-3">
+            <Button
+              label="Privacy Policy"
+              icon={FileText}
+              variant="secondary"
+              onPress={() => void Linking.openURL('https://bootyblock.app/privacy')}
+            />
+            <Button
+              label="Support"
+              icon={LifeBuoy}
+              variant="secondary"
+              onPress={() => void Linking.openURL('https://bootyblock.app/support')}
+            />
+          </View>
         </SectionPanel>
 
-        <SectionPanel title="Local reset" subtitle="Clears onboarding and demo state on this device only.">
-          <Button label="Reset MVP state" icon={RotateCcw} variant="ghost" onPress={resetLocalDemo} />
+        <SectionPanel title="Reset app data" subtitle="Clears onboarding, goals, and local session state on this device.">
+          <Button label="Reset app data" icon={RotateCcw} variant="ghost" onPress={reset} />
         </SectionPanel>
       </View>
     </Screen>

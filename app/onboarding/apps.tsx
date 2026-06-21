@@ -1,7 +1,8 @@
 import { DeviceActivitySelectionViewPersisted } from 'react-native-device-activity';
 import { router } from 'expo-router';
 import { AppWindow, Check, RotateCcw } from 'lucide-react-native';
-import { Platform, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Platform, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -11,15 +12,33 @@ import { SectionPanel } from '../../components/SectionPanel';
 import { SlidePanel } from '../../components/SlidePanel';
 import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
-import { screenTimeService } from '../../lib/services/screenTime';
+import {
+  screenTimeService,
+  ScreenTimeSelectionSummary,
+} from '../../lib/services/screenTime';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Apps() {
   const { markSelectionConfigured, selectedAppsConfigured, screenTimeStatus } = useBootyblock();
   const nativePickerReady = Platform.OS === 'ios' && screenTimeService.isAvailable() && screenTimeStatus === 'approved';
+  const [selectionSummary, setSelectionSummary] = useState<ScreenTimeSelectionSummary | null>(null);
+  const hasSelection = Boolean(selectionSummary);
+
+  useEffect(() => {
+    if (nativePickerReady) {
+      setSelectionSummary(screenTimeService.getSelectionSummary());
+    }
+  }, [nativePickerReady]);
 
   async function save() {
-    await markSelectionConfigured();
+    const configured = await markSelectionConfigured();
+    if (!configured) {
+      Alert.alert(
+        'Choose at least one app',
+        'Select an app, category, or website in Apple’s picker before continuing.',
+      );
+      return;
+    }
     router.push('/onboarding/calibration');
   }
 
@@ -38,6 +57,20 @@ export default function Apps() {
                 includeEntireCategory
                 headerText="Choose apps for Bootyblock"
                 footerText="You can change this later in Settings."
+                onSelectionChange={(event) => {
+                  const metadata = event.nativeEvent;
+                  const nextSummary = {
+                    applicationCount: metadata.applicationCount,
+                    categoryCount: metadata.categoryCount,
+                    webDomainCount: metadata.webDomainCount,
+                  };
+                  const hasItems =
+                    nextSummary.applicationCount +
+                      nextSummary.categoryCount +
+                      nextSummary.webDomainCount >
+                    0;
+                  setSelectionSummary(hasItems ? nextSummary : null);
+                }}
                 style={{ flex: 1, width: '100%', minHeight: 360 }}
               />
             ) : (
@@ -45,9 +78,9 @@ export default function Apps() {
                 <View className="h-20 w-20 items-center justify-center rounded-full bg-petal">
                   <AppWindow size={34} stroke={colors.raspberry} />
                 </View>
-                <Text className="text-center text-2xl font-black text-cocoa">Native picker waits for iPhone</Text>
+                <Text className="text-center text-2xl font-black text-cocoa">Screen Time access needed</Text>
                 <Text className="text-center text-base font-semibold leading-6 text-mink">
-                  In a custom iOS build with Screen Time approval, Apple’s app picker appears here. This MVP marks the setup so the rest of the flow can be tested now.
+                  Apple’s app picker appears after Screen Time access is approved on a supported iPhone. You can review access and try again from Settings.
                 </Text>
               </View>
             )}
@@ -56,16 +89,33 @@ export default function Apps() {
           <SectionPanel title="Shield behavior" subtitle="Selected apps stay blocked until you earn minutes. The shield button attempts to open Bootyblock; if iOS does not allow it, the shield copy tells users to open Bootyblock manually.">
             <View className="flex-row items-center gap-3">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-mint">
-                {selectedAppsConfigured ? <Check size={20} stroke={colors.cocoa} /> : <RotateCcw size={20} stroke={colors.cocoa} />}
+                {hasSelection ? <Check size={20} stroke={colors.cocoa} /> : <RotateCcw size={20} stroke={colors.cocoa} />}
               </View>
               <Text className="flex-1 text-base font-bold text-cocoa">
-                {selectedAppsConfigured ? 'Selection configured' : 'Selection not saved yet'}
+                {hasSelection
+                  ? screenTimeService.formatSelectionSummary(selectionSummary)
+                  : selectedAppsConfigured
+                    ? 'Update your selection, then save'
+                    : 'Choose at least one app or category'}
               </Text>
             </View>
           </SectionPanel>
 
           <View className="mt-auto pt-6">
-            <Button label="Save and calibrate" icon={Check} onPress={save} />
+            {nativePickerReady ? (
+              <Button
+                label={hasSelection ? 'Save and calibrate' : 'Choose apps above'}
+                icon={Check}
+                disabled={!hasSelection}
+                onPress={save}
+              />
+            ) : (
+              <Button
+                label="Review Screen Time access"
+                icon={AppWindow}
+                onPress={() => router.push('/onboarding/screentime')}
+              />
+            )}
           </View>
         </View>
       </SlidePanel>

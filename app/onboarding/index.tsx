@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { ArrowRight, Dumbbell } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { Text, View, useWindowDimensions } from 'react-native';
 
+import { BrandLogo } from '../../components/BrandLogo';
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { colors, shadow } from '../../constants/theme';
+import { shadow } from '../../constants/theme';
 
 export default function Onboarding() {
   const { height } = useWindowDimensions();
@@ -16,9 +17,7 @@ export default function Onboarding() {
       <SlidePanel>
         <View className="flex-1">
           <View className="flex-row items-center justify-center gap-2 pb-5 pt-1">
-            <View className="h-8 w-8 items-center justify-center rounded-full bg-raspberry">
-              <Dumbbell size={17} stroke={colors.white} strokeWidth={2.8} />
-            </View>
+            <BrandLogo height={42} label="Bootyblock logo" />
             <Text className="text-2xl font-black tracking-[-1px] text-cocoa">Bootyblock</Text>
           </View>
 

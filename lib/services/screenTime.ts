@@ -4,6 +4,11 @@ import * as DeviceActivity from 'react-native-device-activity';
 import { ALWAYS_BLOCK_ACTIVITY, SELECTION_ID, SHIELD_ID, UNLOCK_ACTIVITY } from '../../constants/bootyblock';
 
 export type ScreenTimeStatus = 'unavailable' | 'notDetermined' | 'denied' | 'approved';
+export type ScreenTimeSelectionSummary = {
+  applicationCount: number;
+  categoryCount: number;
+  webDomainCount: number;
+};
 
 const approved = 2;
 const denied = 1;
@@ -29,8 +34,43 @@ function nowComponents(offsetMinutes = 0) {
   };
 }
 
+function selectionCount(summary: ScreenTimeSelectionSummary | null) {
+  if (!summary) return 0;
+  return summary.applicationCount + summary.categoryCount + summary.webDomainCount;
+}
+
+function selectionPart(count: number, singular: string, plural = `${singular}s`) {
+  return count > 0 ? `${count} ${count === 1 ? singular : plural}` : null;
+}
+
 export const screenTimeService = {
   isAvailable,
+
+  getSelectionSummary(): ScreenTimeSelectionSummary | null {
+    if (!isAvailable()) return null;
+    const metadata = DeviceActivity.activitySelectionMetadata({
+      activitySelectionId: SELECTION_ID,
+    });
+    if (!metadata) return null;
+
+    const summary = {
+      applicationCount: metadata.applicationCount ?? 0,
+      categoryCount: metadata.categoryCount ?? 0,
+      webDomainCount: metadata.webDomainCount ?? 0,
+    };
+    return selectionCount(summary) > 0 ? summary : null;
+  },
+
+  formatSelectionSummary(summary: ScreenTimeSelectionSummary | null) {
+    if (!summary) return 'No apps or categories selected';
+    return [
+      selectionPart(summary.applicationCount, 'app'),
+      selectionPart(summary.categoryCount, 'category', 'categories'),
+      selectionPart(summary.webDomainCount, 'website'),
+    ]
+      .filter(Boolean)
+      .join(', ');
+  },
 
   getAuthorizationStatus(): ScreenTimeStatus {
     if (!isAvailable()) return 'unavailable';
@@ -142,5 +182,12 @@ export const screenTimeService = {
       },
       [],
     );
+  },
+
+  resetNativeSetup() {
+    if (!isAvailable()) return;
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY]);
+    DeviceActivity.resetBlocks('bootyblock-reset-app-data');
+    DeviceActivity.userDefaultsClear();
   },
 };
