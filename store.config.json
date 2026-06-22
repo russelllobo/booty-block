@@ -1,0 +1,64 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.0",
+    "release": {
+      "automaticRelease": true
+    },
+    "categories": [
+      "HEALTH_AND_FITNESS",
+      "PRODUCTIVITY"
+    ],
+    "info": {
+      "en-US": {
+        "title": "BootyBlock: Squat to scroll",
+        "subtitle": "Squat first. Scroll after.",
+        "description": "Bootyblock helps you put a little movement between you and your most distracting apps.\n\nChoose the apps and categories you want to block with Apple’s Screen Time controls. When you want a scroll break, pick how many minutes you want to unlock and complete the matching number of squats.\n\nBootyblock uses your iPhone camera to count full-body squat repetitions. Camera frames are processed on your device and are not recorded or uploaded.\n\nFeatures:\n\n- Choose apps and categories with Apple’s native picker\n- Block selected apps until you earn an unlock session\n- Count squats with on-device pose detection\n- Choose unlock sessions from 1 to 60 minutes\n- Automatically restore blocking when earned time ends\n- Recalibrate the camera whenever needed\n\nBootyblock requires Screen Time and Camera access to provide its core features.",
+        "keywords": [
+          "focus",
+          "screen time",
+          "app blocker",
+          "squats",
+          "fitness",
+          "productivity",
+          "digital wellbeing",
+          "habits"
+        ],
+        "releaseNotes": "Initial App Store release.",
+        "promoText": "Turn distracting apps into a reason to move. Choose what to block, earn unlock time with squats, and keep every camera frame on your iPhone.",
+        "marketingUrl": "https://bootyblock.app",
+        "supportUrl": "https://bootyblock.app/support",
+        "privacyPolicyUrl": "https://bootyblock.app/privacy"
+      }
+    },
+    "advisory": {
+      "ageRatingOverride": "NONE",
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "kidsAgeBand": null,
+      "koreaAgeRatingOverride": "NONE",
+      "lootBox": false,
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "unrestrictedWebAccess": false,
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "advertising": false,
+      "ageAssurance": false,
+      "ageRatingOverrideV2": "NONE",
+      "developerAgeRatingInfoUrl": null,
+      "gunsOrOtherWeapons": "NONE",
+      "healthOrWellnessTopics": true,
+      "messagingAndChat": false,
+      "parentalControls": false,
+      "userGeneratedContent": false
+    }
+  }
+}
