@@ -1,3 +1,4 @@
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as DeviceActivity from 'react-native-device-activity';
 
@@ -8,6 +9,22 @@ export type ScreenTimeSelectionSummary = {
   applicationCount: number;
   categoryCount: number;
   webDomainCount: number;
+  applications?: ScreenTimeApplicationMetadata[];
+};
+
+export type ScreenTimeApplicationMetadata = {
+  id: string;
+  displayName?: string;
+  iconDataUri?: string;
+};
+
+type ShieldActionWithUrl = Omit<DeviceActivity.ShieldAction, 'type'> & {
+  type: 'openUrlWithDispatch';
+  url: string;
+};
+
+type ShieldActionsWithUrl = Omit<DeviceActivity.ShieldActions, 'primary'> & {
+  primary: ShieldActionWithUrl;
 };
 
 const approved = 2;
@@ -34,6 +51,8 @@ function nowComponents(offsetMinutes = 0) {
   };
 }
 
+const minimumMonitoringIntervalMinutes = 15;
+
 function selectionCount(summary: ScreenTimeSelectionSummary | null) {
   if (!summary) return 0;
   return summary.applicationCount + summary.categoryCount + summary.webDomainCount;
@@ -57,6 +76,7 @@ export const screenTimeService = {
       applicationCount: metadata.applicationCount ?? 0,
       categoryCount: metadata.categoryCount ?? 0,
       webDomainCount: metadata.webDomainCount ?? 0,
+      applications: metadata.applications ?? [],
     };
     return selectionCount(summary) > 0 ? summary : null;
   },
@@ -81,38 +101,40 @@ export const screenTimeService = {
     if (!isAvailable()) return 'unavailable';
     await DeviceActivity.requestAuthorization('individual');
     const status = await DeviceActivity.pollAuthorizationStatus({ pollIntervalMs: 350, maxAttempts: 8 });
+    if (toStatus(status) === 'approved') {
+      await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: false, allowSound: true },
+      });
+    }
     return toStatus(status);
   },
 
   configureShield() {
     if (!isAvailable()) return;
 
-    DeviceActivity.updateShieldWithId(
-      {
-        title: 'Bootyblock',
-        subtitle: 'Earn your minutes with squats in Bootyblock.',
-        primaryButtonLabel: 'Open Bootyblock',
-        secondaryButtonLabel: 'Stay blocked',
-        iconSystemName: 'figure.strengthtraining.traditional',
-        backgroundBlurStyle: 10,
-        titleColor: { red: 175, green: 21, blue: 85 },
-        subtitleColor: { red: 58, green: 31, blue: 44 },
-        primaryButtonBackgroundColor: { red: 233, green: 30, blue: 115 },
-        primaryButtonLabelColor: { red: 255, green: 255, blue: 255 },
-        secondaryButtonLabelColor: { red: 175, green: 21, blue: 85 },
+    const shieldConfiguration: DeviceActivity.ShieldConfiguration = {
+      title: 'Bootyblock',
+      subtitle: 'Open Bootyblock to choose how many minutes to unlock.',
+      primaryButtonLabel: 'Open Bootyblock',
+      iconSystemName: 'figure.strengthtraining.traditional',
+      backgroundBlurStyle: 10,
+      titleColor: { red: 175, green: 21, blue: 85 },
+      subtitleColor: { red: 58, green: 31, blue: 44 },
+      primaryButtonBackgroundColor: { red: 233, green: 30, blue: 115 },
+      primaryButtonLabelColor: { red: 255, green: 255, blue: 255 },
+    };
+    const shieldActions: ShieldActionsWithUrl = {
+      primary: {
+        behavior: 'close',
+        type: 'openUrlWithDispatch',
+        url: 'bootyblock://unlock',
       },
-      {
-        primary: {
-          behavior: 'defer',
-          actions: [{ type: 'openApp' }],
-        },
-        secondary: {
-          behavior: 'close',
-          actions: [],
-        },
-      },
-      SHIELD_ID,
-    );
+    };
+
+    DeviceActivity.userDefaultsClearWithPrefix('shieldConfigurationForSelection');
+    DeviceActivity.userDefaultsClearWithPrefix('shieldActionsForSelection');
+    DeviceActivity.updateShield(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, 'bootyblock-configure-shield');
+    DeviceActivity.updateShieldWithId(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, SHIELD_ID);
   },
 
   applyDefaultBlock() {
@@ -127,17 +149,15 @@ export const screenTimeService = {
     this.applyDefaultBlock();
   },
 
-  grantUnlock(minutes: number) {
+  async grantUnlock(minutes: number) {
     if (!isAvailable()) return;
 
-    DeviceActivity.unblockSelection({ activitySelectionId: SELECTION_ID }, 'bootyblock-earned-unlock');
-
-    const start = nowComponents(0);
-    const end = nowComponents(minutes);
+    // Only one monitor should be able to mutate the shield during an earned unlock.
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY]);
 
     DeviceActivity.configureActions({
       activityName: UNLOCK_ACTIVITY,
-      callbackName: 'intervalDidEnd',
+      callbackName: 'intervalDidStart',
       actions: [
         {
           type: 'blockSelection',
@@ -147,20 +167,30 @@ export const screenTimeService = {
       ],
     });
 
-    void DeviceActivity.startMonitoring(
+    // DeviceActivity schedules must last at least 15 minutes. Start the monitor
+    // when the earned time expires, then use intervalDidStart to re-apply the
+    // block at that exact moment. This also supports 5- and 10-minute unlocks.
+    await DeviceActivity.startMonitoring(
       UNLOCK_ACTIVITY,
       {
-        intervalStart: start,
-        intervalEnd: end,
+        intervalStart: nowComponents(minutes),
+        intervalEnd: nowComponents(minutes + minimumMonitoringIntervalMinutes),
         repeats: false,
       },
       [],
+    );
+
+    // Arm the automatic re-lock before removing the current shield.
+    DeviceActivity.unblockSelection(
+      { activitySelectionId: SELECTION_ID },
+      'bootyblock-earned-unlock',
     );
   },
 
   async startAlwaysBlockMonitor() {
     if (!isAvailable()) return;
     this.configureShield();
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY]);
     DeviceActivity.configureActions({
       activityName: ALWAYS_BLOCK_ACTIVITY,
       callbackName: 'intervalDidStart',

@@ -1,3 +1,4 @@
+import Slider from '@react-native-community/slider';
 import { router } from 'expo-router';
 import { Dumbbell, Minus, Plus } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
@@ -40,6 +41,30 @@ export default function Plan() {
           </Pressable>
         </View>
         <Text className="text-xl font-black text-raspberry">{target} squats</Text>
+
+        <View className="mt-7 w-full">
+          <Slider
+            accessibilityLabel="Minutes to unblock apps"
+            accessibilityValue={{
+              min: 1,
+              max: 60,
+              now: requestedMinutes,
+              text: `${requestedMinutes} minutes`,
+            }}
+            minimumValue={1}
+            maximumValue={60}
+            step={1}
+            value={requestedMinutes}
+            onValueChange={setRequestedMinutes}
+            minimumTrackTintColor={colors.raspberry}
+            maximumTrackTintColor={colors.petal}
+            thumbTintColor={colors.raspberry}
+          />
+          <View className="mt-1 flex-row justify-between px-1">
+            <Text className="text-xs font-black text-mink">1 min</Text>
+            <Text className="text-xs font-black text-mink">60 min</Text>
+          </View>
+        </View>
       </View>
 
       <View className="my-5 flex-row flex-wrap gap-3">
@@ -60,7 +85,7 @@ export default function Plan() {
         ))}
       </View>
 
-      <SectionPanel title="The rule" subtitle="One minute costs one squat. No confusing points, streaks, or hidden multipliers." />
+      <SectionPanel title="The rule" subtitle="One minute costs one squat. Finish a slot each day to keep your streak alive." />
 
       <View className="mt-auto pt-6">
         <Button label={`Start ${target} squats`} icon={Dumbbell} onPress={() => router.push('/session')} />

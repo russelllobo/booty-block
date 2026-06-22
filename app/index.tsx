@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
@@ -7,11 +8,19 @@ import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
   const { hydrated, onboardingComplete } = useBootyblock();
+  const linkingUrl = Linking.useLinkingURL();
 
   useEffect(() => {
     if (!hydrated) return;
-    router.replace(onboardingComplete ? '/(tabs)' : '/onboarding');
-  }, [hydrated, onboardingComplete]);
+    const openedFromShield = linkingUrl?.startsWith('device-activity://') || linkingUrl?.startsWith('bootyblock://unlock');
+    router.replace(
+      onboardingComplete
+        ? openedFromShield
+          ? '/(tabs)/plan'
+          : '/(tabs)'
+        : '/onboarding',
+    );
+  }, [hydrated, linkingUrl, onboardingComplete]);
 
   if (!hydrated) {
     return (

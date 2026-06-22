@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
-import { Text, View, useWindowDimensions } from 'react-native';
+import { useEffect } from 'react';
+import { Image, Text, View, useWindowDimensions } from 'react-native';
 
 import { BrandLogo } from '../../components/BrandLogo';
 import { Button } from '../../components/Button';
@@ -11,6 +12,13 @@ import { shadow } from '../../constants/theme';
 export default function Onboarding() {
   const { height } = useWindowDimensions();
   const demoHeight = Math.min(410, Math.max(260, height * 0.44));
+
+  useEffect(() => {
+    const source = Image.resolveAssetSource(require('../../assets/onboarding/slide-two.jpg'));
+    if (source?.uri) {
+      void Image.prefetch(source.uri);
+    }
+  }, []);
 
   return (
     <Screen scroll={false}>
@@ -29,7 +37,7 @@ export default function Onboarding() {
           </View>
 
           <View className="flex-1 justify-end pt-5">
-            <Text className="text-center text-[27px] font-black leading-[31px] tracking-[-0.8px] text-cocoa">
+            <Text className="px-10 text-center text-[28px] font-bold leading-[33px] text-cocoa">
               Block your apps until you{' '}
               <Text className="text-raspberry">grow your booty</Text>
             </Text>

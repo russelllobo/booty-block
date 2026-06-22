@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import {
@@ -7,6 +8,7 @@ import {
   ScreenTimeSelectionSummary,
   ScreenTimeStatus,
 } from '../services/screenTime';
+import { calculateCurrentStreak } from '../streak';
 
 type UnlockSession = {
   minutes: number;
@@ -15,10 +17,18 @@ type UnlockSession = {
   endsAt: number;
 };
 
+export type UnlockHistoryEntry = {
+  id: string;
+  minutes: number;
+  squats: number;
+  completedAt: number;
+};
+
 type BootyblockState = {
   hydrated: boolean;
   onboardingComplete: boolean;
   profileName: string;
+  ageRange: string;
   dailyScreenTimeHours: number;
   dailyScreenTimeGoalHours: number;
   screenTimeStatus: ScreenTimeStatus;
@@ -27,8 +37,11 @@ type BootyblockState = {
   selectedAppsLabel: string;
   requestedMinutes: number;
   activeUnlock: UnlockSession | null;
+  unlockHistory: UnlockHistoryEntry[];
+  currentStreak: number;
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
+  setAgeRange: (ageRange: string) => void;
   setUsageTargets: (currentHours: number, goalHours: number) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<boolean>;
@@ -43,16 +56,31 @@ const STORAGE_KEY = 'bootyblock:v1';
 const BootyblockContext = createContext<BootyblockState | null>(null);
 
 function defaultPayload() {
+  const webUiPreview = Platform.OS === 'web';
+  const now = Date.now();
+
   return {
-    onboardingComplete: false,
+    onboardingComplete: webUiPreview,
     profileName: '',
+    ageRange: '18-24',
     dailyScreenTimeHours: 4,
     dailyScreenTimeGoalHours: 3,
-    screenTimeStatus: screenTimeService.getAuthorizationStatus(),
-    selectedAppsConfigured: false,
-    selectionSummary: null as ScreenTimeSelectionSummary | null,
+    screenTimeStatus: webUiPreview ? 'approved' as ScreenTimeStatus : screenTimeService.getAuthorizationStatus(),
+    selectedAppsConfigured: webUiPreview,
+    selectionSummary: webUiPreview
+      ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 }
+      : null as ScreenTimeSelectionSummary | null,
     requestedMinutes: 10,
     activeUnlock: null as UnlockSession | null,
+    unlockHistory: webUiPreview
+      ? ([
+          { id: 'preview-1', minutes: 10, squats: 10, completedAt: now },
+          { id: 'preview-2', minutes: 15, squats: 15, completedAt: now - 86_400_000 },
+          { id: 'preview-3', minutes: 5, squats: 5, completedAt: now - 2 * 86_400_000 },
+          { id: 'preview-4', minutes: 20, squats: 20, completedAt: now - 7 * 86_400_000 },
+          { id: 'preview-5', minutes: 30, squats: 30, completedAt: now - 18 * 86_400_000 },
+        ] satisfies UnlockHistoryEntry[])
+      : ([] as UnlockHistoryEntry[]),
   };
 }
 
@@ -65,15 +93,24 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
         if (!mounted) return;
+        const webUiPreview = Platform.OS === 'web';
         const stored = raw ? { ...defaultPayload(), ...JSON.parse(raw) } : defaultPayload();
         const selectionSummary = screenTimeService.getSelectionSummary();
+        if (screenTimeService.isAvailable()) {
+          screenTimeService.configureShield();
+        }
         setPayload({
           ...stored,
-          screenTimeStatus: screenTimeService.getAuthorizationStatus(),
-          selectedAppsConfigured: screenTimeService.isAvailable()
-            ? Boolean(selectionSummary)
-            : stored.selectedAppsConfigured,
-          selectionSummary: selectionSummary ?? stored.selectionSummary ?? null,
+          onboardingComplete: webUiPreview ? true : stored.onboardingComplete,
+          screenTimeStatus: webUiPreview ? 'approved' : screenTimeService.getAuthorizationStatus(),
+          selectedAppsConfigured: webUiPreview
+            ? true
+            : screenTimeService.isAvailable()
+              ? Boolean(selectionSummary)
+              : stored.selectedAppsConfigured,
+          selectionSummary: webUiPreview
+            ? stored.selectionSummary ?? defaultPayload().selectionSummary
+            : selectionSummary ?? stored.selectionSummary ?? null,
         });
       })
       .finally(() => mounted && setHydrated(true));
@@ -96,6 +133,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload((current) => ({ ...current, profileName: name.trim() }));
   }, []);
 
+  const setAgeRange = useCallback((ageRange: string) => {
+    setPayload((current) => ({ ...current, ageRange }));
+  }, []);
+
   const setUsageTargets = useCallback((currentHours: number, goalHours: number) => {
     setPayload((current) => ({
       ...current,
@@ -111,6 +152,15 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   const markSelectionConfigured = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      setPayload((current) => ({
+        ...current,
+        selectedAppsConfigured: true,
+        selectionSummary: current.selectionSummary ?? defaultPayload().selectionSummary,
+      }));
+      return true;
+    }
+
     const selectionSummary = screenTimeService.getSelectionSummary();
     if (!selectionSummary) return false;
 
@@ -130,14 +180,25 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
   const grantUnlock = useCallback(async (minutes: number) => {
     const squats = minutes * MINUTES_TO_SQUATS;
+    const startedAt = Date.now();
     const session = {
       minutes,
       squats,
-      startedAt: Date.now(),
-      endsAt: Date.now() + minutes * 60_000,
+      startedAt,
+      endsAt: startedAt + minutes * 60_000,
     };
-    screenTimeService.grantUnlock(minutes);
-    setPayload((current) => ({ ...current, activeUnlock: session }));
+    const historyEntry = {
+      id: `${startedAt}-${Math.random().toString(36).slice(2)}`,
+      minutes,
+      squats,
+      completedAt: startedAt,
+    };
+    await screenTimeService.grantUnlock(minutes);
+    setPayload((current) => ({
+      ...current,
+      activeUnlock: session,
+      unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
+    }));
     return session;
   }, []);
 
@@ -165,8 +226,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           ? screenTimeService.formatSelectionSummary(payload.selectionSummary)
           : 'Selected apps configured'
         : 'No apps or categories selected',
+      currentStreak: calculateCurrentStreak(payload.unlockHistory ?? []),
       completeOnboarding,
       setProfileName,
+      setAgeRange,
       setUsageTargets,
       requestScreenTime,
       markSelectionConfigured,
@@ -180,6 +243,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       payload,
       completeOnboarding,
       setProfileName,
+      setAgeRange,
       setUsageTargets,
       requestScreenTime,
       markSelectionConfigured,

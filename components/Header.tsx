@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChevronLeft, Settings } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
@@ -10,9 +11,10 @@ type HeaderProps = {
   back?: () => void;
   settings?: () => void;
   logo?: boolean;
+  rightAccessory?: ReactNode;
 };
 
-export function Header({ title, subtitle, back, settings, logo }: HeaderProps) {
+export function Header({ title, subtitle, back, settings, logo, rightAccessory }: HeaderProps) {
   return (
     <View className="mb-5 flex-row items-center gap-3">
       {back ? (
@@ -27,18 +29,23 @@ export function Header({ title, subtitle, back, settings, logo }: HeaderProps) {
       ) : null}
       {logo ? <BrandLogo height={46} label={`${title} logo`} /> : null}
       <View className="flex-1">
-        <Text className="text-3xl font-black text-cocoa">{title}</Text>
+        <Text className="text-[28px] font-bold leading-[33px] text-cocoa">{title}</Text>
         {subtitle ? <Text className="mt-1 text-base font-semibold text-mink">{subtitle}</Text> : null}
       </View>
-      {settings ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          onPress={settings}
-          className="h-11 w-11 items-center justify-center rounded-full bg-white/70"
-        >
-          <Settings size={22} stroke={colors.cocoa} />
-        </Pressable>
+      {rightAccessory || settings ? (
+        <View className="flex-row items-center gap-2">
+          {rightAccessory}
+          {settings ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+              onPress={settings}
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/70"
+            >
+              <Settings size={22} stroke={colors.cocoa} />
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );

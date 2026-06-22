@@ -2,7 +2,10 @@
   "expo": {
     "name": "Bootyblock",
     "slug": "bootyblock",
-    "scheme": "bootyblock",
+    "scheme": [
+      "bootyblock",
+      "device-activity"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -40,6 +43,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-local-notifications-only",
       [
         "expo-camera",
         {

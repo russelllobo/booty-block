@@ -1,7 +1,9 @@
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -21,15 +23,21 @@ const SPRING = {
   mass: 0.55,
 };
 
+const SMOOTH = {
+  duration: 220,
+  easing: Easing.out(Easing.cubic),
+};
+
 type RollingDigitProps = {
   value: number;
   color: string;
   fontSize: number;
   fontWeight: '900' | '800' | '700' | '600';
   letterSpacing?: number;
+  smooth?: boolean;
 };
 
-function RollingDigit({ value, color, fontSize, fontWeight, letterSpacing }: RollingDigitProps) {
+function RollingDigit({ value, color, fontSize, fontWeight, letterSpacing, smooth }: RollingDigitProps) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const translateY = useSharedValue(0);
   const mountedRef = useRef(false);
@@ -42,8 +50,8 @@ function RollingDigit({ value, color, fontSize, fontWeight, letterSpacing }: Rol
       translateY.value = target;
       return;
     }
-    translateY.value = withSpring(target, SPRING);
-  }, [value, size, translateY]);
+    translateY.value = smooth ? withTiming(target, SMOOTH) : withSpring(target, SPRING);
+  }, [value, size, translateY, smooth]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -110,6 +118,7 @@ type RollingNumberProps = {
   fontSize: number;
   fontWeight?: '900' | '800' | '700' | '600';
   letterSpacing?: number;
+  smooth?: boolean;
 };
 
 export function RollingNumber({
@@ -118,6 +127,7 @@ export function RollingNumber({
   fontSize,
   fontWeight = '900',
   letterSpacing = 0,
+  smooth = false,
 }: RollingNumberProps) {
   const tokens = tokenize(value);
 
@@ -132,6 +142,7 @@ export function RollingNumber({
             fontSize={fontSize}
             fontWeight={fontWeight}
             letterSpacing={letterSpacing}
+            smooth={smooth}
           />
         ) : (
           <Text

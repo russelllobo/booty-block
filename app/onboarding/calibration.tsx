@@ -16,9 +16,10 @@ import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCamer
 export default function Calibration() {
   const { completeOnboarding } = useBootyblock();
   const [permission, requestPermission] = useCameraPermissions();
-  const pose = usePoseSession({ target: 1, active: Boolean(permission?.granted) });
+  const webPreview = Platform.OS === 'web';
+  const pose = usePoseSession({ target: 1, active: !webPreview && Boolean(permission?.granted) });
   const { width } = useWindowDimensions();
-  const calibrationReady = pose.count >= 1;
+  const calibrationReady = webPreview || pose.count >= 1;
   const instruction = !pose.visible
     ? 'STEP BACK'
     : pose.phase === 'calibrating'
@@ -48,7 +49,7 @@ export default function Calibration() {
 
   return (
     <Screen scroll={false}>
-      <OnboardingProgress step={11} onBack={() => router.back()} />
+      <OnboardingProgress step={19} onBack={() => router.back()} />
 
       <SlidePanel>
         <View className="flex-1 pt-3">
@@ -56,13 +57,23 @@ export default function Calibration() {
             <Text className="text-center text-sm font-black uppercase tracking-[2px] text-raspberry">
               Camera setup
             </Text>
-            <Text className="mt-1 text-center text-xl font-black text-cocoa">
+            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-cocoa">
               Step back so your whole body is visible
             </Text>
           </View>
 
           <View className="flex-1 overflow-hidden rounded-[30px] bg-cocoa">
-            {permission?.granted ? (
+            {webPreview ? (
+              <View className="flex-1 items-center justify-center gap-5 p-8">
+                <View className="h-28 w-28 items-center justify-center rounded-[36px] bg-mint">
+                  <CheckCircle2 size={54} stroke={colors.cocoa} strokeWidth={2.6} />
+                </View>
+                <Text className="text-center text-[28px] font-bold leading-[33px] text-white">Browser preview ready</Text>
+                <Text className="text-center text-base font-semibold leading-6 text-petal">
+                  Live squat calibration runs on device. For browser onboarding, you can finish setup now.
+                </Text>
+              </View>
+            ) : permission?.granted ? (
               <>
                 {Platform.OS === 'ios' ? (
                   <BootyPoseCameraView style={StyleSheet.absoluteFill} />
@@ -132,7 +143,7 @@ export default function Calibration() {
             ) : (
               <View className="flex-1 items-center justify-center gap-4 p-8">
                 <Camera size={46} stroke={colors.petal} />
-                <Text className="text-center text-2xl font-black text-white">Camera permission</Text>
+                <Text className="text-center text-[28px] font-bold leading-[33px] text-white">Camera permission</Text>
                 <Text className="text-center text-base font-semibold leading-6 text-petal">
                   The camera feed is for live squat detection only.
                 </Text>
@@ -145,7 +156,7 @@ export default function Calibration() {
             <Button
               label={calibrationReady ? 'Finish setup' : 'Complete one squat'}
               icon={CheckCircle2}
-              disabled={!permission?.granted || !calibrationReady}
+              disabled={!webPreview && (!permission?.granted || !calibrationReady)}
               onPress={finish}
             />
           </View>

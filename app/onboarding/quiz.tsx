@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   BedDouble,
@@ -10,8 +9,6 @@ import {
   Hourglass,
   Medal,
   Smile,
-  Sparkles,
-  User,
   Users,
   Weight,
   X,
@@ -53,6 +50,9 @@ const goals: Goal[] = [
   { label: 'Join challenges & compete', icon: Medal },
 ];
 
+const NAME_INPUT_HEIGHT = 64;
+const FOCUSED_BOTTOM_PADDING = 132;
+
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
     <OnboardingProgress step={step + 1} onBack={back} />
@@ -76,14 +76,12 @@ export default function Quiz() {
   }
 
   function back() {
-    if (step === 2) {
-      setStep(1);
+    if (step > 1) {
+      setStep((current) => current - 1);
     } else {
       router.back();
     }
   }
-
-  const initial = name.trim().charAt(0).toUpperCase();
 
   return (
     <Screen scroll={false}>
@@ -93,116 +91,84 @@ export default function Quiz() {
         {step === 1 ? (
           <KeyboardAvoidingView
             className="flex-1"
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
           >
-            <View className="flex-1 items-center justify-center">
-              <View className="relative">
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{
+                flexGrow: 1,
+                paddingBottom: focused ? FOCUSED_BOTTOM_PADDING : 24,
+              }}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <View className="flex-1">
+                <View className="pt-1">
+                  <Text className="text-[15px] font-bold leading-[19px] text-mink">
+                    First things first,
+                  </Text>
+                  <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
+                    What should we{'\n'}call you?
+                  </Text>
+                </View>
+
                 <View
-                  className="h-24 w-24 rounded-[36px] border border-white/80 bg-white/60 p-[3px]"
+                  className={[
+                    'mt-6 h-16 flex-row items-center gap-4 rounded-full border-2 bg-white px-6',
+                    focused ? 'border-raspberry' : 'border-petal',
+                  ].join(' ')}
                   style={shadow}
                 >
-                  <LinearGradient
-                    colors={[colors.raspberry, colors.bubble, colors.petal]}
-                    className="flex-1 items-center justify-center rounded-[32px]"
-                  >
-                    {initial ? (
-                      <Text className="text-[52px] font-black leading-none text-white">
-                        {initial}
-                      </Text>
-                    ) : (
-                      <User size={40} stroke={colors.white} strokeWidth={2.4} />
-                    )}
-                  </LinearGradient>
+                  <TextInput
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    placeholder="Your name"
+                    placeholderTextColor={colors.mink}
+                    returnKeyType="next"
+                    value={name}
+                    onChangeText={setName}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    onSubmitEditing={() => name.trim() && setStep(2)}
+                    className="h-16 flex-1 text-xl font-bold text-cocoa"
+                    style={{
+                      height: NAME_INPUT_HEIGHT,
+                      includeFontPadding: false,
+                      paddingBottom: 0,
+                      paddingTop: 0,
+                      textAlignVertical: 'center',
+                    }}
+                    selectionColor={colors.raspberry}
+                  />
+
+                  {name.length > 0 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear name"
+                      onPress={() => setName('')}
+                      className="h-8 w-8 items-center justify-center rounded-full bg-petal"
+                    >
+                      <X size={16} stroke={colors.raspberry} strokeWidth={3} />
+                    </Pressable>
+                  ) : (
+                    <View className="h-8 w-8" />
+                  )}
                 </View>
-                <Sparkles
-                  size={20}
-                  stroke={colors.raspberry}
-                  strokeWidth={2}
-                  style={{ position: 'absolute', top: -2, left: -24, opacity: 0.7 }}
-                />
-                <Sparkles
-                  size={15}
-                  stroke={colors.cherry}
-                  strokeWidth={2}
-                  style={{ position: 'absolute', bottom: -2, right: -20, opacity: 0.6 }}
-                />
-              </View>
 
-              <Text className="mt-8 text-lg font-bold text-mink">First things first,</Text>
-              <Text className="mt-2 text-center text-[34px] font-black leading-[39px] tracking-[-1.1px] text-cocoa">
-                What should we{'\n'}call you?
-              </Text>
-              <Text className="mt-3 text-center text-base font-semibold text-mink">
-                We'll cheer you on by name.
-              </Text>
-            </View>
+                <View className="flex-1" />
 
-            <View
-              className={[
-                'h-[82px] flex-row items-center gap-4 rounded-[26px] border-2 bg-white px-5',
-                focused ? 'border-raspberry' : 'border-petal',
-              ].join(' ')}
-              style={shadow}
-            >
-              <View
-                className={[
-                  'h-11 w-11 items-center justify-center rounded-full',
-                  initial ? 'bg-raspberry' : 'bg-petal',
-                ].join(' ')}
-              >
-                <User
-                  size={20}
-                  stroke={initial ? colors.white : colors.raspberry}
-                  strokeWidth={2.6}
-                />
-              </View>
-
-              <View className="flex-1 justify-center">
-                {(focused || name.length > 0) && (
-                  <Text className="mb-0.5 text-xs font-bold uppercase tracking-wider text-mink">
-                    Your name
-                  </Text>
-                )}
-                <TextInput
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  placeholder={focused || name.length > 0 ? '' : 'Your name'}
-                  placeholderTextColor={colors.mink}
-                  returnKeyType="next"
-                  value={name}
-                  onChangeText={setName}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  onSubmitEditing={() => name.trim() && setStep(2)}
-                  className="text-xl font-bold text-cocoa"
-                  selectionColor={colors.raspberry}
-                />
-              </View>
-
-              {name.length > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear name"
-                  onPress={() => setName('')}
-                  className="h-8 w-8 items-center justify-center rounded-full bg-petal"
-                >
-                  <X size={16} stroke={colors.raspberry} strokeWidth={3} />
-                </Pressable>
-              ) : focused ? (
-                <View className="h-8 w-8 items-center justify-center rounded-full border-2 border-petal">
-                  <View className="h-1.5 w-1.5 rounded-full bg-raspberry/60" />
+                <View className="pt-5">
+                  <Button label="Continue" disabled={!name.trim()} onPress={() => setStep(2)} />
                 </View>
-              ) : null}
-            </View>
-
-            <View className="pt-4">
-              <Button label="Continue" disabled={!name.trim()} onPress={() => setStep(2)} />
-            </View>
+              </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         ) : (
           <View className="flex-1">
             <Text className="text-lg font-bold text-mink">So, tell us, {name.trim()},</Text>
-            <Text className="mt-2 text-[32px] font-black leading-[36px] tracking-[-1px] text-cocoa">
+            <Text className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa">
               What goals do you want to achieve using Bootyblock?
             </Text>
             <Text className="mt-2 text-base font-bold text-mink">Choose up to 3</Text>

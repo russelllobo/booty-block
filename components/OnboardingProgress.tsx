@@ -9,7 +9,7 @@ import {
 
 import { colors } from '../constants/theme';
 
-export const ONBOARDING_TOTAL = 11;
+export const ONBOARDING_TOTAL = 19;
 
 let lastStep = 0;
 
@@ -34,9 +34,11 @@ function springToStep(
 type OnboardingProgressProps = {
   step: number;
   onBack?: () => void;
+  showBar?: boolean;
+  dark?: boolean;
 };
 
-export function OnboardingProgress({ step, onBack }: OnboardingProgressProps) {
+export function OnboardingProgress({ step, onBack, showBar = true, dark = false }: OnboardingProgressProps) {
   const trackWidth = useRef(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
   const didLayout = useRef(false);
@@ -67,27 +69,37 @@ export function OnboardingProgress({ step, onBack }: OnboardingProgressProps) {
           accessibilityRole="button"
           accessibilityLabel="Back"
           onPress={onBack}
-          className="h-11 w-11 items-center justify-center rounded-full bg-white/70"
+          className={[
+            'h-11 w-11 items-center justify-center rounded-full',
+            dark ? 'border border-white/25 bg-white/12' : 'bg-white/70',
+          ].join(' ')}
         >
-          <ChevronLeft size={24} stroke={colors.cocoa} strokeWidth={2.4} />
+          <ChevronLeft size={24} stroke={dark ? colors.white : colors.cocoa} strokeWidth={2.4} />
         </Pressable>
       ) : (
         <View className="h-11 w-11" />
       )}
 
-      <View
-        onLayout={handleLayout}
-        className="h-2 flex-1 overflow-hidden rounded-full bg-petal"
-      >
-        <Animated.View
-          style={{
-            height: 8,
-            width: fillWidth,
-            borderRadius: 5,
-            backgroundColor: colors.raspberry,
-          }}
-        />
-      </View>
+      {showBar ? (
+        <View
+          onLayout={handleLayout}
+          className={[
+            'h-2 flex-1 overflow-hidden rounded-full',
+            dark ? 'bg-white/20' : 'bg-petal',
+          ].join(' ')}
+        >
+          <Animated.View
+            style={{
+              height: 8,
+              width: fillWidth,
+              borderRadius: 5,
+              backgroundColor: dark ? colors.bubble : colors.raspberry,
+            }}
+          />
+        </View>
+      ) : (
+        <View className="flex-1" />
+      )}
     </View>
   );
 }

@@ -24,7 +24,7 @@ export default function ScreenTime() {
 
   return (
     <Screen scroll={false}>
-      <OnboardingProgress step={9} onBack={() => router.back()} />
+      <OnboardingProgress step={17} onBack={() => router.back()} />
 
       <SlidePanel>
         <View className="flex-1">
@@ -41,7 +41,7 @@ export default function ScreenTime() {
                 <ShieldAlert size={48} stroke={colors.raspberry} strokeWidth={2.5} />
               )}
             </View>
-            <Text className="text-center text-3xl font-black text-cocoa">
+            <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
               {approved ? 'You’re all set' : 'Screen Time access'}
             </Text>
             <Text className="max-w-[310px] text-center text-base font-semibold leading-6 text-mink">

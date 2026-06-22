@@ -1,0 +1,189 @@
+diff --git a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
+index 414d011..a3ca898 100644
+--- a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
++++ b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
+@@ -16,6 +16,11 @@ export type ActivitySelectionMetadata = {
+     applicationCount: number;
+     categoryCount: number;
+     webDomainCount: number;
++    applications?: {
++        id: string;
++        displayName?: string;
++        iconDataUri?: string;
++    }[];
+     includeEntireCategory: boolean;
+ };
+ export type ActivitySelectionWithMetadata = {
+diff --git a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
+index df7207f..37dcca6 100644
+--- a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
++++ b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
+@@ -30,6 +30,7 @@ const warnFnActivitySelectionWithMetadata = () => {
+         applicationCount: 0,
+         categoryCount: 0,
+         webDomainCount: 0,
++        applications: [],
+         includeEntireCategory: false,
+     };
+ };
+@@ -39,6 +40,7 @@ const warnFnActivitySelectionMetadata = () => {
+         applicationCount: 0,
+         categoryCount: 0,
+         webDomainCount: 0,
++        applications: [],
+         includeEntireCategory: false,
+     };
+ };
+diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+index 8aee1f2..568cd3f 100644
+--- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
++++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
+@@ -5,8 +5,57 @@ import FamilyControls
+ import Foundation
+ import ManagedSettings
+ import ManagedSettingsUI
++import SwiftUI
+ import os
+ 
++@available(iOS 16.0, *)
++@MainActor
++func renderApplicationIconDataUri(applicationToken: ApplicationToken) -> String? {
++  let renderer = ImageRenderer(
++    content: Label(applicationToken)
++      .labelStyle(.iconOnly)
++      .frame(width: 96, height: 96)
++  )
++  renderer.scale = UIScreen.main.scale
++
++  guard let image = renderer.uiImage,
++    let pngData = image.pngData()
++  else {
++    return nil
++  }
++
++  return "data:image/png;base64,\(pngData.base64EncodedString())"
++}
++
++@available(iOS 15.0, *)
++func applicationMetadataPayload(selection: FamilyActivitySelection) -> [[String: String]] {
++  selection.applicationTokens.map { applicationToken in
++    var payload: [String: String] = [
++      "id": "\(applicationToken.hashValue)"
++    ]
++
++    if let displayName = Application(token: applicationToken).localizedDisplayName {
++      payload["displayName"] = displayName
++    }
++
++    if #available(iOS 16.0, *) {
++      if Thread.isMainThread {
++        MainActor.assumeIsolated {
++          payload["iconDataUri"] = renderApplicationIconDataUri(applicationToken: applicationToken)
++        }
++      } else {
++        DispatchQueue.main.sync {
++          MainActor.assumeIsolated {
++            payload["iconDataUri"] = renderApplicationIconDataUri(applicationToken: applicationToken)
++          }
++        }
++      }
++    }
++
++    return payload
++  }
++}
++
+ struct DateComponentsFromJS: ExpoModulesCore.Record {
+   @Field
+   var era: Int?
+@@ -74,6 +123,7 @@ struct ActivitySelectionWithMetadata: ExpoModulesCore.Record {
+     self.applicationCount = activitySelection.applicationTokens.count
+     self.categoryCount = activitySelection.categoryTokens.count
+     self.webdomainCount = activitySelection.webDomainTokens.count
++    self.applications = applicationMetadataPayload(selection: activitySelection)
+ 
+     if #available(iOS 15.2, *) {
+       self.includeEntireCategory = activitySelection.includeEntireCategory
+@@ -91,6 +141,8 @@ struct ActivitySelectionWithMetadata: ExpoModulesCore.Record {
+   @Field
+   var webdomainCount: Int
+   @Field
++  var applications: [[String: String]]
++  @Field
+   var includeEntireCategory: Bool
+ }
+ 
+@@ -106,6 +158,7 @@ struct ActivitySelectionMetadata: ExpoModulesCore.Record {
+     self.applicationCount = activitySelection.applicationTokens.count
+     self.categoryCount = activitySelection.categoryTokens.count
+     self.webdomainCount = activitySelection.webDomainTokens.count
++    self.applications = applicationMetadataPayload(selection: activitySelection)
+     if #available(iOS 15.2, *) {
+       self.includeEntireCategory = activitySelection.includeEntireCategory
+     } else {
+@@ -119,6 +172,8 @@ struct ActivitySelectionMetadata: ExpoModulesCore.Record {
+   @Field
+   var webdomainCount: Int
+   @Field
++  var applications: [[String: String]]
++  @Field
+   var includeEntireCategory: Bool
+ }
+ 
+diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift
+index f37a2ce..6f1d483 100644
+--- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift
++++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift
+@@ -102,13 +102,15 @@ class ReactNativeDeviceActivityViewPersisted: ExpoView {
+           "applicationCount": selection.applicationTokens.count,
+           "categoryCount": selection.categoryTokens.count,
+           "webDomainCount": selection.webDomainTokens.count,
++          "applications": applicationMetadataPayload(selection: selection),
+           "includeEntireCategory": selection.includeEntireCategory
+         ])
+       } else {
+         onSelectionChange([
+           "applicationCount": selection.applicationTokens.count,
+           "categoryCount": selection.categoryTokens.count,
+-          "webDomainCount": selection.webDomainTokens.count
++          "webDomainCount": selection.webDomainTokens.count,
++          "applications": applicationMetadataPayload(selection: selection)
+         ])
+       }
+     }
+diff --git a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
+index da7edd3..017e0b5 100644
+--- a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
++++ b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivity.types.ts
+@@ -27,6 +27,11 @@ export type ActivitySelectionMetadata = {
+   applicationCount: number;
+   categoryCount: number;
+   webDomainCount: number;
++  applications?: {
++    id: string;
++    displayName?: string;
++    iconDataUri?: string;
++  }[];
+   includeEntireCategory: boolean;
+ };
+ 
+diff --git a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivityModule.ts b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivityModule.ts
+index 33738da..691bc7d 100644
+--- a/node_modules/react-native-device-activity/src/ReactNativeDeviceActivityModule.ts
++++ b/node_modules/react-native-device-activity/src/ReactNativeDeviceActivityModule.ts
+@@ -40,6 +40,7 @@ const warnFnActivitySelectionWithMetadata = () => {
+     applicationCount: 0,
+     categoryCount: 0,
+     webDomainCount: 0,
++    applications: [],
+     includeEntireCategory: false,
+   };
+ };
+@@ -51,6 +52,7 @@ const warnFnActivitySelectionMetadata = () => {
+     applicationCount: 0,
+     categoryCount: 0,
+     webDomainCount: 0,
++    applications: [],
+     includeEntireCategory: false,
+   };
+ };

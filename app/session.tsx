@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, Camera, CheckCircle2, X } from 'lucide-react-native';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '../components/Button';
@@ -18,6 +18,7 @@ export default function Session() {
   const target = requestedMinutes * MINUTES_TO_SQUATS;
   const [permission, requestPermission] = useCameraPermissions();
   const pose = usePoseSession({ target, active: Boolean(permission?.granted) });
+  const unlockStarted = useRef(false);
   const progress = useMemo(() => Math.min(1, pose.count / target), [pose.count, target]);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const cameraFrame = useMemo(() => {
@@ -47,9 +48,15 @@ export default function Session() {
         : ArrowDown;
 
   useEffect(() => {
-    if (pose.count >= target) {
-      void grantUnlock(requestedMinutes).then(() => router.replace('/success'));
-    }
+    if (pose.count < target || unlockStarted.current) return;
+
+    unlockStarted.current = true;
+    void grantUnlock(requestedMinutes)
+      .then(() => router.replace('/success'))
+      .catch((error) => {
+        unlockStarted.current = false;
+        console.error('Failed to grant earned unlock:', error);
+      });
   }, [grantUnlock, pose.count, requestedMinutes, target]);
 
   return (
@@ -115,7 +122,7 @@ export default function Session() {
         ) : (
           <View className="absolute inset-0 items-center justify-center bg-cocoa px-8">
             <Camera size={48} stroke={colors.petal} />
-            <Text className="mt-5 text-center text-2xl font-black text-white">Camera required</Text>
+            <Text className="mt-5 text-center text-[28px] font-bold leading-[33px] text-white">Camera required</Text>
             <Text className="mt-2 text-center text-base font-semibold leading-6 text-petal">
               Bootyblock needs the camera to count reps on-device.
             </Text>

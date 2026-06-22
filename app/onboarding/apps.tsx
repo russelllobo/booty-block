@@ -19,9 +19,17 @@ import {
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Apps() {
-  const { markSelectionConfigured, selectedAppsConfigured, screenTimeStatus } = useBootyblock();
+  const {
+    markSelectionConfigured,
+    onboardingComplete,
+    selectedAppsConfigured,
+    screenTimeStatus,
+  } = useBootyblock();
+  const webPreview = Platform.OS === 'web';
   const nativePickerReady = Platform.OS === 'ios' && screenTimeService.isAvailable() && screenTimeStatus === 'approved';
-  const [selectionSummary, setSelectionSummary] = useState<ScreenTimeSelectionSummary | null>(null);
+  const [selectionSummary, setSelectionSummary] = useState<ScreenTimeSelectionSummary | null>(
+    webPreview ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 } : null,
+  );
   const hasSelection = Boolean(selectionSummary);
 
   useEffect(() => {
@@ -39,12 +47,17 @@ export default function Apps() {
       );
       return;
     }
+    if (onboardingComplete) {
+      router.back();
+      return;
+    }
+
     router.push('/onboarding/calibration');
   }
 
   return (
     <Screen>
-      <OnboardingProgress step={10} onBack={() => router.back()} />
+      <OnboardingProgress step={18} onBack={() => router.back()} />
 
       <SlidePanel>
         <View className="flex-1">
@@ -63,6 +76,7 @@ export default function Apps() {
                     applicationCount: metadata.applicationCount,
                     categoryCount: metadata.categoryCount,
                     webDomainCount: metadata.webDomainCount,
+                    applications: metadata.applications ?? [],
                   };
                   const hasItems =
                     nextSummary.applicationCount +
@@ -73,12 +87,29 @@ export default function Apps() {
                 }}
                 style={{ flex: 1, width: '100%', minHeight: 360 }}
               />
+            ) : webPreview ? (
+              <View className="flex-1 justify-center gap-4 p-6">
+                <View className="flex-row flex-wrap justify-center gap-3">
+                  {['TikTok', 'Instagram', 'YouTube'].map((label) => (
+                    <View key={label} className="items-center gap-2">
+                      <View className="h-16 w-16 items-center justify-center rounded-[22px] bg-petal">
+                        <AppWindow size={28} stroke={colors.raspberry} />
+                      </View>
+                      <Text className="text-xs font-black text-cocoa">{label}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">Browser preview selection</Text>
+                <Text className="text-center text-base font-semibold leading-6 text-mink">
+                  The native iOS picker appears on device. In the browser, this preview selection lets you continue through onboarding.
+                </Text>
+              </View>
             ) : (
               <View className="flex-1 items-center justify-center gap-4 p-6">
                 <View className="h-20 w-20 items-center justify-center rounded-full bg-petal">
                   <AppWindow size={34} stroke={colors.raspberry} />
                 </View>
-                <Text className="text-center text-2xl font-black text-cocoa">Screen Time access needed</Text>
+                <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">Screen Time access needed</Text>
                 <Text className="text-center text-base font-semibold leading-6 text-mink">
                   Apple’s app picker appears after Screen Time access is approved on a supported iPhone. You can review access and try again from Settings.
                 </Text>
@@ -102,9 +133,9 @@ export default function Apps() {
           </SectionPanel>
 
           <View className="mt-auto pt-6">
-            {nativePickerReady ? (
+            {nativePickerReady || webPreview ? (
               <Button
-                label={hasSelection ? 'Save and calibrate' : 'Choose apps above'}
+                label={hasSelection ? (onboardingComplete ? 'Save blocked apps' : 'Save and calibrate') : 'Choose apps above'}
                 icon={Check}
                 disabled={!hasSelection}
                 onPress={save}

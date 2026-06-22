@@ -1,15 +1,18 @@
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Clock3, Sparkles, Target } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -32,6 +35,16 @@ function formatHours(value: number) {
   return `${hours}h ${minutes}m`;
 }
 
+function formatHoursFixed(value: number) {
+  const hours = Math.floor(value);
+  const minutes = Math.round((value - hours) * 60);
+  return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+}
+
+function daysPerYear(hoursPerDay: number) {
+  return Math.round((hoursPerDay * 365) / 24);
+}
+
 function UsageHeader({ step, back }: { step: number; back: () => void }) {
   return <OnboardingProgress step={step + 3} onBack={back} />;
 }
@@ -48,24 +61,62 @@ function TimeSlider({
   tone: 'pink' | 'mint';
 }) {
   const lastValue = useRef(value);
+  const lastHapticAt = useRef(0);
   const [trackWidth, setTrackWidth] = useState(0);
   const accent = tone === 'pink' ? colors.raspberry : '#32B764';
   const progress = (value - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
+  const animatedProgress = useSharedValue(progress);
 
-  function update(nextValue: number) {
-    const steppedValue = Math.round(nextValue / SLIDER_STEP) * SLIDER_STEP;
+  useEffect(() => {
+    const syncedProgress = (value - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
+
+    lastValue.current = value;
+    animatedProgress.value = withTiming(syncedProgress, {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [animatedProgress, maximumValue, value]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: trackWidth * animatedProgress.value,
+  }));
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedProgress.value * Math.max(0, trackWidth - 28) }],
+  }));
+
+  function update(nextValue: number, instant = false) {
+    const clampedRawValue = Math.min(maximumValue, Math.max(MIN_HOURS, nextValue));
+    const nextProgress = (clampedRawValue - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
+    const steppedValue = Math.round(clampedRawValue / SLIDER_STEP) * SLIDER_STEP;
     const clampedValue = Math.min(maximumValue, Math.max(MIN_HOURS, steppedValue));
 
-    onChange(clampedValue);
+    if (instant) {
+      animatedProgress.value = nextProgress;
+    } else {
+      animatedProgress.value = withTiming(nextProgress, {
+        duration: 120,
+        easing: Easing.out(Easing.cubic),
+      });
+    }
     if (clampedValue !== lastValue.current) {
       lastValue.current = clampedValue;
-      void Haptics.selectionAsync();
+      onChange(clampedValue);
+
+      const now = Date.now();
+      if (now - lastHapticAt.current > 90) {
+        lastHapticAt.current = now;
+        void Haptics.selectionAsync();
+      }
     }
   }
 
-  function updateFromPosition(position: number) {
+  function updateFromPosition(position: number, instant = false) {
     if (!trackWidth) return;
-    update(MIN_HOURS + (Math.min(trackWidth, Math.max(0, position)) / trackWidth) * (maximumValue - MIN_HOURS));
+    update(
+      MIN_HOURS + (Math.min(trackWidth, Math.max(0, position)) / trackWidth) * (maximumValue - MIN_HOURS),
+      instant,
+    );
   }
 
   function handleTrackLayout(event: LayoutChangeEvent) {
@@ -74,27 +125,17 @@ function TimeSlider({
 
   return (
     <View
-      className="rounded-[32px] border border-white/80 bg-white/80 px-6 pb-6 pt-7"
+      className="rounded-[32px] border border-white/80 bg-white/85 px-6 pb-6 pt-7"
       style={shadow}
     >
       <View className="items-center">
-        <View
-          className="mb-3 rounded-full px-3.5 py-1"
-          style={{ backgroundColor: tone === 'pink' ? colors.petal : colors.mint }}
-        >
-          <Text
-            className="text-[11px] font-black uppercase tracking-[1.6px]"
-            style={{ color: accent }}
-          >
-            Drag to choose
-          </Text>
-        </View>
         <RollingNumber
-          value={formatHours(value)}
+          value={formatHoursFixed(value)}
           color={accent}
-          fontSize={54}
+          fontSize={72}
           fontWeight="900"
-          letterSpacing={-2}
+          letterSpacing={0}
+          smooth
         />
       </View>
 
@@ -117,39 +158,34 @@ function TimeSlider({
         onLayout={handleTrackLayout}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={(event) => updateFromPosition(event.nativeEvent.locationX)}
-        onResponderMove={(event) => updateFromPosition(event.nativeEvent.locationX)}
-        className="mt-6 h-12 justify-center"
+        onResponderGrant={(event) => updateFromPosition(event.nativeEvent.locationX, true)}
+        onResponderMove={(event) => updateFromPosition(event.nativeEvent.locationX, true)}
+        className="mt-5 h-12 justify-center"
       >
         <View className="h-2.5 overflow-hidden rounded-full bg-petal">
-          <View
+          <Animated.View
             className="h-full rounded-full"
-            style={{ width: `${progress * 100}%`, backgroundColor: accent }}
+            style={[fillStyle, { backgroundColor: accent }]}
           />
         </View>
-        <View
+        <Animated.View
           pointerEvents="none"
           className="absolute h-7 w-7 rounded-full border-[5px] border-white"
           style={[
             styles.sliderThumb,
             {
               backgroundColor: accent,
-              left: progress * Math.max(0, trackWidth - 28),
+              left: 0,
             },
+            thumbStyle,
           ]}
         />
-      </View>
-
-      <View className="mt-2.5 flex-row justify-between px-1">
-        <Text className="text-xs font-black text-mink">30m</Text>
-        <Text className="text-xs font-black text-mink">{formatHours(maximumValue)}</Text>
       </View>
     </View>
   );
 }
 
 export default function Usage() {
-  const { height } = useWindowDimensions();
   const { profileName, dailyScreenTimeGoalHours, dailyScreenTimeHours, setUsageTargets } =
     useBootyblock();
   const [step, setStep] = useState(1);
@@ -157,7 +193,6 @@ export default function Usage() {
   const [goalHours, setGoalHours] = useState(
     Math.min(dailyScreenTimeGoalHours, dailyScreenTimeHours),
   );
-  const artworkHeight = Math.min(205, Math.max(150, height * 0.2));
   const direction = useStepDirection(step);
 
   const isGoal = step === 2;
@@ -192,57 +227,16 @@ export default function Usage() {
       <SlidePanel stepKey={step} direction={direction}>
         <View className="flex-1">
           <View>
-            <Text className="text-base font-bold leading-6 text-mink">
+            <Text className="text-[15px] font-bold leading-[19px] text-mink">
               {isGoal
                 ? `No guilt, ${name}. Small changes stick.`
                 : 'A quick reality check — no judgement.'}
             </Text>
-            <Text className="mt-2 text-[33px] font-black leading-[37px] tracking-[-1.1px] text-cocoa">
+            <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
               {isGoal
                 ? 'How much time would you like to spend instead?'
                 : 'How much time do you spend on your phone every day?'}
             </Text>
-          </View>
-
-          <View className="items-center pt-5">
-            <View
-              className="relative items-center justify-center overflow-hidden rounded-[36px] border border-white/80"
-              style={[{ height: artworkHeight, width: '100%' }, shadow]}
-            >
-              <LinearGradient
-                colors={
-                  isGoal
-                    ? ['#F2FFF4', '#D9FBE3', '#BFF7D3']
-                    : ['#FFF8F3', '#FFE5EF', '#FFD6E7']
-                }
-                style={StyleSheet.absoluteFill}
-              />
-              <View className="absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/35" />
-              <View className="absolute -bottom-16 -right-10 h-44 w-44 rounded-full bg-white/30" />
-              <Sparkles
-                size={22}
-                stroke={isGoal ? '#32B764' : colors.raspberry}
-                strokeWidth={2}
-                style={{ position: 'absolute', right: 28, top: 25, opacity: 0.65 }}
-              />
-
-              <View
-                className={[
-                  'h-24 w-24 items-center justify-center rounded-[34px]',
-                  isGoal ? 'bg-mint' : 'bg-raspberry',
-                ].join(' ')}
-                style={shadow}
-              >
-                {isGoal ? (
-                  <Target size={45} stroke={colors.cocoa} strokeWidth={2.4} />
-                ) : (
-                  <Clock3 size={45} stroke={colors.white} strokeWidth={2.4} />
-                )}
-              </View>
-              <Text className="mt-4 text-sm font-black uppercase tracking-[1.8px] text-mink">
-                {isGoal ? 'Your daily goal' : 'Your daily average'}
-              </Text>
-            </View>
           </View>
 
           <View className="flex-1 justify-center py-4">
@@ -254,7 +248,7 @@ export default function Usage() {
             />
           </View>
 
-          <View className="pt-3">
+          <View className="pt-2.5">
             <Button
               label={isGoal ? 'Build my plan' : 'Continue'}
               onPress={continueFlow}
