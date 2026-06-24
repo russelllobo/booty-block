@@ -63,22 +63,21 @@ function renderPrivacy() {
       <p>If you grant Screen Time access, Apple provides Bootyblock with the controls needed to let you choose and temporarily block apps. Your selections are handled through Apple’s Family Controls and Device Activity frameworks. Bootyblock does not receive your browsing history, messages, passwords, or the contents of other apps.</p>
       <p>Preferences such as onboarding status, goals, selected-app setup status, and earned unlock sessions are stored locally on your device.</p>
 
-      <h2>Website and waitlist information</h2>
-      <p>If you join the waitlist, we collect your email address. We may also store limited technical information sent with the request, such as your browser user agent and referring page, to operate and protect the waitlist.</p>
+      <h2>Website information</h2>
+      <p>When you visit this website, limited technical information such as request logs may be processed by Cloudflare to deliver the site, maintain security, and troubleshoot issues.</p>
 
       <h2>How information is used</h2>
       <ul>
         <li>Provide app-blocking, squat-counting, and unlock features.</li>
         <li>Remember your settings on your device.</li>
-        <li>Send product availability or launch updates if you joined the waitlist.</li>
         <li>Maintain security, prevent abuse, and troubleshoot the service.</li>
       </ul>
 
       <h2>Sharing and service providers</h2>
-      <p>We do not sell your personal information. We use service providers, including Cloudflare for website delivery and Supabase for waitlist storage, only to operate the service. They process information under their own applicable terms and privacy commitments.</p>
+      <p>We do not sell your personal information. We use service providers, including Cloudflare for website delivery, only to operate the service. They process information under their own applicable terms and privacy commitments.</p>
 
       <h2>Retention and deletion</h2>
-      <p>App preferences remain on your device until you reset the app or remove it. Waitlist information is retained while it is needed for launch communications and service administration. You may request deletion of your waitlist information by contacting us.</p>
+      <p>App preferences remain on your device until you reset the app or remove it. Website request logs are retained only as needed for security, troubleshooting, and service administration.</p>
 
       <h2>Children</h2>
       <p>Bootyblock is not directed to children under 13, and we do not knowingly collect personal information from children under 13.</p>
@@ -113,7 +112,7 @@ function renderSupport() {
       <p>Use “Reset app data” in Bootyblock Settings to clear onboarding, goals, and local session state from the device. You can also remove local app data by deleting the app.</p>
 
       <h2>Privacy</h2>
-      <p>Read the <a href="/privacy">Bootyblock Privacy Policy</a> for details about on-device camera processing, Screen Time access, and waitlist information.</p>
+      <p>Read the <a href="/privacy">Bootyblock Privacy Policy</a> for details about on-device camera processing, Screen Time access, and website information.</p>
     `,
   });
 }
@@ -362,62 +361,51 @@ function renderLanding() {
       line-height: 1.55;
     }
 
-    .waitlist {
-      display: flex;
-      width: min(100%, 31rem);
+    .app-store-button {
+      display: inline-flex;
+      align-items: center;
+      gap: .75rem;
       min-height: 3.75rem;
-      border: 1px solid var(--line);
-      border-radius: .55rem;
-      overflow: hidden;
-      background: rgba(255,255,255,.76);
-      box-shadow: 0 1.25rem 3.5rem rgba(175, 21, 85, .1);
-    }
-
-    .waitlist input[type="email"] {
-      min-width: 0;
-      flex: 1;
-      border: 0;
-      background: transparent;
-      padding: 0 1.15rem;
-      color: var(--ink);
-      font: inherit;
-      outline: 0;
-    }
-
-    .waitlist input[name="company"] {
-      display: none;
-    }
-
-    .waitlist button {
-      border: 0;
-      min-width: 9rem;
-      padding: 0 1.25rem;
+      padding: .7rem 1.35rem .75rem 1.15rem;
+      border-radius: .72rem;
       color: white;
-      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      background: #050505;
       font-weight: 800;
-      font: inherit;
-      cursor: pointer;
-      transition: transform .18s ease, filter .18s ease, background .18s ease;
+      text-decoration: none;
+      box-shadow: 0 1.25rem 3.5rem rgba(17, 18, 24, .16), 0 .35rem .9rem rgba(175, 21, 85, .14);
+      transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
     }
 
-    .waitlist button:hover {
-      filter: brightness(1.06);
+    .app-store-button svg {
+      flex: 0 0 auto;
+      width: 1.75rem;
+      height: 1.75rem;
     }
 
-    .waitlist button:active {
+    .app-store-text {
+      display: grid;
+      gap: .1rem;
+      line-height: 1;
+    }
+
+    .app-store-kicker {
+      font-size: .74rem;
+      font-weight: 700;
+      opacity: .82;
+    }
+
+    .app-store-label {
+      font-size: 1.22rem;
+    }
+
+    .app-store-button:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+      box-shadow: 0 1.4rem 3.8rem rgba(17, 18, 24, .18), 0 .45rem 1rem rgba(175, 21, 85, .16);
+    }
+
+    .app-store-button:active {
       transform: translateY(1px);
-    }
-
-    .waitlist button[disabled] {
-      cursor: wait;
-      filter: saturate(.7);
-    }
-
-    .form-note {
-      min-height: 1.4rem;
-      margin-top: .75rem;
-      color: var(--muted);
-      font-size: .92rem;
     }
 
     .follow {
@@ -635,18 +623,8 @@ function renderLanding() {
         line-height: 1.48;
       }
 
-      .waitlist {
-        display: grid;
-        min-height: 0;
-      }
-
-      .waitlist input[type="email"] {
-        min-height: 3.4rem;
-      }
-
-      .waitlist button {
-        min-height: 3.35rem;
-        width: 100%;
+      .app-store-button {
+        min-height: 3.8rem;
       }
 
       .visual {
@@ -674,12 +652,15 @@ function renderLanding() {
         </div>
         <h1 id="headline">App blocks with a squat tax</h1>
         <p class="lede">Block your distracting apps. Unlock them by doing the squats you promised yourself.</p>
-        <form class="waitlist" id="waitlist" novalidate>
-          <input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="Enter your email" required>
-          <input name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-          <button type="submit">Join waitlist</button>
-        </form>
-        <p class="form-note" id="form-note" role="status" aria-live="polite"></p>
+        <a class="app-store-button" href="https://apps.apple.com/us/app/bootyblock-squat-to-scroll/id6782345701" rel="noreferrer" target="_blank" aria-label="Download Bootyblock on the App Store">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M16.55 12.9c-.03-2.73 2.24-4.04 2.34-4.1-1.27-1.86-3.25-2.11-3.95-2.14-1.68-.17-3.28.99-4.13.99-.86 0-2.18-.96-3.58-.94-1.84.03-3.54 1.07-4.49 2.72-1.91 3.32-.49 8.23 1.38 10.92.91 1.32 2 2.8 3.43 2.75 1.38-.05 1.9-.89 3.56-.89s2.13.89 3.59.86c1.48-.03 2.42-1.34 3.33-2.66 1.05-1.53 1.48-3.02 1.5-3.1-.03-.02-2.9-1.11-2.98-4.41ZM13.84 4.89c.76-.92 1.27-2.2 1.13-3.47-1.09.04-2.42.73-3.2 1.65-.7.81-1.31 2.11-1.15 3.36 1.22.09 2.46-.62 3.22-1.54Z"/>
+          </svg>
+          <span class="app-store-text">
+            <span class="app-store-kicker">Download on the</span>
+            <span class="app-store-label">App Store</span>
+          </span>
+        </a>
         <a class="follow" href="https://www.tiktok.com/@booty.block" rel="noreferrer" target="_blank">Follow on TikTok ↗</a>
         <nav class="site-links" aria-label="Legal and support">
           <a href="/privacy">Privacy Policy</a>
@@ -699,43 +680,6 @@ function renderLanding() {
       </div>
     </section>
   </main>
-
-  <script>
-    const form = document.querySelector('#waitlist');
-    const note = document.querySelector('#form-note');
-    const email = document.querySelector('#email');
-    const button = form.querySelector('button');
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      note.textContent = '';
-
-      if (!email.validity.valid) {
-        note.textContent = 'Enter a valid email address.';
-        email.focus();
-        return;
-      }
-
-      button.disabled = true;
-      button.textContent = 'Joining...';
-
-      try {
-        const response = await fetch('/api/waitlist', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(Object.fromEntries(new FormData(form))),
-        });
-        const result = await response.json();
-        note.textContent = result.message || result.error || 'Something went sideways. Try again.';
-        if (response.ok) form.reset();
-      } catch {
-        note.textContent = 'Could not reach the waitlist. Try again in a moment.';
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Join waitlist';
-      }
-    });
-  </script>
 </body>
 </html>`;
 }
