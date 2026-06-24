@@ -1,18 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import Slider from '@react-native-community/slider';
 import { useEffect, useRef, useState } from 'react';
 import {
-  LayoutChangeEvent,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -61,44 +55,21 @@ function TimeSlider({
   tone: 'pink' | 'mint';
 }) {
   const lastValue = useRef(value);
+  const previousRenderedValue = useRef(value);
   const lastHapticAt = useRef(0);
-  const [trackWidth, setTrackWidth] = useState(0);
   const accent = tone === 'pink' ? colors.raspberry : '#32B764';
-  const progress = (value - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
-  const animatedProgress = useSharedValue(progress);
+  const rollDirection = value >= previousRenderedValue.current ? 'up' : 'down';
 
   useEffect(() => {
-    const syncedProgress = (value - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
-
+    previousRenderedValue.current = value;
     lastValue.current = value;
-    animatedProgress.value = withTiming(syncedProgress, {
-      duration: 200,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [animatedProgress, maximumValue, value]);
+  }, [value]);
 
-  const fillStyle = useAnimatedStyle(() => ({
-    width: trackWidth * animatedProgress.value,
-  }));
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: animatedProgress.value * Math.max(0, trackWidth - 28) }],
-  }));
-
-  function update(nextValue: number, instant = false) {
+  function update(nextValue: number) {
     const clampedRawValue = Math.min(maximumValue, Math.max(MIN_HOURS, nextValue));
-    const nextProgress = (clampedRawValue - MIN_HOURS) / (maximumValue - MIN_HOURS || 1);
     const steppedValue = Math.round(clampedRawValue / SLIDER_STEP) * SLIDER_STEP;
     const clampedValue = Math.min(maximumValue, Math.max(MIN_HOURS, steppedValue));
 
-    if (instant) {
-      animatedProgress.value = nextProgress;
-    } else {
-      animatedProgress.value = withTiming(nextProgress, {
-        duration: 120,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
     if (clampedValue !== lastValue.current) {
       lastValue.current = clampedValue;
       onChange(clampedValue);
@@ -111,75 +82,53 @@ function TimeSlider({
     }
   }
 
-  function updateFromPosition(position: number, instant = false) {
-    if (!trackWidth) return;
-    update(
-      MIN_HOURS + (Math.min(trackWidth, Math.max(0, position)) / trackWidth) * (maximumValue - MIN_HOURS),
-      instant,
-    );
-  }
-
-  function handleTrackLayout(event: LayoutChangeEvent) {
-    setTrackWidth(event.nativeEvent.layout.width);
-  }
-
   return (
     <View
       className="rounded-[32px] border border-white/80 bg-white/85 px-6 pb-6 pt-7"
       style={shadow}
     >
-      <View className="items-center">
-        <RollingNumber
-          value={formatHoursFixed(value)}
-          color={accent}
-          fontSize={72}
-          fontWeight="900"
-          letterSpacing={0}
-          smooth
-        />
-      </View>
-
-      <View
-        accessibilityLabel="Daily screen time in hours"
-        accessibilityRole="adjustable"
-        accessibilityValue={{
-          min: MIN_HOURS,
-          max: maximumValue,
-          now: value,
-          text: formatHours(value),
-        }}
-        accessibilityActions={[
-          { name: 'increment', label: 'Increase screen time' },
-          { name: 'decrement', label: 'Decrease screen time' },
-        ]}
-        onAccessibilityAction={({ nativeEvent }) => {
-          update(value + (nativeEvent.actionName === 'increment' ? SLIDER_STEP : -SLIDER_STEP));
-        }}
-        onLayout={handleTrackLayout}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderGrant={(event) => updateFromPosition(event.nativeEvent.locationX, true)}
-        onResponderMove={(event) => updateFromPosition(event.nativeEvent.locationX, true)}
-        className="mt-5 h-12 justify-center"
-      >
-        <View className="h-2.5 overflow-hidden rounded-full bg-petal">
-          <Animated.View
-            className="h-full rounded-full"
-            style={[fillStyle, { backgroundColor: accent }]}
+      <View style={styles.sliderFrame}>
+        <View pointerEvents="none" style={styles.valueLabel}>
+          <RollingNumber
+            value={formatHoursFixed(value)}
+            color={accent}
+            fontSize={34}
+            fontWeight="900"
+            letterSpacing={0}
+            smooth
+            direction={rollDirection}
           />
         </View>
-        <Animated.View
-          pointerEvents="none"
-          className="absolute h-7 w-7 rounded-full border-[5px] border-white"
-          style={[
-            styles.sliderThumb,
-            {
-              backgroundColor: accent,
-              left: 0,
-            },
-            thumbStyle,
+
+        <Slider
+          accessibilityLabel="Daily screen time in hours"
+          accessibilityValue={{
+            min: MIN_HOURS,
+            max: maximumValue,
+            now: value,
+            text: formatHours(value),
+          }}
+          accessibilityActions={[
+            { name: 'increment', label: 'Increase screen time' },
+            { name: 'decrement', label: 'Decrease screen time' },
           ]}
+          onAccessibilityAction={({ nativeEvent }) => {
+            update(value + (nativeEvent.actionName === 'increment' ? SLIDER_STEP : -SLIDER_STEP));
+          }}
+          minimumValue={MIN_HOURS}
+          maximumValue={maximumValue}
+          step={SLIDER_STEP}
+          value={value}
+          onValueChange={update}
+          minimumTrackTintColor={accent}
+          maximumTrackTintColor={colors.petal}
+          thumbTintColor={accent}
+          style={styles.nativeSlider}
         />
+      </View>
+      <View className="mt-1 flex-row justify-between px-1">
+        <Text className="text-xs font-black text-mink">{formatHours(MIN_HOURS)}</Text>
+        <Text className="text-xs font-black text-mink">{formatHours(maximumValue)}</Text>
       </View>
     </View>
   );
@@ -261,11 +210,19 @@ export default function Usage() {
 }
 
 const styles = StyleSheet.create({
-  sliderThumb: {
-    shadowColor: colors.cherry,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 7,
-    elevation: 5,
+  sliderFrame: {
+    paddingTop: 44,
+    position: 'relative',
+  },
+  valueLabel: {
+    alignItems: 'center',
+    bottom: 36,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  nativeSlider: {
+    width: '100%',
+    height: 44,
   },
 });

@@ -17,6 +17,11 @@ type UnlockSession = {
   endsAt: number;
 };
 
+export type RoutineReminderTime = {
+  hour: number;
+  minute: number;
+};
+
 export type UnlockHistoryEntry = {
   id: string;
   minutes: number;
@@ -29,8 +34,10 @@ type BootyblockState = {
   onboardingComplete: boolean;
   profileName: string;
   ageRange: string;
+  exerciseFrequency: string;
   dailyScreenTimeHours: number;
   dailyScreenTimeGoalHours: number;
+  routineReminderTime: RoutineReminderTime | null;
   screenTimeStatus: ScreenTimeStatus;
   selectedAppsConfigured: boolean;
   selectionSummary: ScreenTimeSelectionSummary | null;
@@ -42,7 +49,9 @@ type BootyblockState = {
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
   setAgeRange: (ageRange: string) => void;
+  setExerciseFrequency: (frequency: string) => void;
   setUsageTargets: (currentHours: number, goalHours: number) => void;
+  setRoutineReminderTime: (time: RoutineReminderTime | null) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<boolean>;
   setRequestedMinutes: (minutes: number) => void;
@@ -63,8 +72,10 @@ function defaultPayload() {
     onboardingComplete: webUiPreview,
     profileName: '',
     ageRange: '18-24',
+    exerciseFrequency: '',
     dailyScreenTimeHours: 4,
     dailyScreenTimeGoalHours: 3,
+    routineReminderTime: null as RoutineReminderTime | null,
     screenTimeStatus: webUiPreview ? 'approved' as ScreenTimeStatus : screenTimeService.getAuthorizationStatus(),
     selectedAppsConfigured: webUiPreview,
     selectionSummary: webUiPreview
@@ -137,12 +148,20 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload((current) => ({ ...current, ageRange }));
   }, []);
 
+  const setExerciseFrequency = useCallback((frequency: string) => {
+    setPayload((current) => ({ ...current, exerciseFrequency: frequency }));
+  }, []);
+
   const setUsageTargets = useCallback((currentHours: number, goalHours: number) => {
     setPayload((current) => ({
       ...current,
       dailyScreenTimeHours: currentHours,
       dailyScreenTimeGoalHours: goalHours,
     }));
+  }, []);
+
+  const setRoutineReminderTime = useCallback((time: RoutineReminderTime | null) => {
+    setPayload((current) => ({ ...current, routineReminderTime: time }));
   }, []);
 
   const requestScreenTime = useCallback(async () => {
@@ -230,7 +249,9 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       completeOnboarding,
       setProfileName,
       setAgeRange,
+      setExerciseFrequency,
       setUsageTargets,
+      setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,
@@ -244,7 +265,9 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       completeOnboarding,
       setProfileName,
       setAgeRange,
+      setExerciseFrequency,
       setUsageTargets,
+      setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,

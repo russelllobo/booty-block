@@ -41,6 +41,9 @@ const bottomKneeAngle = 125;
 const standingKneeAngle = 152;
 const descendingKneeAngle = 150;
 const standingHipAngle = 148;
+const calibrationKneeAngle = 138;
+const calibrationHipAngle = 136;
+const calibrationTorsoLean = 48;
 const maximumTorsoLean = 52;
 const bottomStableFrames = 3;
 const standingStableFrames = 2;
@@ -89,8 +92,12 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
 
   if (state.phase === 'calibrating') {
     const standingEnough =
-      (sample.kneeAngle == null || sample.kneeAngle >= standingKneeAngle) &&
-      (sample.hipAngle == null || sample.hipAngle >= standingHipAngle);
+      [
+        sample.kneeAngle == null || sample.kneeAngle >= calibrationKneeAngle,
+        sample.hipAngle == null || sample.hipAngle >= calibrationHipAngle,
+        sample.torsoLean == null || sample.torsoLean <= calibrationTorsoLean,
+        sample.hipY > sample.kneeY,
+      ].filter(Boolean).length >= 3;
 
     if (!standingEnough) {
       return {

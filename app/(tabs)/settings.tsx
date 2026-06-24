@@ -52,7 +52,7 @@ export default function Settings() {
         </SectionPanel>
 
         <SectionPanel title="Camera calibration" subtitle="Re-run the setup tips if squat counting feels off.">
-          <Button label="Open calibration" icon={Camera} variant="secondary" onPress={() => router.push('/onboarding/calibration')} />
+          <Button label="Open calibration" icon={Camera} variant="secondary" onPress={() => router.push('/onboarding/setup')} />
         </SectionPanel>
 
         <SectionPanel title="Privacy & support" subtitle="Learn how your data is handled or get help with Bootyblock.">

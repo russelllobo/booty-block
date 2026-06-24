@@ -13,12 +13,12 @@ import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-c
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
 
 const onboardingScreenOptions = {
-  animation: 'none',
+  animation: 'slide_from_right',
   gestureEnabled: false,
 } as const;
 
 function NotificationObserver() {
-  const { hydrated, onboardingComplete } = useBootyblock();
+  const { onboardingComplete } = useBootyblock();
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -59,19 +59,6 @@ function NotificationObserver() {
     return () => subscription.remove();
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    if (!hydrated || !onboardingComplete) return;
-
-    void Notifications.getPermissionsAsync().then((permissions) => {
-      if (permissions.ios?.status === Notifications.IosAuthorizationStatus.NOT_DETERMINED) {
-        void Notifications.requestPermissionsAsync({
-          ios: { allowAlert: true, allowBadge: false, allowSound: true },
-        });
-      }
-    });
-  }, [hydrated, onboardingComplete]);
-
   return null;
 }
 
@@ -89,9 +76,13 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
             <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
             <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
-            <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
-            <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
             <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
+            <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="session" />
             <Stack.Screen name="success" />

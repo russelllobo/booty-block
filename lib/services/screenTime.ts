@@ -1,4 +1,3 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import * as DeviceActivity from 'react-native-device-activity';
 
@@ -101,11 +100,6 @@ export const screenTimeService = {
     if (!isAvailable()) return 'unavailable';
     await DeviceActivity.requestAuthorization('individual');
     const status = await DeviceActivity.pollAuthorizationStatus({ pollIntervalMs: 350, maxAttempts: 8 });
-    if (toStatus(status) === 'approved') {
-      await Notifications.requestPermissionsAsync({
-        ios: { allowAlert: true, allowBadge: false, allowSound: true },
-      });
-    }
     return toStatus(status);
   },
 

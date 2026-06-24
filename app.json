@@ -16,7 +16,6 @@
       "appleTeamId": "SZ78KGUF6B",
       "infoPlist": {
         "NSCameraUsageDescription": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
-        "NSMotionUsageDescription": "Bootyblock may use device motion to improve squat detection.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
@@ -48,9 +47,11 @@
         "expo-camera",
         {
           "cameraPermission": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
+          "microphonePermission": false,
           "recordAudioAndroid": false
         }
       ],
+      "./plugins/with-production-info-plist-cleanup",
       [
         "expo-build-properties",
         {
@@ -65,7 +66,8 @@
           "appleTeamId": "SZ78KGUF6B",
           "appGroup": "group.com.bootyblock.app"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

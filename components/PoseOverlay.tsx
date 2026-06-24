@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 
@@ -18,6 +18,12 @@ type PoseOverlayProps = {
 };
 
 const MIN_LANDMARK_CONFIDENCE = 0.35;
+const LANDMARK_HOLD_MS = 120;
+
+type CachedLandmark = {
+  point: NonNullable<PoseLandmarks[PoseLandmarkName]>;
+  updatedAt: number;
+};
 
 const connections: [PoseLandmarkName, PoseLandmarkName][] = [
   ['leftShoulder', 'rightShoulder'],
@@ -38,6 +44,42 @@ function overlayColor(phase: PosePhase, visible: boolean) {
   if (!visible) return '#FFD166';
   if (phase === 'bottom' || phase === 'complete') return '#89F38C';
   return '#FFFFFF';
+}
+
+function useStableLandmarks(landmarks: PoseLandmarks, visible: boolean) {
+  const cacheRef = useRef<Partial<Record<PoseLandmarkName, CachedLandmark>>>({});
+
+  return useMemo(() => {
+    if (!visible) {
+      cacheRef.current = {};
+      return {};
+    }
+
+    const now = Date.now();
+    const stableLandmarks: PoseLandmarks = {};
+    const names = new Set<PoseLandmarkName>([
+      ...(Object.keys(cacheRef.current) as PoseLandmarkName[]),
+      ...(Object.keys(landmarks) as PoseLandmarkName[]),
+    ]);
+
+    names.forEach((name) => {
+      const point = landmarks[name];
+      if (point && point.confidence >= MIN_LANDMARK_CONFIDENCE) {
+        cacheRef.current[name] = { point, updatedAt: now };
+        stableLandmarks[name] = point;
+        return;
+      }
+
+      const cached = cacheRef.current[name];
+      if (cached && now - cached.updatedAt <= LANDMARK_HOLD_MS) {
+        stableLandmarks[name] = cached.point;
+      } else {
+        delete cacheRef.current[name];
+      }
+    });
+
+    return stableLandmarks;
+  }, [landmarks, visible]);
 }
 
 function connectionPoint(landmarks: PoseLandmarks, name: PoseLandmarkName) {
@@ -76,14 +118,15 @@ export function PoseOverlay({
   onLayout,
 }: PoseOverlayProps) {
   const color = overlayColor(phase, visible);
-  const points = useMemo(() => Object.entries(landmarks), [landmarks]);
+  const stableLandmarks = useStableLandmarks(landmarks, visible);
+  const points = useMemo(() => Object.entries(stableLandmarks), [stableLandmarks]);
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`} preserveAspectRatio="xMidYMid meet">
+      <Svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`} preserveAspectRatio="xMidYMid slice">
         {connections.map(([fromName, toName]) => {
-          const from = connectionPoint(landmarks, fromName);
-          const to = connectionPoint(landmarks, toName);
+          const from = connectionPoint(stableLandmarks, fromName);
+          const to = connectionPoint(stableLandmarks, toName);
           if (!from || !to) return null;
 
           return (

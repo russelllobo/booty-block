@@ -460,6 +460,17 @@ function renderLanding() {
       animation: phone-in .82s .12s cubic-bezier(.2,.8,.2,1) both;
     }
 
+    .visual::before {
+      content: "";
+      position: absolute;
+      inset: 12% 2% auto;
+      height: 78%;
+      border-radius: 999rem;
+      background: rgba(175, 21, 85, .18);
+      filter: blur(3.25rem);
+      transform: rotate(-8deg);
+    }
+
     .phone {
       position: absolute;
       inset: 0;
@@ -467,19 +478,89 @@ function renderLanding() {
       width: min(17.2rem, 60vw);
       height: min(35.6rem, 76svh);
       min-height: 32rem;
-      border: .38rem solid #0f1014;
-      border-radius: 2.65rem;
-      background: #0f1014;
-      box-shadow: 0 2rem 5rem rgba(17, 18, 24, .22);
+      border: .28rem solid #292b31;
+      border-radius: 2.85rem;
+      background:
+        linear-gradient(105deg, rgba(255,255,255,.34), rgba(255,255,255,0) 18%),
+        linear-gradient(145deg, #1b1c22, #090a0d 54%, #1a1b21);
+      box-shadow:
+        inset .18rem 0 .25rem rgba(255,255,255,.16),
+        inset -.28rem 0 .4rem rgba(0,0,0,.48),
+        0 2rem 5rem rgba(17, 18, 24, .22),
+        0 .9rem 1.5rem rgba(175, 21, 85, .13);
       overflow: hidden;
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      top: .72rem;
+      left: 50%;
+      width: 5.5rem;
+      height: 1.45rem;
+      border-radius: 999rem;
+      background: #08090c;
+      box-shadow: inset 0 .08rem .16rem rgba(255,255,255,.11);
+      transform: translateX(-50%);
+    }
+
+    .phone::after {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      bottom: .86rem;
+      left: 50%;
+      width: 5.4rem;
+      height: .24rem;
+      border-radius: 999rem;
+      background: rgba(255,255,255,.76);
+      transform: translateX(-50%);
+    }
+
+    .side-button {
+      position: absolute;
+      z-index: 0;
+      width: .22rem;
+      border-radius: .3rem;
+      background: linear-gradient(#2a2c34, #0b0c10);
+      box-shadow: inset .08rem 0 .08rem rgba(255,255,255,.18);
+    }
+
+    .side-button.left-one {
+      top: 7.5rem;
+      left: -.44rem;
+      height: 2.25rem;
+    }
+
+    .side-button.left-two {
+      top: 10.45rem;
+      left: -.44rem;
+      height: 4.2rem;
+    }
+
+    .side-button.right {
+      top: 9.1rem;
+      right: -.44rem;
+      height: 5.2rem;
     }
 
     .screen {
       position: absolute;
       inset: .45rem;
       overflow: hidden;
-      border-radius: 2.1rem;
+      border: .06rem solid rgba(255,255,255,.08);
+      border-radius: 2.35rem;
       background: #020205;
+      box-shadow: inset 0 0 0 .08rem rgba(255,255,255,.04);
+    }
+
+    .screen video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #020205 url("/demo-poster.jpg") center / cover no-repeat;
     }
 
     @keyframes rise {
@@ -608,7 +689,12 @@ function renderLanding() {
 
       <div class="visual" aria-hidden="true">
         <div class="phone">
-          <div class="screen"></div>
+          <span class="side-button left-one"></span>
+          <span class="side-button left-two"></span>
+          <span class="side-button right"></span>
+          <div class="screen">
+            <video src="/demo.mp4" poster="/demo-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
+          </div>
         </div>
       </div>
     </section>

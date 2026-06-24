@@ -20,6 +20,7 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Apps() {
   const {
+    completeOnboarding,
     markSelectionConfigured,
     onboardingComplete,
     selectedAppsConfigured,
@@ -52,12 +53,13 @@ export default function Apps() {
       return;
     }
 
-    router.push('/onboarding/calibration');
+    await completeOnboarding();
+    router.replace('/(tabs)');
   }
 
   return (
     <Screen>
-      <OnboardingProgress step={18} onBack={() => router.back()} />
+      <OnboardingProgress step={26} onBack={() => router.back()} />
 
       <SlidePanel>
         <View className="flex-1">
@@ -135,7 +137,7 @@ export default function Apps() {
           <View className="mt-auto pt-6">
             {nativePickerReady || webPreview ? (
               <Button
-                label={hasSelection ? (onboardingComplete ? 'Save blocked apps' : 'Save and calibrate') : 'Choose apps above'}
+                label={hasSelection ? (onboardingComplete ? 'Save blocked apps' : 'Finish setup') : 'Choose apps above'}
                 icon={Check}
                 disabled={!hasSelection}
                 onPress={save}

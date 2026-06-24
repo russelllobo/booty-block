@@ -38,7 +38,7 @@ private final class BootyPoseCameraView: ExpoView {
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     backgroundColor = .black
-    previewLayer.videoGravity = .resizeAspect
+    previewLayer.videoGravity = .resizeAspectFill
     layer.addSublayer(previewLayer)
   }
 
@@ -75,6 +75,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   private var baselineHipKneeSpan: CGFloat?
   private var calibrationSamples: [CGFloat] = []
   private var calibrationSpanSamples: [CGFloat] = []
+  private var calibrationMissFrames = 0
   private var sawBottomAt: TimeInterval?
   private var repStartedAt: TimeInterval?
   private var lastCountAt: TimeInterval = 0
@@ -100,6 +101,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     self.baselineHipKneeSpan = nil
     self.calibrationSamples = []
     self.calibrationSpanSamples = []
+    self.calibrationMissFrames = 0
     self.sawBottomAt = nil
     self.repStartedAt = nil
     self.lastCountAt = 0
@@ -200,9 +202,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       let leftHip = try? observation.recognizedPoint(.leftHip),
       let rightHip = try? observation.recognizedPoint(.rightHip),
       let leftKnee = try? observation.recognizedPoint(.leftKnee),
-      let rightKnee = try? observation.recognizedPoint(.rightKnee),
-      let leftAnkle = try? observation.recognizedPoint(.leftAnkle),
-      let rightAnkle = try? observation.recognizedPoint(.rightAnkle)
+      let rightKnee = try? observation.recognizedPoint(.rightKnee)
     else {
       emit(hint: "Step back until your full body is visible.", confidence: 0.2, visible: false)
       return
@@ -214,19 +214,21 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       ("leftHip", .leftHip, leftHip),
       ("rightHip", .rightHip, rightHip),
       ("leftKnee", .leftKnee, leftKnee),
-      ("rightKnee", .rightKnee, rightKnee),
-      ("leftAnkle", .leftAnkle, leftAnkle),
-      ("rightAnkle", .rightAnkle, rightAnkle)
+      ("rightKnee", .rightKnee, rightKnee)
     ]
 
     var overlayPoints = recognizedPoints
+    let optionalLegJoints: [(String, VNHumanBodyPoseObservation.JointName)] = [
+      ("leftAnkle", .leftAnkle),
+      ("rightAnkle", .rightAnkle)
+    ]
     let optionalArmJoints: [(String, VNHumanBodyPoseObservation.JointName)] = [
       ("leftElbow", .leftElbow),
       ("rightElbow", .rightElbow),
       ("leftWrist", .leftWrist),
       ("rightWrist", .rightWrist)
     ]
-    for (name, joint) in optionalArmJoints {
+    for (name, joint) in optionalLegJoints + optionalArmJoints {
       if let point = try? observation.recognizedPoint(joint), point.confidence >= 0.2 {
         overlayPoints.append((name, joint, point))
       }
@@ -248,21 +250,17 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       let leftHipPoint = smoothedPoints[.leftHip],
       let rightHipPoint = smoothedPoints[.rightHip],
       let leftKneePoint = smoothedPoints[.leftKnee],
-      let rightKneePoint = smoothedPoints[.rightKnee],
-      let leftAnklePoint = smoothedPoints[.leftAnkle],
-      let rightAnklePoint = smoothedPoints[.rightAnkle]
+      let rightKneePoint = smoothedPoints[.rightKnee]
     else {
       emit(hint: "Hold still while posture tracking locks on.", confidence: confidence, visible: true)
       return
     }
+    let leftAnklePoint = smoothedPoints[.leftAnkle]
+    let rightAnklePoint = smoothedPoints[.rightAnkle]
 
     let shoulderMid = midpoint(leftShoulderPoint, rightShoulderPoint)
     let hipMid = midpoint(leftHipPoint, rightHipPoint)
     let kneeMid = midpoint(leftKneePoint, rightKneePoint)
-    let kneeAngle = average(
-      angle(leftHipPoint, leftKneePoint, leftAnklePoint),
-      angle(rightHipPoint, rightKneePoint, rightAnklePoint)
-    )
     let hipAngle = average(
       angle(leftShoulderPoint, leftHipPoint, leftKneePoint),
       angle(rightShoulderPoint, rightHipPoint, rightKneePoint)
@@ -272,23 +270,42 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     let torsoLength = max(distance(shoulderMid, hipMid), 0.1)
     let dropRatio = baselineHipY.map { max(0, ($0 - hipY) / torsoLength) } ?? 0
     let depth = min(1, dropRatio / 0.75)
+    let hipKneeRatio = baselineHipKneeSpan.map { max(0, hipY - kneeMid.y) / max($0, 0.04) } ?? 1
+    let kneeAngle = leftAnklePoint.flatMap { leftAnkle in
+      rightAnklePoint.map { rightAnkle in
+        average(
+          angle(leftHipPoint, leftKneePoint, leftAnkle),
+          angle(rightHipPoint, rightKneePoint, rightAnkle)
+        )
+      }
+    }
 
     latestMetrics = [
-      "kneeAngle": Double(kneeAngle),
+      "kneeAngle": Double(kneeAngle ?? (latestMetrics["kneeAngle"] ?? 0)),
       "hipAngle": Double(hipAngle),
       "torsoLean": Double(torsoLean),
       "depth": Double(depth)
     ]
 
     if phase == "calibrating" {
-      let standingTall = kneeAngle >= 150 && hipAngle >= 148 && torsoLean <= 35
+      let standingSignals = [
+        kneeAngle.map { $0 >= 138 } ?? true,
+        hipAngle >= 136,
+        torsoLean <= 48,
+        hipY > kneeMid.y
+      ].filter { $0 }.count
+      let standingTall = standingSignals >= 3
       guard standingTall else {
-        calibrationSamples.removeAll()
-        calibrationSpanSamples.removeAll()
+        calibrationMissFrames += 1
+        if calibrationMissFrames > 3 {
+          calibrationSamples.removeAll()
+          calibrationSpanSamples.removeAll()
+        }
         emit(hint: "Stand tall and hold still for calibration.", confidence: confidence, visible: true)
         return
       }
 
+      calibrationMissFrames = 0
       calibrationSamples.append(hipY)
       calibrationSpanSamples.append(max(hipY - kneeMid.y, 0.04))
       if calibrationSamples.count > 12 {
@@ -313,22 +330,23 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
-    let ankleWidth = abs(leftAnklePoint.x - rightAnklePoint.x)
     let kneeWidth = abs(leftKneePoint.x - rightKneePoint.x)
-    let kneesCaving = ankleWidth > 0.06 && kneeWidth / ankleWidth < 0.62
-    let hipKneeRatio = max(0, hipY - kneeMid.y) / max(baselineHipKneeSpan, 0.04)
+    let ankleWidth = leftAnklePoint.flatMap { leftAnkle in
+      rightAnklePoint.map { rightAnkle in abs(leftAnkle.x - rightAnkle.x) }
+    }
+    let kneesCaving = ankleWidth.map { $0 > 0.06 && kneeWidth / $0 < 0.62 } ?? false
     // Front-facing joints can make any one angle noisy, so combine several
     // independent depth signals instead of requiring every threshold at once.
     let depthSignals = [
       dropRatio >= 0.34,
       hipKneeRatio <= 0.68,
-      kneeAngle <= 148,
+      kneeAngle.map { $0 <= 148 } ?? false,
       hipAngle <= 152
     ].filter { $0 }.count
     let standingSignals = [
       dropRatio <= 0.25,
       hipKneeRatio >= 0.74,
-      kneeAngle >= 150,
+      kneeAngle.map { $0 >= 150 } ?? false,
       hipAngle >= 148
     ].filter { $0 }.count
     let hasGoodDepth = depthSignals >= 3 && (dropRatio >= 0.3 || hipKneeRatio <= 0.68)
@@ -336,7 +354,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     let risingSignals = [
       dropRatio <= 0.25,
       hipKneeRatio >= 0.76,
-      kneeAngle >= 148,
+      kneeAngle.map { $0 >= 148 } ?? false,
       hipAngle >= 150
     ].filter { $0 }.count
     let isClearlyRising = !hasGoodDepth && risingSignals >= 2
@@ -364,7 +382,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
-    if (dropRatio > 0.14 || hipKneeRatio < 0.86 || kneeAngle < 152) && phase == "standing" {
+    if (dropRatio > 0.14 || hipKneeRatio < 0.86 || (kneeAngle.map { $0 < 152 } ?? false)) && phase == "standing" {
       phase = "descending"
       repStartedAt = timestamp
       bottomFrames = 0

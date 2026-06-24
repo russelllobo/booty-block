@@ -17,6 +17,11 @@ Camera processing:
 - Camera video is not recorded, retained, or uploaded.
 - The app does not use the microphone.
 
+Notifications:
+
+- Bootyblock may ask for notification permission for local, on-device reminders/status related to blocking and unlock sessions.
+- The app does not use remote push notifications for marketing or tracking.
+
 No account or login is required. All app preferences and session state are stored locally on the device.
 
-Family Controls distribution entitlement is configured for the main app and all three extensions.
+Family Controls distribution entitlement is configured for the main app and all three extensions. If the shield action cannot deep-link back to the app due to iOS limitations, the shield copy instructs the reviewer/user to manually open Bootyblock.

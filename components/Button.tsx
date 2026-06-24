@@ -15,17 +15,19 @@ type ButtonProps = {
   label: string;
   onPress: () => void;
   icon?: LucideIcon;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   disabled?: boolean;
   loading?: boolean;
+  foregroundColor?: string;
 };
 
 const DEPTH = 6;
 const RELEASE_DELAY = 160;
 
-export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading, foregroundColor }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
+  const isOutline = variant === 'outline';
   const inert = disabled || loading;
 
   const press = useSharedValue(0);
@@ -75,15 +77,23 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
           'min-h-14 flex-row items-center justify-center gap-2 rounded-full px-6',
           isPrimary && 'bg-raspberry',
           isSecondary && 'border border-raspberry/20 bg-white/80',
+          isOutline && 'border border-white/55 bg-transparent',
           variant === 'ghost' && 'bg-transparent',
           inert && 'opacity-60',
         ]
           .filter(Boolean)
           .join(' ')}
       >
-        {loading ? <ActivityIndicator color={isPrimary ? colors.white : colors.raspberry} /> : null}
-        {!loading && Icon ? <Icon size={20} stroke={isPrimary ? colors.white : colors.raspberry} strokeWidth={2.4} /> : null}
-        <Text className={['text-base font-bold', isPrimary ? 'text-white' : 'text-raspberry'].join(' ')}>{label}</Text>
+        {loading ? <ActivityIndicator color={foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry)} /> : null}
+        {!loading && Icon ? (
+          <Icon size={20} stroke={foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry)} strokeWidth={2.4} />
+        ) : null}
+        <Text
+          className={['text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
+          style={foregroundColor ? { color: foregroundColor } : undefined}
+        >
+          {label}
+        </Text>
       </Pressable>
     </Animated.View>
   );
