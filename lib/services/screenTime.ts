@@ -1,7 +1,14 @@
 import { Platform } from 'react-native';
 import * as DeviceActivity from 'react-native-device-activity';
 
-import { ALWAYS_BLOCK_ACTIVITY, SELECTION_ID, SHIELD_ID, UNLOCK_ACTIVITY } from '../../constants/bootyblock';
+import {
+  ALWAYS_BLOCK_ACTIVITY,
+  BANK_DEPLETED_EVENT,
+  BANKED_USAGE_ACTIVITY,
+  SELECTION_ID,
+  SHIELD_ID,
+  UNLOCK_ACTIVITY,
+} from '../../constants/bootyblock';
 
 export type ScreenTimeStatus = 'unavailable' | 'notDetermined' | 'denied' | 'approved';
 export type ScreenTimeSelectionSummary = {
@@ -41,16 +48,14 @@ function isAvailable() {
   return Platform.OS === 'ios' && DeviceActivity.isAvailable?.();
 }
 
-function nowComponents(offsetMinutes = 0) {
-  const date = new Date(Date.now() + offsetMinutes * 60_000);
+function durationComponents(totalMinutes: number) {
+  const minutes = Math.max(1, Math.round(totalMinutes));
   return {
-    hour: date.getHours(),
-    minute: date.getMinutes(),
-    second: date.getSeconds(),
+    hour: Math.floor(minutes / 60),
+    minute: minutes % 60,
+    second: 0,
   };
 }
-
-const minimumMonitoringIntervalMinutes = 15;
 
 function selectionCount(summary: ScreenTimeSelectionSummary | null) {
   if (!summary) return 0;
@@ -108,7 +113,7 @@ export const screenTimeService = {
 
     const shieldConfiguration: DeviceActivity.ShieldConfiguration = {
       title: 'Bootyblock',
-      subtitle: 'Open Bootyblock to choose how many minutes to unlock.',
+      subtitle: 'Your bank is empty. Do squats in Bootyblock to earn more app time.',
       primaryButtonLabel: 'Open Bootyblock',
       iconSystemName: 'figure.strengthtraining.traditional',
       backgroundBlurStyle: 10,
@@ -133,6 +138,7 @@ export const screenTimeService = {
 
   applyDefaultBlock() {
     if (!isAvailable()) return;
+    DeviceActivity.stopMonitoring([BANKED_USAGE_ACTIVITY, UNLOCK_ACTIVITY]);
     this.configureShield();
     DeviceActivity.blockSelection({ activitySelectionId: SELECTION_ID }, 'bootyblock-default-block');
   },
@@ -143,15 +149,30 @@ export const screenTimeService = {
     this.applyDefaultBlock();
   },
 
-  async grantUnlock(minutes: number) {
+  hasUsageBankDepleted(startedAt: number | null | undefined) {
+    if (!isAvailable() || !startedAt) return false;
+    const eventTimestamp = DeviceActivity.userDefaultsGet<number>(
+      `events_${BANKED_USAGE_ACTIVITY}_eventDidReachThreshold_${BANK_DEPLETED_EVENT}`,
+    );
+    return typeof eventTimestamp === 'number' && eventTimestamp >= startedAt;
+  },
+
+  async startUsageBankMonitor(minutes: number) {
     if (!isAvailable()) return;
 
-    // Only one monitor should be able to mutate the shield during an earned unlock.
-    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY]);
+    if (minutes <= 0) {
+      this.applyDefaultBlock();
+      return;
+    }
+
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
+    this.configureShield();
 
     DeviceActivity.configureActions({
-      activityName: UNLOCK_ACTIVITY,
-      callbackName: 'intervalDidStart',
+      activityName: BANKED_USAGE_ACTIVITY,
+      callbackName: 'eventDidReachThreshold',
+      eventName: BANK_DEPLETED_EVENT,
       actions: [
         {
           type: 'blockSelection',
@@ -161,30 +182,33 @@ export const screenTimeService = {
       ],
     });
 
-    // DeviceActivity schedules must last at least 15 minutes. Start the monitor
-    // when the earned time expires, then use intervalDidStart to re-apply the
-    // block at that exact moment. This also supports 5- and 10-minute unlocks.
     await DeviceActivity.startMonitoring(
-      UNLOCK_ACTIVITY,
+      BANKED_USAGE_ACTIVITY,
       {
-        intervalStart: nowComponents(minutes),
-        intervalEnd: nowComponents(minutes + minimumMonitoringIntervalMinutes),
-        repeats: false,
+        intervalStart: { hour: 0, minute: 0, second: 0 },
+        intervalEnd: { hour: 23, minute: 59, second: 59 },
+        repeats: true,
       },
-      [],
+      [
+        {
+          familyActivitySelection: SELECTION_ID,
+          threshold: durationComponents(minutes),
+          eventName: BANK_DEPLETED_EVENT,
+          includesPastActivity: false,
+        },
+      ],
     );
 
-    // Arm the automatic re-lock before removing the current shield.
     DeviceActivity.unblockSelection(
       { activitySelectionId: SELECTION_ID },
-      'bootyblock-earned-unlock',
+      'bootyblock-banked-usage',
     );
   },
 
   async startAlwaysBlockMonitor() {
     if (!isAvailable()) return;
     this.configureShield();
-    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY]);
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
     DeviceActivity.configureActions({
       activityName: ALWAYS_BLOCK_ACTIVITY,
       callbackName: 'intervalDidStart',
@@ -210,7 +234,7 @@ export const screenTimeService = {
 
   resetNativeSetup() {
     if (!isAvailable()) return;
-    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY]);
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
     DeviceActivity.resetBlocks('bootyblock-reset-app-data');
     DeviceActivity.userDefaultsClear();
   },

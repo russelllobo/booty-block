@@ -111,7 +111,7 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
           ...machineRef.current,
           count: Math.min(rep, target),
           phase: rep >= target ? 'complete' : 'standing',
-          hint: rep >= target ? 'Unlocked. You earned those minutes.' : 'Counted. Drop again.',
+          hint: rep >= target ? 'Banked. You earned those minutes.' : 'Counted. Drop again.',
         };
       }
 

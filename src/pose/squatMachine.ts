@@ -35,7 +35,7 @@ const calibrationCount = 12;
 const lowConfidence = 0.42;
 const bottomDelta = 0.1;
 const standDelta = 0.055;
-const minRepMs = 450;
+const minRepMs = 350;
 const minRiseMs = 120;
 const bottomKneeAngle = 125;
 const standingKneeAngle = 152;
@@ -45,7 +45,7 @@ const calibrationKneeAngle = 138;
 const calibrationHipAngle = 136;
 const calibrationTorsoLean = 48;
 const maximumTorsoLean = 52;
-const bottomStableFrames = 3;
+const bottomStableFrames = 2;
 const standingStableFrames = 2;
 
 function hipDrop(sample: PoseSample, baseline: number | null) {
@@ -151,21 +151,49 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     ].filter(Boolean).length >= 2;
   const torsoIsSafe = torsoLean <= maximumTorsoLean;
 
-  if (hasGoodDepth && torsoIsSafe && (state.phase === 'standing' || state.phase === 'descending')) {
+  if (
+    hasGoodDepth &&
+    torsoIsSafe &&
+    (state.phase === 'standing' || state.phase === 'descending' || state.phase === 'bottom')
+  ) {
     const bottomFrames = state.bottomFrames + 1;
+    const repStartedAt = state.repStartedAt ?? sample.timestamp;
+
+    if (bottomFrames >= bottomStableFrames) {
+      const repElapsed = sample.timestamp - repStartedAt;
+      const canCount =
+        repElapsed >= minRepMs &&
+        sample.timestamp - state.lastCountAt >= minRepMs;
+      const nextCount = canCount ? Math.min(state.target, state.count + 1) : state.count;
+
+      return {
+        ...state,
+        count: nextCount,
+        confidence: sample.confidence,
+        visible: true,
+        phase: canCount ? (nextCount >= state.target ? 'complete' : 'rising') : 'bottom',
+        sawBottomAt: canCount ? null : sample.timestamp,
+        repStartedAt,
+        lastCountAt: canCount ? sample.timestamp : state.lastCountAt,
+        bottomFrames,
+        standFrames: 0,
+        hint: canCount
+          ? nextCount >= state.target
+            ? 'Banked. You earned those minutes.'
+            : 'Counted. Drop again.'
+          : 'Slow it down and use your full range.',
+      };
+    }
+
     return {
       ...state,
       confidence: sample.confidence,
       visible: true,
-      phase: bottomFrames >= bottomStableFrames ? 'bottom' : 'descending',
-      sawBottomAt:
-        bottomFrames >= bottomStableFrames ? (state.sawBottomAt ?? sample.timestamp) : null,
-      repStartedAt: state.repStartedAt ?? sample.timestamp,
+      phase: 'descending',
+      sawBottomAt: null,
+      repStartedAt,
       bottomFrames,
-      hint:
-        bottomFrames >= bottomStableFrames
-          ? 'Nice depth. Stand tall to lock it in.'
-          : 'Hold that depth.',
+      hint: 'Hold that depth.',
     };
   }
 
@@ -189,6 +217,20 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
       phase: 'rising',
       standFrames: 0,
       hint: 'Stand tall.',
+    };
+  }
+
+  if (state.phase === 'rising' && isStanding && state.sawBottomAt == null) {
+    return {
+      ...state,
+      confidence: sample.confidence,
+      visible: true,
+      phase: 'standing',
+      sawBottomAt: null,
+      repStartedAt: null,
+      bottomFrames: 0,
+      standFrames: 0,
+      hint: 'Drop again.',
     };
   }
 
@@ -243,7 +285,7 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
       standFrames: 0,
       hint: canCount
         ? nextCount >= state.target
-          ? 'Unlocked. You earned those minutes.'
+          ? 'Banked. You earned those minutes.'
           : 'Counted. Drop again.'
         : 'Slow it down and use your full range.',
     };
@@ -255,7 +297,7 @@ export function updateSquatMachine(state: MachineInternals, sample: PoseSample):
     visible: true,
     hint:
       state.phase === 'complete'
-        ? 'Unlocked. You earned those minutes.'
+        ? 'Banked. You earned those minutes.'
         : torsoIsSafe
           ? 'Stay smooth and steady.'
           : 'Keep your chest up.',

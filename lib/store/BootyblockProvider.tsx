@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import {
@@ -10,11 +10,11 @@ import {
 } from '../services/screenTime';
 import { calculateCurrentStreak } from '../streak';
 
-type UnlockSession = {
+type BankEarnedSession = {
   minutes: number;
   squats: number;
-  startedAt: number;
-  endsAt: number;
+  bankedMinutes: number;
+  completedAt: number;
 };
 
 export type RoutineReminderTime = {
@@ -43,7 +43,8 @@ type BootyblockState = {
   selectionSummary: ScreenTimeSelectionSummary | null;
   selectedAppsLabel: string;
   requestedMinutes: number;
-  activeUnlock: UnlockSession | null;
+  timeBankMinutes: number;
+  timeBankStartedAt: number | null;
   unlockHistory: UnlockHistoryEntry[];
   currentStreak: number;
   completeOnboarding: () => Promise<void>;
@@ -55,8 +56,8 @@ type BootyblockState = {
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<boolean>;
   setRequestedMinutes: (minutes: number) => void;
-  grantUnlock: (minutes: number) => Promise<UnlockSession>;
-  clearUnlockIfExpired: () => void;
+  bankTime: (minutes: number) => Promise<BankEarnedSession>;
+  syncTimeBank: () => void;
   resetAppData: () => Promise<void>;
 };
 
@@ -82,7 +83,8 @@ function defaultPayload() {
       ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 }
       : null as ScreenTimeSelectionSummary | null,
     requestedMinutes: 10,
-    activeUnlock: null as UnlockSession | null,
+    timeBankMinutes: webUiPreview ? 12 : 0,
+    timeBankStartedAt: webUiPreview ? now : null as number | null,
     unlockHistory: webUiPreview
       ? ([
           { id: 'preview-1', minutes: 10, squats: 10, completedAt: now },
@@ -107,8 +109,19 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         const webUiPreview = Platform.OS === 'web';
         const stored = raw ? { ...defaultPayload(), ...JSON.parse(raw) } : defaultPayload();
         const selectionSummary = screenTimeService.getSelectionSummary();
+        const legacyActiveUnlock = (stored as typeof stored & { activeUnlock?: { startedAt?: number; minutes?: number } }).activeUnlock;
+        const storedBankStartedAt = stored.timeBankStartedAt ?? legacyActiveUnlock?.startedAt ?? null;
+        const storedBankMinutes = stored.timeBankMinutes ?? legacyActiveUnlock?.minutes ?? 0;
+        const bankDepleted = screenTimeService.hasUsageBankDepleted(storedBankStartedAt);
+        const timeBankMinutes = bankDepleted ? 0 : storedBankMinutes;
+        const timeBankStartedAt = bankDepleted || timeBankMinutes <= 0 ? null : storedBankStartedAt ?? Date.now();
         if (screenTimeService.isAvailable()) {
           screenTimeService.configureShield();
+          if (timeBankMinutes > 0) {
+            void screenTimeService.startUsageBankMonitor(timeBankMinutes);
+          } else {
+            screenTimeService.applyDefaultBlock();
+          }
         }
         setPayload({
           ...stored,
@@ -122,6 +135,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           selectionSummary: webUiPreview
             ? stored.selectionSummary ?? defaultPayload().selectionSummary
             : selectionSummary ?? stored.selectionSummary ?? null,
+          timeBankMinutes,
+          timeBankStartedAt,
         });
       })
       .finally(() => mounted && setHydrated(true));
@@ -197,37 +212,52 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload((current) => ({ ...current, requestedMinutes: minutes }));
   }, []);
 
-  const grantUnlock = useCallback(async (minutes: number) => {
+  const bankTime = useCallback(async (minutes: number) => {
     const squats = minutes * MINUTES_TO_SQUATS;
-    const startedAt = Date.now();
-    const session = {
-      minutes,
-      squats,
-      startedAt,
-      endsAt: startedAt + minutes * 60_000,
-    };
+    const completedAt = Date.now();
+    const nextBankMinutes = (payload.timeBankMinutes ?? 0) + minutes;
     const historyEntry = {
-      id: `${startedAt}-${Math.random().toString(36).slice(2)}`,
+      id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
       minutes,
       squats,
-      completedAt: startedAt,
+      completedAt,
     };
-    await screenTimeService.grantUnlock(minutes);
-    setPayload((current) => ({
-      ...current,
-      activeUnlock: session,
-      unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
-    }));
-    return session;
-  }, []);
-
-  const clearUnlockIfExpired = useCallback(() => {
     setPayload((current) => {
-      if (!current.activeUnlock || current.activeUnlock.endsAt > Date.now()) return current;
+      return {
+        ...current,
+        timeBankMinutes: nextBankMinutes,
+        timeBankStartedAt: completedAt,
+        unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
+      };
+    });
+    await screenTimeService.startUsageBankMonitor(nextBankMinutes);
+    return {
+      minutes,
+      squats,
+      bankedMinutes: nextBankMinutes,
+      completedAt,
+    };
+  }, [payload.timeBankMinutes]);
+
+  const syncTimeBank = useCallback(() => {
+    setPayload((current) => {
+      if (current.timeBankMinutes <= 0 || !screenTimeService.hasUsageBankDepleted(current.timeBankStartedAt)) {
+        return current;
+      }
       screenTimeService.applyDefaultBlock();
-      return { ...current, activeUnlock: null };
+      return { ...current, timeBankMinutes: 0, timeBankStartedAt: null };
     });
   }, []);
+
+  useEffect(() => {
+    syncTimeBank();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncTimeBank();
+      }
+    });
+    return () => subscription.remove();
+  }, [syncTimeBank]);
 
   const resetAppData = useCallback(async () => {
     screenTimeService.resetNativeSetup();
@@ -255,8 +285,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,
-      grantUnlock,
-      clearUnlockIfExpired,
+      bankTime,
+      syncTimeBank,
       resetAppData,
     }),
     [
@@ -271,8 +301,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       requestScreenTime,
       markSelectionConfigured,
       setRequestedMinutes,
-      grantUnlock,
-      clearUnlockIfExpired,
+      bankTime,
+      syncTimeBank,
       resetAppData,
     ],
   );

@@ -368,13 +368,36 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       emit(hint: "Press your knees out over your toes.", confidence: confidence, visible: true)
     }
 
-    if hasGoodDepth && (phase == "standing" || phase == "descending") {
+    if hasGoodDepth && (phase == "standing" || phase == "descending" || phase == "bottom") {
       repStartedAt = repStartedAt ?? timestamp
       bottomFrames += 1
-      if bottomFrames >= 3 {
-        phase = "bottom"
-        sawBottomAt = sawBottomAt ?? timestamp
-        emit(hint: kneesCaving ? "Press your knees out, then stand tall." : "Nice depth. Stand tall to lock it in.", confidence: confidence, visible: true)
+      if bottomFrames >= 2 {
+        let repElapsed = repStartedAt.map { timestamp - $0 } ?? 0
+        let canCount = repElapsed >= 0.35 && timestamp - lastCountAt >= 0.35
+
+        if canCount {
+          count = min(targetSquats, count + 1)
+          lastCountAt = timestamp
+        }
+
+        phase = canCount ? (count >= targetSquats ? "complete" : "rising") : "bottom"
+        sawBottomAt = canCount ? nil : timestamp
+        standFrames = 0
+        emit(
+          hint: canCount
+            ? (count >= targetSquats ? "Banked. You earned those minutes." : "Counted. Drop again.")
+            : "Slow it down and use your full range.",
+          confidence: confidence,
+          visible: true
+        )
+
+        if count >= targetSquats {
+          eventSink?("sessionComplete", [
+            "squats": count,
+            "grantedMinutes": count
+          ])
+          stop()
+        }
       } else {
         phase = "descending"
         emit(hint: "Hold that depth.", confidence: confidence, visible: true)
@@ -405,6 +428,15 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
+    if phase == "rising" && isStanding && sawBottomAt == nil {
+      phase = "standing"
+      repStartedAt = nil
+      bottomFrames = 0
+      standFrames = 0
+      emit(hint: "Drop again.", confidence: confidence, visible: true)
+      return
+    }
+
     // Vision can occasionally drop the intermediate rising frame. Accept a
     // direct bottom-to-standing transition while still requiring stable
     // standing frames and the normal rep timing checks.
@@ -429,7 +461,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       standFrames = 0
       emit(
         hint: canCount
-          ? (count >= targetSquats ? "Unlocked. You earned those minutes." : "Counted. Drop again.")
+          ? (count >= targetSquats ? "Banked. You earned those minutes." : "Counted. Drop again.")
           : "Slow it down and use your full range.",
         confidence: confidence,
         visible: true
@@ -452,7 +484,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       self.baselineHipKneeSpan = self.baselineHipKneeSpan.map { ($0 * 0.98) + (currentSpan * 0.02) }
     }
 
-    emit(hint: phase == "complete" ? "Unlocked. You earned those minutes." : "Stay smooth and steady.", confidence: confidence, visible: true)
+    emit(hint: phase == "complete" ? "Banked. You earned those minutes." : "Stay smooth and steady.", confidence: confidence, visible: true)
   }
 
   private func emit(hint: String, confidence: Double, visible: Bool) {
@@ -471,7 +503,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   }
 
   private func updateLandmarks(_ points: [(String, VNHumanBodyPoseObservation.JointName, VNRecognizedPoint)]) {
-    let smoothing: CGFloat = 0.5
+    let smoothing: CGFloat = 0.78
     var landmarks: [String: [String: Any]] = [:]
 
     for (name, joint, recognizedPoint) in points {

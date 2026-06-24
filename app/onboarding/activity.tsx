@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { CalendarDays, Dumbbell, Footprints, Flame, LucideIcon } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
+import { captureAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type ActivityOption = {
@@ -25,12 +27,16 @@ const options: ActivityOption[] = [
 
 export default function Activity() {
   const { exerciseFrequency, setExerciseFrequency } = useBootyblock();
+  const posthog = usePostHog();
   const [selected, setSelected] = useState<string | null>(null);
   const currentSelection = selected ?? exerciseFrequency;
 
   function next() {
     if (!currentSelection) return;
     setExerciseFrequency(currentSelection);
+    captureAnalytics(posthog, 'onboarding_activity_selected', {
+      exercise_frequency: currentSelection,
+    });
     router.push('/onboarding/finish');
   }
 

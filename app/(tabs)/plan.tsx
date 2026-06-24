@@ -17,10 +17,10 @@ export default function Plan() {
 
   return (
     <Screen>
-      <Header title="Earn a scroll" subtitle="Choose how long you want, then pay in squats." />
+      <Header title="Bank app time" subtitle="Choose how much time to earn, then pay in squats." />
 
       <View className="items-center rounded-[38px] bg-white/70 p-8">
-        <Text className="text-sm font-black uppercase tracking-[2px] text-mink">Unlock time</Text>
+        <Text className="text-sm font-black uppercase tracking-[2px] text-mink">Bank time</Text>
         <View className="my-6 flex-row items-center gap-8">
           <Pressable
             accessibilityRole="button"
@@ -44,7 +44,7 @@ export default function Plan() {
 
         <View className="mt-7 w-full">
           <Slider
-            accessibilityLabel="Minutes to unblock apps"
+            accessibilityLabel="Minutes to bank for blocked apps"
             accessibilityValue={{
               min: 1,
               max: 60,
@@ -85,7 +85,7 @@ export default function Plan() {
         ))}
       </View>
 
-      <SectionPanel title="The rule" subtitle="One minute costs one squat. Finish a slot each day to keep your streak alive." />
+      <SectionPanel title="The rule" subtitle="One minute costs one squat. Banked time only runs down while you use your blocked apps." />
 
       <View className="mt-auto pt-6">
         <Button label={`Start ${target} squats`} icon={Dumbbell} onPress={() => router.push('/session')} />

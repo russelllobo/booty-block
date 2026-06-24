@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowUp, Bell } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
@@ -10,16 +11,19 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
+import { captureAnalytics } from '../../lib/analytics';
 
 const notificationBackground = '#07070A';
 const notificationGradient = ['#3A0F26', '#07070A'] as const;
 
 export default function NotificationPermission() {
+  const posthog = usePostHog();
   const [loading, setLoading] = useState(false);
   const { height } = useWindowDimensions();
   const promptHeight = Math.min(236, Math.max(178, height * 0.25));
 
   async function requestNotifications() {
+    captureAnalytics(posthog, 'notification_permission_started');
     setLoading(true);
     try {
       if (Platform.OS === 'android') {
@@ -32,8 +36,17 @@ export default function NotificationPermission() {
       }
 
       if (Platform.OS !== 'web') {
-        await Notifications.requestPermissionsAsync({
+        const result = await Notifications.requestPermissionsAsync({
           ios: { allowAlert: true, allowBadge: false, allowSound: true },
+        });
+        captureAnalytics(posthog, 'notification_permission_finished', {
+          status: result.status,
+          granted: result.granted,
+        });
+      } else {
+        captureAnalytics(posthog, 'notification_permission_finished', {
+          status: 'web_skipped',
+          granted: false,
         });
       }
     } finally {

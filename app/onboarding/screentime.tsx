@@ -2,15 +2,18 @@ import { router } from 'expo-router';
 import { ArrowUp, LockKeyhole } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { usePostHog } from 'posthog-react-native';
 
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
+import { captureAnalytics, screenTimeStatusProperties } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function ScreenTime() {
   const { screenTimeStatus, requestScreenTime } = useBootyblock();
+  const posthog = usePostHog();
   const [loading, setLoading] = useState(false);
   const { height, width } = useWindowDimensions();
   const approved = screenTimeStatus === 'approved';
@@ -51,9 +54,11 @@ export default function ScreenTime() {
       router.replace('/onboarding/notifications');
       return;
     }
+    captureAnalytics(posthog, 'screen_time_permission_started');
     setLoading(true);
     const status = await requestScreenTime();
     setLoading(false);
+    captureAnalytics(posthog, 'screen_time_permission_finished', screenTimeStatusProperties(status));
     if (status === 'approved') {
       router.replace('/onboarding/notifications');
     }

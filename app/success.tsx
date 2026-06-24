@@ -8,7 +8,7 @@ import { colors } from '../constants/theme';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Success() {
-  const { activeUnlock } = useBootyblock();
+  const { timeBankMinutes } = useBootyblock();
 
   return (
     <Screen scroll={false}>
@@ -16,9 +16,9 @@ export default function Success() {
         <View className="h-28 w-28 items-center justify-center rounded-full bg-mint">
           <CheckCircle2 size={58} stroke={colors.cocoa} />
         </View>
-        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">Unlocked</Text>
+        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">Banked</Text>
         <Text className="mt-3 text-center text-lg font-bold leading-7 text-mink">
-          {activeUnlock ? `${activeUnlock.minutes} minutes earned with ${activeUnlock.squats} squats.` : 'Your earned scroll time is active.'}
+          {timeBankMinutes > 0 ? `${timeBankMinutes} minutes are ready to spend.` : 'Your earned scroll time is ready.'}
         </Text>
       </View>
 

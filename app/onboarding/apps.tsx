@@ -1,6 +1,7 @@
 import { DeviceActivitySelectionViewPersisted } from 'react-native-device-activity';
 import { router } from 'expo-router';
 import { AppWindow, Check, RotateCcw } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Text, View } from 'react-native';
 
@@ -12,6 +13,7 @@ import { SectionPanel } from '../../components/SectionPanel';
 import { SlidePanel } from '../../components/SlidePanel';
 import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
+import { captureAnalytics, selectionAnalyticsProperties } from '../../lib/analytics';
 import {
   screenTimeService,
   ScreenTimeSelectionSummary,
@@ -26,6 +28,7 @@ export default function Apps() {
     selectedAppsConfigured,
     screenTimeStatus,
   } = useBootyblock();
+  const posthog = usePostHog();
   const webPreview = Platform.OS === 'web';
   const nativePickerReady = Platform.OS === 'ios' && screenTimeService.isAvailable() && screenTimeStatus === 'approved';
   const [selectionSummary, setSelectionSummary] = useState<ScreenTimeSelectionSummary | null>(
@@ -42,12 +45,14 @@ export default function Apps() {
   async function save() {
     const configured = await markSelectionConfigured();
     if (!configured) {
+      captureAnalytics(posthog, 'blocked_apps_selection_save_failed');
       Alert.alert(
         'Choose at least one app',
         'Select an app, category, or website in Apple’s picker before continuing.',
       );
       return;
     }
+    captureAnalytics(posthog, 'blocked_apps_selected', selectionAnalyticsProperties(selectionSummary));
     if (onboardingComplete) {
       router.back();
       return;

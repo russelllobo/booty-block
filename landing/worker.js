@@ -409,9 +409,10 @@ function renderLanding() {
     }
 
     .follow {
-      display: inline-flex;
+      display: flex;
       gap: .35rem;
       align-items: center;
+      width: fit-content;
       margin-top: 1.2rem;
       color: #986176;
       font-size: .95rem;

@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
@@ -24,11 +25,20 @@ type ButtonProps = {
 const DEPTH = 6;
 const RELEASE_DELAY = 160;
 
+const GLASS_AVAILABLE = (() => {
+  try {
+    return isGlassEffectAPIAvailable();
+  } catch {
+    return false;
+  }
+})();
+
 export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading, foregroundColor }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
   const inert = disabled || loading;
+  const useGlass = !isPrimary && GLASS_AVAILABLE;
 
   const press = useSharedValue(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,37 +74,74 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
     }, RELEASE_DELAY);
   }
 
-  const surface = (
-    <Animated.View style={isPrimary ? primaryStyle : flatStyle}>
-      <Pressable
-        accessibilityRole="button"
-        disabled={inert}
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={isPrimary ? shadow : undefined}
-        className={[
-          'min-h-14 flex-row items-center justify-center gap-2 rounded-full px-6',
-          isPrimary && 'bg-raspberry',
-          isSecondary && 'border border-raspberry/20 bg-white/80',
-          isOutline && 'border border-white/55 bg-transparent',
-          variant === 'ghost' && 'bg-transparent',
-          inert && 'opacity-60',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+  const contentColor = foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry);
+  const glassStyle: 'clear' | 'regular' = variant === 'ghost' ? 'clear' : 'regular';
+  const glassTint = isSecondary ? 'rgba(255,255,255,0.55)' : undefined;
+
+  const buttonContent = (
+    <>
+      {loading ? <ActivityIndicator color={contentColor} /> : null}
+      {!loading && Icon ? (
+        <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
+      ) : null}
+      <Text
+        className={['text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
+        style={foregroundColor ? { color: foregroundColor } : undefined}
       >
-        {loading ? <ActivityIndicator color={foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry)} /> : null}
-        {!loading && Icon ? (
-          <Icon size={20} stroke={foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry)} strokeWidth={2.4} />
-        ) : null}
-        <Text
-          className={['text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
-          style={foregroundColor ? { color: foregroundColor } : undefined}
+        {label}
+      </Text>
+    </>
+  );
+
+  const surface = (
+    <Animated.View style={[isPrimary ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.6 } : null]}>
+      {useGlass ? (
+        <GlassView
+          glassEffectStyle={glassStyle}
+          tintColor={glassTint}
+          isInteractive
+          style={{ borderRadius: 9999, minHeight: 56 }}
         >
-          {label}
-        </Text>
-      </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={inert}
+            onPress={handlePress}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={{
+              minHeight: 56,
+              paddingHorizontal: 24,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            {buttonContent}
+          </Pressable>
+        </GlassView>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          disabled={inert}
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={isPrimary ? shadow : undefined}
+          className={[
+            'min-h-14 flex-row items-center justify-center gap-2 rounded-full px-6',
+            isPrimary && 'bg-raspberry',
+            isSecondary && 'border border-raspberry/20 bg-white/80',
+            isOutline && 'border border-white/55 bg-transparent',
+            variant === 'ghost' && 'bg-transparent',
+            inert && 'opacity-60',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {buttonContent}
+        </Pressable>
+      )}
     </Animated.View>
   );
 

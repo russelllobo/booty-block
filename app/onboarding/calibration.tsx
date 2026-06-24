@@ -1,6 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, Camera, CheckCircle2, ChevronLeft } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
@@ -9,6 +10,7 @@ import { PoseOverlay } from '../../components/PoseOverlay';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
+import { captureAnalytics } from '../../lib/analytics';
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCameraView';
@@ -61,6 +63,7 @@ function useCalibrationDisplayPhase(phase: PosePhase, visible: boolean) {
 
 export default function Calibration() {
   const { completeOnboarding, onboardingComplete } = useBootyblock();
+  const posthog = usePostHog();
   const [permission, requestPermission] = useCameraPermissions();
   const webPreview = Platform.OS === 'web';
   const pose = usePoseSession({ target: 1, active: !webPreview && Boolean(permission?.granted) });
@@ -79,7 +82,7 @@ export default function Calibration() {
           : displayPhase === 'bottom'
             ? { instruction: 'SQUAT DETECTED', icon: ArrowUp, accent: colors.lime }
             : displayPhase === 'rising'
-              ? { instruction: 'STAND UP', icon: ArrowUp, accent: colors.lime }
+              ? { instruction: 'SQUAT DETECTED', icon: CheckCircle2, accent: colors.lime }
               : { instruction: 'YOU’RE READY', icon: CheckCircle2, accent: colors.lime };
 
   const PhaseIcon = phase.icon;
@@ -87,6 +90,11 @@ export default function Calibration() {
 
   async function finish() {
     if (!onboardingComplete) {
+      captureAnalytics(posthog, 'calibration_finished', {
+        calibrated: calibrationReady,
+        squat_count: pose.count,
+        camera_granted: cameraGranted,
+      });
       router.push('/onboarding/activity');
       return;
     }

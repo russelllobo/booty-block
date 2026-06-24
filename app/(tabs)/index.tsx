@@ -12,11 +12,9 @@ import { colors } from '../../constants/theme';
 import type { UnlockHistoryEntry } from '../../lib/store/BootyblockProvider';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-function remainingLabel(endsAt: number, now: number) {
-  const totalSeconds = Math.max(0, Math.ceil((endsAt - now) / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+function bankLabel(minutes: number) {
+  if (minutes === 1) return '1 minute';
+  return `${minutes} minutes`;
 }
 
 type StatsPeriod = 'daily' | 'weekly' | 'monthly';
@@ -221,37 +219,31 @@ function StatisticsPanel({
 
 export default function Home() {
   const {
-    activeUnlock,
+    timeBankMinutes,
     selectedAppsConfigured,
     selectedAppsLabel,
     selectionSummary,
     currentStreak,
     unlockHistory,
-    clearUnlockIfExpired,
+    syncTimeBank,
   } = useBootyblock();
   const [now, setNow] = useState(Date.now);
   const [statisticsVisible, setStatisticsVisible] = useState(false);
 
   useEffect(() => {
-    clearUnlockIfExpired();
-    if (!activeUnlock) return;
-
+    syncTimeBank();
     setNow(Date.now());
-    const interval = setInterval(() => {
-      setNow(Date.now());
-      clearUnlockIfExpired();
-    }, 1000);
-
+    const interval = setInterval(syncTimeBank, 5000);
     return () => clearInterval(interval);
-  }, [activeUnlock, clearUnlockIfExpired]);
+  }, [syncTimeBank]);
 
-  const isUnlocked = Boolean(activeUnlock && activeUnlock.endsAt > now);
+  const hasBank = timeBankMinutes > 0;
 
   const status = useMemo(() => {
-    if (isUnlocked) return 'Unlocked';
+    if (hasBank) return 'Bank active';
     if (selectedAppsConfigured) return 'Blocked';
     return 'Setup needed';
-  }, [isUnlocked, selectedAppsConfigured]);
+  }, [hasBank, selectedAppsConfigured]);
   const blockedApplications = selectionSummary?.applications ?? [];
   const blockedAppFallbackCount = Math.max(
     0,
@@ -281,34 +273,34 @@ export default function Home() {
         }
       />
 
-      <View className={`overflow-hidden rounded-[36px] p-6 ${isUnlocked ? 'bg-mint' : 'bg-raspberry'}`}>
+      <View className={`overflow-hidden rounded-[36px] p-6 ${hasBank ? 'bg-mint' : 'bg-raspberry'}`}>
         <View className="flex-row items-start justify-between">
           <View>
             <Text
               className={`text-sm font-black uppercase tracking-[2px] ${
-                isUnlocked ? 'text-mink' : 'text-petal'
+                hasBank ? 'text-mink' : 'text-petal'
               }`}
             >
               Current status
             </Text>
-            <Text className={`mt-2 text-5xl font-black ${isUnlocked ? 'text-cocoa' : 'text-white'}`}>
+            <Text className={`mt-2 text-5xl font-black ${hasBank ? 'text-cocoa' : 'text-white'}`}>
               {status}
             </Text>
           </View>
           <View
             className={`h-16 w-16 items-center justify-center rounded-full ${
-              isUnlocked ? 'bg-white/55' : 'bg-white/20'
+              hasBank ? 'bg-white/55' : 'bg-white/20'
             }`}
           >
-            <Flame size={30} stroke={isUnlocked ? colors.cocoa : colors.white} />
+            <Flame size={30} stroke={hasBank ? colors.cocoa : colors.white} />
           </View>
         </View>
 
-        {isUnlocked && activeUnlock ? (
+        {hasBank ? (
           <View className="mt-8 rounded-[28px] bg-white/55 p-4">
-            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Time left</Text>
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Banked time</Text>
             <Text className="mt-1 text-3xl font-black text-cocoa">
-              {remainingLabel(activeUnlock.endsAt, now)}
+              {bankLabel(timeBankMinutes)}
             </Text>
           </View>
         ) : null}

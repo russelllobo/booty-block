@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 
@@ -17,8 +17,8 @@ type PoseOverlayProps = {
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
-const MIN_LANDMARK_CONFIDENCE = 0.35;
-const LANDMARK_HOLD_MS = 120;
+const MIN_LANDMARK_CONFIDENCE = 0.25;
+const LANDMARK_HOLD_MS = 220;
 
 type CachedLandmark = {
   point: NonNullable<PoseLandmarks[PoseLandmarkName]>;
@@ -42,7 +42,7 @@ const connections: [PoseLandmarkName, PoseLandmarkName][] = [
 
 function overlayColor(phase: PosePhase, visible: boolean) {
   if (!visible) return '#FFD166';
-  if (phase === 'bottom' || phase === 'complete') return '#89F38C';
+  if (phase === 'bottom' || phase === 'rising' || phase === 'complete') return '#89F38C';
   return '#FFFFFF';
 }
 
@@ -109,7 +109,7 @@ function connectionPoint(landmarks: PoseLandmarks, name: PoseLandmarkName) {
   };
 }
 
-export function PoseOverlay({
+function PoseOverlayComponent({
   landmarks,
   phase,
   visible,
@@ -162,3 +162,5 @@ export function PoseOverlay({
     </View>
   );
 }
+
+export const PoseOverlay = memo(PoseOverlayComponent);

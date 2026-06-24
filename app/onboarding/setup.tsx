@@ -6,6 +6,7 @@ import {
   Shirt,
   Smartphone,
 } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useState } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 
@@ -14,6 +15,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
+import { captureAnalytics } from '../../lib/analytics';
 
 type SetupSlide = {
   eyebrow: string;
@@ -83,6 +85,7 @@ function TipsPanel({ height }: { height: number }) {
 
 export default function Setup() {
   const [step, setStep] = useState(0);
+  const posthog = usePostHog();
   const { height } = useWindowDimensions();
   const direction = useStepDirection(step);
   const slide = slides[step];
@@ -102,6 +105,7 @@ export default function Setup() {
       setStep((current) => current + 1);
       return;
     }
+    captureAnalytics(posthog, 'calibration_started');
     router.push('/onboarding/calibration');
   }
 
