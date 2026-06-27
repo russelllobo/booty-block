@@ -140,6 +140,8 @@ export const screenTimeService = {
     if (!isAvailable()) return;
     DeviceActivity.stopMonitoring([BANKED_USAGE_ACTIVITY, UNLOCK_ACTIVITY]);
     this.configureShield();
+    DeviceActivity.clearWhitelistAndUpdateBlock('bootyblock-default-block');
+    DeviceActivity.resetBlocks('bootyblock-default-block');
     DeviceActivity.blockSelection({ activitySelectionId: SELECTION_ID }, 'bootyblock-default-block');
   },
 
@@ -165,9 +167,19 @@ export const screenTimeService = {
       return;
     }
 
+    const serializedSelection = DeviceActivity.getFamilyActivitySelectionId(SELECTION_ID);
+    if (!serializedSelection) {
+      console.warn('Cannot start usage bank monitor because no Screen Time selection is stored.');
+      this.applyDefaultBlock();
+      return;
+    }
+
     DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
     DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
     this.configureShield();
+    DeviceActivity.clearWhitelistAndUpdateBlock('bootyblock-banked-usage');
+    DeviceActivity.resetBlocks('bootyblock-banked-usage');
+    DeviceActivity.blockSelection({ activitySelectionToken: serializedSelection }, 'bootyblock-banked-usage');
 
     DeviceActivity.configureActions({
       activityName: BANKED_USAGE_ACTIVITY,
@@ -175,12 +187,24 @@ export const screenTimeService = {
       eventName: BANK_DEPLETED_EVENT,
       actions: [
         {
+          type: 'removeSelectionFromWhitelist',
+          familyActivitySelection: { activitySelectionToken: serializedSelection },
+        },
+        {
           type: 'blockSelection',
           familyActivitySelectionId: SELECTION_ID,
           shieldId: SHIELD_ID,
         },
       ],
     });
+
+    DeviceActivity.addSelectionToWhitelistAndUpdateBlock(
+      { activitySelectionToken: serializedSelection },
+      'bootyblock-banked-usage',
+    );
+    if (__DEV__) {
+      console.log('Bootyblock bank whitelist applied', DeviceActivity.userDefaultsGet('lastBlockUpdate'));
+    }
 
     await DeviceActivity.startMonitoring(
       BANKED_USAGE_ACTIVITY,
@@ -191,7 +215,7 @@ export const screenTimeService = {
       },
       [
         {
-          familyActivitySelection: SELECTION_ID,
+          familyActivitySelection: serializedSelection,
           threshold: durationComponents(minutes),
           eventName: BANK_DEPLETED_EVENT,
           includesPastActivity: false,
@@ -199,10 +223,10 @@ export const screenTimeService = {
       ],
     );
 
-    DeviceActivity.unblockSelection(
-      { activitySelectionId: SELECTION_ID },
-      'bootyblock-banked-usage',
-    );
+    DeviceActivity.refreshManagedSettingsStore();
+    if (__DEV__) {
+      console.log('Bootyblock bank monitor started', DeviceActivity.userDefaultsGet('lastBlockUpdate'));
+    }
   },
 
   async startAlwaysBlockMonitor() {

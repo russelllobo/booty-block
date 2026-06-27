@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
@@ -100,6 +100,11 @@ function defaultPayload() {
 export function BootyblockProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
   const [payload, setPayload] = useState(defaultPayload);
+  const payloadRef = useRef(payload);
+
+  useEffect(() => {
+    payloadRef.current = payload;
+  }, [payload]);
 
   useEffect(() => {
     let mounted = true;
@@ -215,7 +220,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const bankTime = useCallback(async (minutes: number) => {
     const squats = minutes * MINUTES_TO_SQUATS;
     const completedAt = Date.now();
-    const nextBankMinutes = (payload.timeBankMinutes ?? 0) + minutes;
+    const nextBankMinutes = (payloadRef.current.timeBankMinutes ?? 0) + minutes;
     const historyEntry = {
       id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
       minutes,
@@ -237,7 +242,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       bankedMinutes: nextBankMinutes,
       completedAt,
     };
-  }, [payload.timeBankMinutes]);
+  }, []);
 
   const syncTimeBank = useCallback(() => {
     setPayload((current) => {

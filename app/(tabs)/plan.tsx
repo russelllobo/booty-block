@@ -7,7 +7,7 @@ import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';
 import { SectionPanel } from '../../components/SectionPanel';
-import { MINUTES_TO_SQUATS, minuteOptions } from '../../constants/bootyblock';
+import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
@@ -65,24 +65,6 @@ export default function Plan() {
             <Text className="text-xs font-black text-mink">60 min</Text>
           </View>
         </View>
-      </View>
-
-      <View className="my-5 flex-row flex-wrap gap-3">
-        {minuteOptions.map((minutes) => (
-          <Pressable
-            key={minutes}
-            accessibilityRole="button"
-            onPress={() => setRequestedMinutes(minutes)}
-            className={[
-              'h-14 min-w-[72px] flex-1 items-center justify-center rounded-full border px-4',
-              requestedMinutes === minutes ? 'border-raspberry bg-raspberry' : 'border-white bg-white/70',
-            ].join(' ')}
-          >
-            <Text className={['text-base font-black', requestedMinutes === minutes ? 'text-white' : 'text-cocoa'].join(' ')}>
-              {minutes}m
-            </Text>
-          </Pressable>
-        ))}
       </View>
 
       <SectionPanel title="The rule" subtitle="One minute costs one squat. Banked time only runs down while you use your blocked apps." />

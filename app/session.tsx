@@ -69,7 +69,8 @@ export default function Session() {
   const posthog = usePostHog();
   const target = requestedMinutes * MINUTES_TO_SQUATS;
   const [permission, requestPermission] = useCameraPermissions();
-  const pose = usePoseSession({ target, active: Boolean(permission?.granted) });
+  const [sessionActive, setSessionActive] = useState(true);
+  const pose = usePoseSession({ target, active: Boolean(permission?.granted) && sessionActive });
   const unlockStarted = useRef(false);
   const countScale = useRef(new Animated.Value(1)).current;
   const countFlash = useRef(new Animated.Value(0)).current;
@@ -99,6 +100,7 @@ export default function Session() {
     if (pose.count < target || unlockStarted.current) return;
 
     unlockStarted.current = true;
+    setSessionActive(false);
     setCelebrating(true);
     captureAnalytics(posthog, 'unlock_earned', {
       minutes: requestedMinutes,
@@ -143,9 +145,9 @@ export default function Session() {
       setPopKey((key) => key + 1);
 
       if (pose.count >= target) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } else {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
     }
   }, [pose.count, target]);

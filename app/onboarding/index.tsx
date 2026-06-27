@@ -1,17 +1,44 @@
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
-import { useEffect } from 'react';
-import { Image, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
 
 import { BrandLogo } from '../../components/BrandLogo';
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { shadow } from '../../constants/theme';
+import { useBootyblock } from '../../lib/store/BootyblockProvider';
+
+const SKIP_ONBOARDING_TAPS = 5;
+const TAP_RESET_MS = 1200;
 
 export default function Onboarding() {
   const { height } = useWindowDimensions();
+  const { completeOnboarding } = useBootyblock();
+  const skipTapCountRef = useRef(0);
+  const skipTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const demoHeight = Math.min(410, Math.max(260, height * 0.44));
+
+  const handleLogoPress = useCallback(() => {
+    if (!__DEV__) return;
+
+    skipTapCountRef.current += 1;
+    if (skipTapTimerRef.current) {
+      clearTimeout(skipTapTimerRef.current);
+    }
+
+    if (skipTapCountRef.current >= SKIP_ONBOARDING_TAPS) {
+      skipTapCountRef.current = 0;
+      void completeOnboarding().then(() => router.replace('/(tabs)'));
+      return;
+    }
+
+    skipTapTimerRef.current = setTimeout(() => {
+      skipTapCountRef.current = 0;
+      skipTapTimerRef.current = null;
+    }, TAP_RESET_MS);
+  }, [completeOnboarding]);
 
   useEffect(() => {
     const source = Image.resolveAssetSource(require('../../assets/onboarding/slide-two.jpg'));
@@ -20,12 +47,27 @@ export default function Onboarding() {
     }
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (skipTapTimerRef.current) {
+        clearTimeout(skipTapTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <Screen scroll={false}>
       <SlidePanel>
         <View className="flex-1">
           <View className="flex-row items-center justify-center gap-2 pb-5 pt-1">
-            <BrandLogo height={42} label="Bootyblock logo" />
+            <Pressable
+              accessibilityRole={__DEV__ ? 'button' : undefined}
+              accessibilityLabel="Bootyblock logo"
+              onPress={handleLogoPress}
+              hitSlop={16}
+            >
+              <BrandLogo height={42} label="Bootyblock logo" />
+            </Pressable>
             <Text className="text-2xl font-black tracking-[-1px] text-cocoa">Bootyblock</Text>
           </View>
 

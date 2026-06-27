@@ -312,7 +312,7 @@ export default function Home() {
             {blockedApplications.map((application) => (
               <View
                 key={application.id}
-                className="h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white"
+                className="h-14 w-14 items-center justify-center overflow-hidden rounded-[18px] border border-white/80 bg-white"
                 accessible
                 accessibilityLabel={application.displayName ?? 'Blocked app'}
               >
@@ -320,26 +320,26 @@ export default function Home() {
                   <Image
                     source={{ uri: application.iconDataUri }}
                     className="h-full w-full"
-                    resizeMode="contain"
+                    resizeMode="cover"
                   />
                 ) : (
-                  <AppWindow size={22} stroke={colors.raspberry} />
+                  <AppWindow size={24} stroke={colors.raspberry} />
                 )}
               </View>
             ))}
             {Array.from({ length: blockedAppFallbackCount }).map((_, index) => (
-              <View key={`app-${index}`} className="h-12 w-12 items-center justify-center rounded-2xl bg-petal">
-                <AppWindow size={22} stroke={colors.raspberry} />
+              <View key={`app-${index}`} className="h-14 w-14 items-center justify-center rounded-[18px] bg-petal">
+                <AppWindow size={24} stroke={colors.raspberry} />
               </View>
             ))}
             {Array.from({ length: selectionSummary?.categoryCount ?? 0 }).map((_, index) => (
-              <View key={`category-${index}`} className="h-12 w-12 items-center justify-center rounded-2xl bg-mint">
-                <FolderLock size={22} stroke={colors.cocoa} />
+              <View key={`category-${index}`} className="h-14 w-14 items-center justify-center rounded-[18px] bg-mint">
+                <FolderLock size={24} stroke={colors.cocoa} />
               </View>
             ))}
             {Array.from({ length: selectionSummary?.webDomainCount ?? 0 }).map((_, index) => (
-              <View key={`website-${index}`} className="h-12 w-12 items-center justify-center rounded-2xl bg-white">
-                <Globe2 size={22} stroke={colors.mink} />
+              <View key={`website-${index}`} className="h-14 w-14 items-center justify-center rounded-[18px] bg-white">
+                <Globe2 size={24} stroke={colors.mink} />
               </View>
             ))}
           </View>

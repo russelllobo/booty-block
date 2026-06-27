@@ -22,7 +22,9 @@ public class BootyPoseModule: Module {
 
     AsyncFunction("startSessionAsync") { (targetSquats: Int) in
       self.poseSession.start(targetSquats: targetSquats) { eventName, payload in
-        self.sendEvent(eventName, payload)
+        DispatchQueue.main.async {
+          self.sendEvent(eventName, payload)
+        }
       }
     }
 
@@ -92,6 +94,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   private var frameWidth = 480
   private var frameHeight = 640
   private var isConfigured = false
+  private var isActive = false
 
   func start(targetSquats: Int, eventSink: @escaping (_ eventName: String, _ payload: [String: Any]) -> Void) {
     self.targetSquats = max(1, targetSquats)
@@ -110,6 +113,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
     self.smoothedPoints = [:]
     self.latestLandmarks = [:]
     self.eventSink = eventSink
+    self.isActive = true
 
     switch AVCaptureDevice.authorizationStatus(for: .video) {
     case .authorized:
@@ -133,6 +137,8 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   }
 
   func stop() {
+    isActive = false
+    eventSink = nil
     captureQueue.async {
       if self.captureSession.isRunning {
         self.captureSession.stopRunning()
@@ -173,6 +179,10 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   }
 
   func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+    guard isActive else {
+      return
+    }
+
     if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
       // The Vision request rotates the landscape camera buffer into portrait.
       frameWidth = CVPixelBufferGetHeight(pixelBuffer)
@@ -181,6 +191,9 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
 
     let request = VNDetectHumanBodyPoseRequest { [weak self] request, _ in
       guard let self else {
+        return
+      }
+      guard self.isActive else {
         return
       }
       guard let observation = request.results?.first as? VNHumanBodyPoseObservation else {
@@ -391,13 +404,6 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
           visible: true
         )
 
-        if count >= targetSquats {
-          eventSink?("sessionComplete", [
-            "squats": count,
-            "grantedMinutes": count
-          ])
-          stop()
-        }
       } else {
         phase = "descending"
         emit(hint: "Hold that depth.", confidence: confidence, visible: true)
@@ -467,13 +473,6 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
         visible: true
       )
 
-      if count >= targetSquats {
-        eventSink?("sessionComplete", [
-          "squats": count,
-          "grantedMinutes": count
-        ])
-        stop()
-      }
       return
     }
 
@@ -488,6 +487,10 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
   }
 
   private func emit(hint: String, confidence: Double, visible: Bool) {
+    guard isActive else {
+      return
+    }
+
     eventSink?("poseUpdate", [
       "count": count,
       "target": targetSquats,
