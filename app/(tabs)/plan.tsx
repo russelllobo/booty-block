@@ -1,13 +1,13 @@
 import Slider from '@react-native-community/slider';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Clock3, Dumbbell, Minus, Plus } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { Clock3, Dumbbell } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
+import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { Screen } from '../../components/Screen';
-import { SectionPanel } from '../../components/SectionPanel';
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -26,20 +26,10 @@ export default function Plan() {
   const sliderMax = mode === 'spend' ? maxSpendMinutes : 60;
   const title = mode === 'spend' ? 'Use banked time' : 'Bank app time';
   const subtitle = mode === 'spend'
-    ? 'Choose how many minutes to unlock now.'
+    ? 'Choose how many minutes to use your blocked apps for.'
     : 'Choose how much time to earn, then pay in squats.';
-  const panelEyebrow = mode === 'spend' ? 'Spend time' : 'Bank time';
   const primaryLabel = mode === 'spend' ? `Use ${spendTarget} min` : `Start ${earningTarget} squats`;
   const primaryIcon = mode === 'spend' ? Clock3 : Dumbbell;
-  const helperLabel = useMemo(() => {
-    if (mode === 'spend') {
-      const bankMinutes = Math.floor(timeBankSeconds / 60);
-      const bankSeconds = timeBankSeconds % 60;
-      return bankSeconds > 0 ? `${bankMinutes}m ${bankSeconds}s in your bank` : `${bankMinutes} minutes in your bank`;
-    }
-
-    return `${earningTarget} squats`;
-  }, [earningTarget, mode, timeBankSeconds]);
 
   useEffect(() => {
     if (!hasBank && mode === 'spend') {
@@ -82,7 +72,7 @@ export default function Plan() {
       <Header title={title} subtitle={subtitle} />
 
       {hasBank ? (
-        <View className="mb-4 flex-row rounded-full bg-white/70 p-1">
+        <View className="mb-3 flex-row rounded-full bg-white/70 p-1">
           {(['spend', 'earn'] as const).map((option) => {
             const active = mode === option;
             return (
@@ -102,30 +92,24 @@ export default function Plan() {
         </View>
       ) : null}
 
-      <View className="items-center rounded-[38px] bg-white/70 p-8">
-        <Text className="text-sm font-black uppercase tracking-[2px] text-mink">{panelEyebrow}</Text>
-        <View className="my-6 flex-row items-center gap-8">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Decrease minutes"
-            onPress={() => updateSliderMinutes(Math.max(1, sliderMinutes - 1))}
-            className="h-14 w-14 items-center justify-center rounded-full bg-petal"
+      <View className="items-center rounded-[32px] bg-white/70 p-5">
+        <View className="my-3 h-[154px] items-center justify-center">
+          <NativeRollingNumber
+            value={sliderMinutes}
+            color={colors.cocoa}
+            fontSize={124}
+            fontWeight="900"
+            style={{ width: 240, height: 132 }}
+          />
+          <Text
+            className="-mt-3 text-center font-black uppercase text-raspberry"
+            style={{ fontSize: 30, letterSpacing: 1.5, lineHeight: 34 }}
           >
-            <Minus size={24} stroke={colors.raspberry} />
-          </Pressable>
-          <Text className="min-w-[150px] text-center text-7xl font-black text-cocoa">{sliderMinutes}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Increase minutes"
-            onPress={() => updateSliderMinutes(Math.min(sliderMax, sliderMinutes + 1))}
-            className="h-14 w-14 items-center justify-center rounded-full bg-petal"
-          >
-            <Plus size={24} stroke={colors.raspberry} />
-          </Pressable>
+            minutes
+          </Text>
         </View>
-        <Text className="text-xl font-black text-raspberry">{helperLabel}</Text>
 
-        <View className="mt-7 w-full">
+        <View className="mt-4 w-full">
           <Slider
             accessibilityLabel={mode === 'spend' ? 'Minutes to use from bank' : 'Minutes to bank for blocked apps'}
             accessibilityValue={{
@@ -150,14 +134,16 @@ export default function Plan() {
         </View>
       </View>
 
-      <SectionPanel
-        title="The rule"
-        subtitle={mode === 'spend'
-          ? 'The selected minutes are taken from your bank, then your blocked apps open until that usage runs out.'
-          : 'One minute costs one squat. Banked time waits until you choose to use it.'}
-      />
+      <View className="mt-4 rounded-[24px] border border-white/70 bg-white/65 p-4">
+        <Text className="text-lg font-black text-cocoa">The rule</Text>
+        <Text className="mt-1 text-sm font-semibold leading-5 text-mink">
+          {mode === 'spend'
+            ? 'Selected minutes leave your bank, then blocked apps open until time runs out.'
+            : 'One minute costs one squat. Banked time waits until you choose to use it.'}
+        </Text>
+      </View>
 
-      <View className="mt-auto pt-6">
+      <View className="mt-auto pt-4">
         <Button label={primaryLabel} icon={primaryIcon} onPress={handlePrimaryPress} loading={spending} />
       </View>
     </Screen>

@@ -4,8 +4,8 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { colors } from '../../constants/theme';
 
 const labelStyle = {
-  default: { fontWeight: '800' as const, fontSize: 12, color: colors.mink },
-  selected: { fontWeight: '800' as const, fontSize: 12, color: colors.raspberry },
+  default: { fontWeight: '600' as const, fontSize: 12, color: colors.mink },
+  selected: { fontWeight: '600' as const, fontSize: 12, color: colors.raspberry },
 };
 
 export default function TabsLayout() {

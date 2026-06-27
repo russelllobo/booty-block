@@ -75,6 +75,11 @@ const USAGE_WINDOW_MONITOR_VERSION = 1;
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
 
+function elapsedSecondsSince(startedAt: number | null | undefined) {
+  if (!startedAt) return 0;
+  return Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+}
+
 function defaultPayload() {
   const webUiPreview = Platform.OS === 'web';
   const now = Date.now();
@@ -153,8 +158,12 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         const usageWindowProgressSeconds = screenTimeService.getUsageWindowProgressSeconds(usageWindowStartedAt);
         const usageWindowDepleted = screenTimeService.hasUsageWindowDepleted(usageWindowStartedAt)
           || usageWindowProgressSeconds === Number.MAX_SAFE_INTEGER;
+        const usageWindowElapsedSeconds = Math.max(
+          usageWindowProgressSeconds === Number.MAX_SAFE_INTEGER ? 0 : usageWindowProgressSeconds,
+          elapsedSecondsSince(usageWindowStartedAt),
+        );
         const usageWindowSeconds = usageWindowStartedAt && !usageWindowDepleted
-          ? Math.max(0, usageWindowStartedSeconds - usageWindowProgressSeconds)
+          ? Math.max(0, usageWindowStartedSeconds - usageWindowElapsedSeconds)
           : 0;
         const usageWindow = usageWindowSeconds > 0
           ? {
@@ -333,11 +342,15 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         const windowDepleted = screenTimeService.hasUsageWindowDepleted(currentWindow.startedAt);
         const progressSeconds = screenTimeService.getUsageWindowProgressSeconds(currentWindow.startedAt);
         const progressDepleted = progressSeconds === Number.MAX_SAFE_INTEGER;
+        const elapsedSeconds = Math.max(
+          progressDepleted ? 0 : progressSeconds,
+          elapsedSecondsSince(currentWindow.startedAt),
+        );
         const nextUsageWindowSeconds = windowDepleted || progressDepleted
           ? 0
-          : Math.max(0, currentWindow.startedSeconds - progressSeconds);
+          : Math.max(0, currentWindow.startedSeconds - elapsedSeconds);
         if (__DEV__ && progressSeconds > 0) {
-          console.log('Bootyblock usage window progress', { progressSeconds, nextUsageWindowSeconds });
+          console.log('Bootyblock usage window progress', { progressSeconds, elapsedSeconds, nextUsageWindowSeconds });
         }
 
         if (nextUsageWindowSeconds > 0) {

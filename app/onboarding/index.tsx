@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react-native';
 import { useCallback, useEffect, useRef } from 'react';
 import { Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
 
-import { BrandLogo } from '../../components/BrandLogo';
+import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
@@ -62,13 +62,12 @@ export default function Onboarding() {
           <View className="flex-row items-center justify-center gap-2 pb-5 pt-1">
             <Pressable
               accessibilityRole={__DEV__ ? 'button' : undefined}
-              accessibilityLabel="Bootyblock logo"
+              accessibilityLabel="BootyBlock logo"
               onPress={handleLogoPress}
               hitSlop={16}
             >
-              <BrandLogo height={42} label="Bootyblock logo" />
+              <BrandLockup height={42} label="BootyBlock logo" />
             </Pressable>
-            <Text className="text-2xl font-black tracking-[-1px] text-cocoa">Bootyblock</Text>
           </View>
 
           <View

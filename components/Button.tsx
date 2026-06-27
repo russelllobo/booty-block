@@ -20,6 +20,7 @@ type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   foregroundColor?: string;
+  noOutline?: boolean;
 };
 
 const DEPTH = 6;
@@ -33,7 +34,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading, foregroundColor }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading, foregroundColor, noOutline }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -86,6 +87,8 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
       ) : null}
       <Text
         className={['text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
+        numberOfLines={1}
+        adjustsFontSizeToFit
         style={foregroundColor ? { color: foregroundColor } : undefined}
       >
         {label}
@@ -131,7 +134,7 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
           className={[
             'min-h-14 flex-row items-center justify-center gap-2 rounded-full px-6',
             isPrimary && 'bg-raspberry',
-            isSecondary && 'border border-raspberry/20 bg-white/80',
+            isSecondary && (noOutline ? 'bg-white/80' : 'border border-raspberry/20 bg-white/80'),
             isOutline && 'border border-white/55 bg-transparent',
             variant === 'ghost' && 'bg-transparent',
             inert && 'opacity-60',

@@ -1,3 +1,4 @@
+import { Asset } from 'expo-asset';
 import { Platform } from 'react-native';
 import * as DeviceActivity from 'react-native-device-activity';
 
@@ -42,6 +43,17 @@ const denied = 1;
 const notDetermined = 0;
 const PROGRESS_INTERVAL_SECONDS = 60;
 const SHIELD_OPEN_REQUEST_TTL_MS = 120_000;
+const SHIELD_LOGO_FILE_NAME = 'bootyblock-shield-logo.png';
+const shieldLogo = require('../../assets/logo.png');
+const shieldPalette = {
+  blush: { red: 255, green: 241, blue: 246 },
+  raspberry: { red: 233, green: 30, blue: 115 },
+  cocoa: { red: 58, green: 31, blue: 44 },
+  mink: { red: 125, green: 90, blue: 103 },
+  white: { red: 255, green: 255, blue: 255 },
+};
+let shieldLogoReady = false;
+let shieldLogoCopyPromise: Promise<boolean> | null = null;
 
 function toStatus(status: number | undefined): ScreenTimeStatus {
   if (status === approved) return 'approved';
@@ -134,6 +146,53 @@ function selectionPart(count: number, singular: string, plural = `${singular}s`)
   return count > 0 ? `${count} ${count === 1 ? singular : plural}` : null;
 }
 
+function appGroupFileUri(fileName: string) {
+  const directory = DeviceActivity.getAppGroupFileDirectory?.();
+  if (!directory) return null;
+  return `${directory.endsWith('/') ? directory : `${directory}/`}${fileName}`;
+}
+
+async function copyShieldLogoToAppGroup() {
+  if (!isAvailable()) return false;
+  if (shieldLogoReady) return true;
+
+  shieldLogoCopyPromise ??= Asset.fromModule(shieldLogo)
+    .downloadAsync()
+    .then((asset) => {
+      const sourceUri = asset.localUri ?? asset.uri;
+      const destinationUri = appGroupFileUri(SHIELD_LOGO_FILE_NAME);
+      if (!sourceUri || !destinationUri) return false;
+
+      DeviceActivity.copyFile(sourceUri, destinationUri, true);
+      shieldLogoReady = true;
+      return true;
+    })
+    .catch((error) => {
+      console.warn('Failed to prepare BootyBlock shield logo:', error);
+      shieldLogoCopyPromise = null;
+      return false;
+    });
+
+  return shieldLogoCopyPromise;
+}
+
+function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfiguration {
+  return {
+    title: 'Blocked for your booty',
+    subtitle: 'Open BootyBlock, knock out your squats, and earn this app back.',
+    primaryButtonLabel: 'Open BootyBlock',
+    iconSystemName: useLogo ? undefined : 'figure.strengthtraining.traditional',
+    iconAppGroupRelativePath: useLogo ? SHIELD_LOGO_FILE_NAME : undefined,
+    iconTint: useLogo ? undefined : shieldPalette.raspberry,
+    backgroundColor: shieldPalette.blush,
+    backgroundBlurStyle: 10,
+    titleColor: shieldPalette.cocoa,
+    subtitleColor: shieldPalette.mink,
+    primaryButtonBackgroundColor: shieldPalette.raspberry,
+    primaryButtonLabelColor: shieldPalette.white,
+  };
+}
+
 export const screenTimeService = {
   isAvailable,
 
@@ -179,17 +238,6 @@ export const screenTimeService = {
   configureShield() {
     if (!isAvailable()) return;
 
-    const shieldConfiguration: DeviceActivity.ShieldConfiguration = {
-      title: 'Bootyblock',
-      subtitle: 'Your bank is empty. Do squats in Bootyblock to earn more app time.',
-      primaryButtonLabel: 'Open Bootyblock',
-      iconSystemName: 'figure.strengthtraining.traditional',
-      backgroundBlurStyle: 10,
-      titleColor: { red: 175, green: 21, blue: 85 },
-      subtitleColor: { red: 58, green: 31, blue: 44 },
-      primaryButtonBackgroundColor: { red: 233, green: 30, blue: 115 },
-      primaryButtonLabelColor: { red: 255, green: 255, blue: 255 },
-    };
     const shieldActions: ShieldActionsWithUrl = {
       primary: {
         behavior: 'close',
@@ -200,8 +248,23 @@ export const screenTimeService = {
 
     DeviceActivity.userDefaultsClearWithPrefix('shieldConfigurationForSelection');
     DeviceActivity.userDefaultsClearWithPrefix('shieldActionsForSelection');
+    const shieldConfiguration = buildShieldConfiguration(shieldLogoReady);
     DeviceActivity.updateShield(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, 'bootyblock-configure-shield');
     DeviceActivity.updateShieldWithId(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, SHIELD_ID);
+    void copyShieldLogoToAppGroup().then((logoReady) => {
+      if (!logoReady) return;
+      const logoShieldConfiguration = buildShieldConfiguration(true);
+      DeviceActivity.updateShield(
+        logoShieldConfiguration,
+        shieldActions as unknown as DeviceActivity.ShieldActions,
+        'bootyblock-configure-shield-logo',
+      );
+      DeviceActivity.updateShieldWithId(
+        logoShieldConfiguration,
+        shieldActions as unknown as DeviceActivity.ShieldActions,
+        SHIELD_ID,
+      );
+    });
   },
 
   consumeShieldOpenRequest() {

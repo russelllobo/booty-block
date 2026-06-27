@@ -53,7 +53,7 @@ import {
   View,
 } from 'react-native';
 
-import { BrandLogo } from '../../components/BrandLogo';
+import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
@@ -520,13 +520,7 @@ function CurrentStateSlide({
               >
                 With
               </Text>
-              <BrandLogo height={38} label="Booty Lock logo" />
-              <Text
-                className="text-center text-[28px] font-bold leading-[33px]"
-                style={{ color: bootyLockGreen }}
-              >
-                Booty Lock
-              </Text>
+              <BrandLockup height={38} label="BootyBlock logo" />
             </View>
 
             <View className="mt-5 flex-row flex-wrap justify-center gap-2.5">

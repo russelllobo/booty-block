@@ -1,12 +1,13 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowDown, ArrowUp, Camera, CheckCircle2, ChevronLeft } from 'lucide-react-native';
+import { Camera, ChevronLeft } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { BrandLockup } from '../components/BrandLockup';
 import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { PoseOverlay } from '../components/PoseOverlay';
 import { Screen } from '../components/Screen';
@@ -17,52 +18,6 @@ import { captureAnalytics } from '../lib/analytics';
 import { usePoseSession } from '../lib/services/pose';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../modules/booty-pose/src/BootyPoseCameraView';
-import type { PosePhase } from '../modules/booty-pose/src/BootyPose.types';
-
-type Phase = {
-  instruction: string;
-  icon: ComponentType<{ size?: number; stroke?: string; strokeWidth?: number; style?: { marginTop?: number } }>;
-  accent: string;
-};
-
-function useSessionDisplayPhase(phase: PosePhase, visible: boolean) {
-  const [displayPhase, setDisplayPhase] = useState(phase);
-  const displayPhaseRef = useRef(phase);
-  const standingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    displayPhaseRef.current = displayPhase;
-  }, [displayPhase]);
-
-  useEffect(() => {
-    if (standingTimerRef.current) {
-      clearTimeout(standingTimerRef.current);
-      standingTimerRef.current = null;
-    }
-
-    if (!visible) {
-      setDisplayPhase(phase);
-      return;
-    }
-
-    if (displayPhaseRef.current === 'descending' && phase === 'standing') {
-      standingTimerRef.current = setTimeout(() => {
-        setDisplayPhase('standing');
-        standingTimerRef.current = null;
-      }, 500);
-      return () => {
-        if (standingTimerRef.current) {
-          clearTimeout(standingTimerRef.current);
-          standingTimerRef.current = null;
-        }
-      };
-    }
-
-    setDisplayPhase(phase);
-  }, [phase, visible]);
-
-  return displayPhase;
-}
 
 export default function Session() {
   const { requestedMinutes, bankTime } = useBootyblock();
@@ -76,25 +31,9 @@ export default function Session() {
   const countFlash = useRef(new Animated.Value(0)).current;
   const prevCountRef = useRef(pose.count);
   const { width } = useWindowDimensions();
-  const displayPhase = useSessionDisplayPhase(pose.phase, pose.visible);
   const remainingSquats = Math.max(target - pose.count, 0);
   const [popKey, setPopKey] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
-
-  const phase: Phase = !pose.visible
-    ? { instruction: 'STEP BACK', icon: ArrowDown, accent: colors.white }
-    : displayPhase === 'calibrating'
-      ? { instruction: 'STAND TALL', icon: ArrowDown, accent: colors.white }
-      : displayPhase === 'standing'
-        ? { instruction: 'DO ONE SQUAT', icon: ArrowDown, accent: colors.white }
-        : displayPhase === 'descending'
-          ? { instruction: 'GO LOWER', icon: ArrowDown, accent: colors.white }
-          : displayPhase === 'bottom'
-            ? { instruction: 'SQUAT DETECTED', icon: ArrowUp, accent: colors.lime }
-            : displayPhase === 'rising'
-              ? { instruction: 'SQUAT DETECTED', icon: CheckCircle2, accent: colors.lime }
-              : { instruction: 'YOU’RE READY', icon: CheckCircle2, accent: colors.lime };
-  const PhaseIcon = phase.icon;
 
   useEffect(() => {
     if (pose.count < target || unlockStarted.current) return;
@@ -185,41 +124,8 @@ export default function Session() {
             <ChevronLeft size={26} stroke={colors.cocoa} strokeWidth={2.6} />
           </Pressable>
 
-          <View
-            className="mb-4 items-center rounded-[24px] border border-white/20 px-3 py-4"
-            style={{ backgroundColor: 'rgba(58, 31, 44, 0.92)' }}
-          >
-            {permission?.granted ? (
-              <>
-                <Text
-                  className="text-center font-black"
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  style={{
-                    color: phase.accent,
-                    fontSize: Math.min(48, Math.max(32, width * 0.095)),
-                    lineHeight: Math.min(50, Math.max(34, width * 0.1)),
-                    letterSpacing: -1.5,
-                  }}
-                >
-                  {phase.instruction}
-                </Text>
-                <PhaseIcon
-                  size={74}
-                  strokeWidth={4}
-                  stroke={phase.accent}
-                  style={{ marginTop: 2 }}
-                />
-              </>
-            ) : (
-              <Text
-                className="text-center text-[28px] font-bold leading-[33px] text-white"
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                Squats
-              </Text>
-            )}
+          <View className="mb-4 items-center py-2">
+            <BrandLockup height={42} label="BootyBlock logo" />
           </View>
 
           <View
