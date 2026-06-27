@@ -17,6 +17,12 @@ type BankEarnedSession = {
   completedAt: number;
 };
 
+type UsageWindow = {
+  startedAt: number;
+  seconds: number;
+  startedSeconds: number;
+};
+
 export type RoutineReminderTime = {
   hour: number;
   minute: number;
@@ -44,7 +50,9 @@ type BootyblockState = {
   selectedAppsLabel: string;
   requestedMinutes: number;
   timeBankMinutes: number;
-  timeBankStartedAt: number | null;
+  timeBankSeconds: number;
+  usageWindow: UsageWindow | null;
+  usageWindowSeconds: number;
   unlockHistory: UnlockHistoryEntry[];
   currentStreak: number;
   completeOnboarding: () => Promise<void>;
@@ -57,11 +65,13 @@ type BootyblockState = {
   markSelectionConfigured: () => Promise<boolean>;
   setRequestedMinutes: (minutes: number) => void;
   bankTime: (minutes: number) => Promise<BankEarnedSession>;
+  useBankedTime: (minutes: number) => Promise<boolean>;
   syncTimeBank: () => void;
   resetAppData: () => Promise<void>;
 };
 
 const STORAGE_KEY = 'bootyblock:v1';
+const USAGE_WINDOW_MONITOR_VERSION = 1;
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
 
@@ -84,7 +94,10 @@ function defaultPayload() {
       : null as ScreenTimeSelectionSummary | null,
     requestedMinutes: 10,
     timeBankMinutes: webUiPreview ? 12 : 0,
-    timeBankStartedAt: webUiPreview ? now : null as number | null,
+    timeBankSeconds: webUiPreview ? 12 * 60 : 0,
+    usageWindow: null as UsageWindow | null,
+    usageWindowSeconds: 0,
+    usageWindowMonitorVersion: 0,
     unlockHistory: webUiPreview
       ? ([
           { id: 'preview-1', minutes: 10, squats: 10, completedAt: now },
@@ -96,6 +109,13 @@ function defaultPayload() {
       : ([] as UnlockHistoryEntry[]),
   };
 }
+
+type StoredPayload = ReturnType<typeof defaultPayload> & {
+  activeUnlock?: { startedAt?: number; minutes?: number };
+  timeBankStartedAt?: number | null;
+  timeBankStartedSeconds?: number;
+  usageWindow?: UsageWindow | null;
+};
 
 export function BootyblockProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
@@ -112,18 +132,41 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       .then((raw) => {
         if (!mounted) return;
         const webUiPreview = Platform.OS === 'web';
-        const stored = raw ? { ...defaultPayload(), ...JSON.parse(raw) } : defaultPayload();
+        const parsedPayload: Partial<StoredPayload> = raw ? JSON.parse(raw) : {};
+        const stored: StoredPayload = { ...defaultPayload(), ...parsedPayload };
         const selectionSummary = screenTimeService.getSelectionSummary();
-        const legacyActiveUnlock = (stored as typeof stored & { activeUnlock?: { startedAt?: number; minutes?: number } }).activeUnlock;
-        const storedBankStartedAt = stored.timeBankStartedAt ?? legacyActiveUnlock?.startedAt ?? null;
-        const storedBankMinutes = stored.timeBankMinutes ?? legacyActiveUnlock?.minutes ?? 0;
-        const bankDepleted = screenTimeService.hasUsageBankDepleted(storedBankStartedAt);
-        const timeBankMinutes = bankDepleted ? 0 : storedBankMinutes;
-        const timeBankStartedAt = bankDepleted || timeBankMinutes <= 0 ? null : storedBankStartedAt ?? Date.now();
+        const legacyActiveUnlock = stored.activeUnlock;
+        const storedBankStartedAt = parsedPayload.timeBankStartedAt ?? legacyActiveUnlock?.startedAt ?? null;
+        const storedBankSeconds = typeof parsedPayload.timeBankSeconds === 'number'
+          ? parsedPayload.timeBankSeconds
+          : ((stored.timeBankMinutes ?? legacyActiveUnlock?.minutes ?? 0) * 60);
+        const bankProgressSeconds = screenTimeService.getUsageBankProgressSeconds(storedBankStartedAt);
+        const progressDepleted = bankProgressSeconds === Number.MAX_SAFE_INTEGER;
+        const remainingBankSeconds = progressDepleted
+          ? 0
+          : Math.max(0, storedBankSeconds - bankProgressSeconds);
+        const timeBankSeconds = Math.min(storedBankSeconds, remainingBankSeconds);
+        const timeBankMinutes = Math.ceil(timeBankSeconds / 60);
+        const storedUsageWindow = stored.usageWindow ?? null;
+        const usageWindowStartedAt = storedUsageWindow?.startedAt ?? null;
+        const usageWindowStartedSeconds = storedUsageWindow?.startedSeconds ?? storedUsageWindow?.seconds ?? 0;
+        const usageWindowProgressSeconds = screenTimeService.getUsageWindowProgressSeconds(usageWindowStartedAt);
+        const usageWindowDepleted = screenTimeService.hasUsageWindowDepleted(usageWindowStartedAt)
+          || usageWindowProgressSeconds === Number.MAX_SAFE_INTEGER;
+        const usageWindowSeconds = usageWindowStartedAt && !usageWindowDepleted
+          ? Math.max(0, usageWindowStartedSeconds - usageWindowProgressSeconds)
+          : 0;
+        const usageWindow = usageWindowSeconds > 0
+          ? {
+              startedAt: Date.now(),
+              seconds: usageWindowSeconds,
+              startedSeconds: usageWindowSeconds,
+            }
+          : null;
         if (screenTimeService.isAvailable()) {
           screenTimeService.configureShield();
-          if (timeBankMinutes > 0) {
-            void screenTimeService.startUsageBankMonitor(timeBankMinutes);
+          if (usageWindow) {
+            void screenTimeService.startUsageWindow(usageWindow.seconds);
           } else {
             screenTimeService.applyDefaultBlock();
           }
@@ -141,7 +184,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
             ? stored.selectionSummary ?? defaultPayload().selectionSummary
             : selectionSummary ?? stored.selectionSummary ?? null,
           timeBankMinutes,
-          timeBankStartedAt,
+          timeBankSeconds,
+          usageWindow,
+          usageWindowSeconds,
+          usageWindowMonitorVersion: usageWindow ? USAGE_WINDOW_MONITOR_VERSION : 0,
         });
       })
       .finally(() => mounted && setHydrated(true));
@@ -220,7 +266,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const bankTime = useCallback(async (minutes: number) => {
     const squats = minutes * MINUTES_TO_SQUATS;
     const completedAt = Date.now();
-    const nextBankMinutes = (payloadRef.current.timeBankMinutes ?? 0) + minutes;
+    const nextBankSeconds = (payloadRef.current.timeBankSeconds ?? (payloadRef.current.timeBankMinutes ?? 0) * 60) + (minutes * 60);
+    const nextBankMinutes = Math.ceil(nextBankSeconds / 60);
     const historyEntry = {
       id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
       minutes,
@@ -231,11 +278,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       return {
         ...current,
         timeBankMinutes: nextBankMinutes,
-        timeBankStartedAt: completedAt,
+        timeBankSeconds: nextBankSeconds,
         unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
       };
     });
-    await screenTimeService.startUsageBankMonitor(nextBankMinutes);
+    screenTimeService.applyDefaultBlock();
     return {
       minutes,
       squats,
@@ -244,13 +291,82 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  const useBankedTime = useCallback(async (minutes: number) => {
+    const requestedSeconds = Math.max(0, Math.round(minutes * 60));
+    const availableSeconds = payloadRef.current.timeBankSeconds ?? 0;
+    const spendSeconds = Math.min(requestedSeconds, availableSeconds);
+    if (spendSeconds <= 0) return false;
+
+    await screenTimeService.startUsageWindow(spendSeconds);
+    const startedAt = Date.now();
+    setPayload((current) => {
+      const actualSpendSeconds = Math.min(spendSeconds, current.timeBankSeconds ?? 0);
+      const nextBankSeconds = Math.max(0, (current.timeBankSeconds ?? 0) - actualSpendSeconds);
+      return {
+        ...current,
+        timeBankMinutes: Math.ceil(nextBankSeconds / 60),
+        timeBankSeconds: nextBankSeconds,
+        usageWindow: {
+          startedAt,
+          seconds: actualSpendSeconds,
+          startedSeconds: actualSpendSeconds,
+        },
+        usageWindowSeconds: actualSpendSeconds,
+        usageWindowMonitorVersion: USAGE_WINDOW_MONITOR_VERSION,
+      };
+    });
+    return true;
+  }, []);
+
   const syncTimeBank = useCallback(() => {
     setPayload((current) => {
-      if (current.timeBankMinutes <= 0 || !screenTimeService.hasUsageBankDepleted(current.timeBankStartedAt)) {
-        return current;
+      const currentWindow = current.usageWindow ?? null;
+      if (currentWindow) {
+        if (current.usageWindowMonitorVersion !== USAGE_WINDOW_MONITOR_VERSION) {
+          void screenTimeService.startUsageWindow(currentWindow.seconds);
+          return {
+            ...current,
+            usageWindowMonitorVersion: USAGE_WINDOW_MONITOR_VERSION,
+          };
+        }
+
+        const windowDepleted = screenTimeService.hasUsageWindowDepleted(currentWindow.startedAt);
+        const progressSeconds = screenTimeService.getUsageWindowProgressSeconds(currentWindow.startedAt);
+        const progressDepleted = progressSeconds === Number.MAX_SAFE_INTEGER;
+        const nextUsageWindowSeconds = windowDepleted || progressDepleted
+          ? 0
+          : Math.max(0, currentWindow.startedSeconds - progressSeconds);
+        if (__DEV__ && progressSeconds > 0) {
+          console.log('Bootyblock usage window progress', { progressSeconds, nextUsageWindowSeconds });
+        }
+
+        if (nextUsageWindowSeconds > 0) {
+          return nextUsageWindowSeconds === current.usageWindowSeconds
+            ? current
+            : {
+                ...current,
+                usageWindow: {
+                  ...currentWindow,
+                  seconds: nextUsageWindowSeconds,
+                },
+                usageWindowSeconds: nextUsageWindowSeconds,
+              };
+        }
+
+        screenTimeService.applyDefaultBlock();
+        return {
+          ...current,
+          usageWindow: null,
+          usageWindowSeconds: 0,
+          usageWindowMonitorVersion: 0,
+        };
       }
-      screenTimeService.applyDefaultBlock();
-      return { ...current, timeBankMinutes: 0, timeBankStartedAt: null };
+
+      if (current.timeBankSeconds <= 0 && current.timeBankMinutes !== 0) {
+        return { ...current, timeBankMinutes: 0 };
+      }
+
+      return current;
     });
   }, []);
 
@@ -261,6 +377,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         syncTimeBank();
       }
     });
+    return () => subscription.remove();
+  }, [syncTimeBank]);
+
+  useEffect(() => {
+    const subscription = screenTimeService.onUsageBankThreshold(syncTimeBank);
     return () => subscription.remove();
   }, [syncTimeBank]);
 
@@ -291,6 +412,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       markSelectionConfigured,
       setRequestedMinutes,
       bankTime,
+      useBankedTime,
       syncTimeBank,
       resetAppData,
     }),
@@ -307,6 +429,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       markSelectionConfigured,
       setRequestedMinutes,
       bankTime,
+      useBankedTime,
       syncTimeBank,
       resetAppData,
     ],

@@ -34,8 +34,34 @@ index df7207f..37dcca6 100644
          includeEntireCategory: false,
      };
  };
+diff --git a/node_modules/react-native-device-activity/build/index.d.ts b/node_modules/react-native-device-activity/build/index.d.ts
+index cb17cf5..020c9c6 100644
+--- a/node_modules/react-native-device-activity/build/index.d.ts
++++ b/node_modules/react-native-device-activity/build/index.d.ts
+@@ -27,6 +27,7 @@ export declare const difference: (familyActivitySelection: ActivitySelectionInpu
+ export declare const symmetricDifference: (familyActivitySelection: ActivitySelectionInputWithBlocks, familyActivitySelection2: ActivitySelectionInputWithBlocks, options?: SetOperationOptions) => ActivitySelectionWithMetadata | undefined;
+ export declare const activitySelectionMetadata: (activitySelection: ActivitySelectionInputWithBlocks) => ActivitySelectionMetadata | undefined;
+ export declare const activitySelectionWithMetadata: (activitySelection: ActivitySelectionInputWithBlocks) => ActivitySelectionWithMetadata | undefined;
++export declare const convertToIncludeCategories: (activitySelection: ActivitySelectionInputWithBlocks) => ActivitySelectionWithMetadata | undefined;
+ export declare const configureActions: ({ activityName, callbackName, actions, eventName, }: {
+     activityName: string;
+     callbackName: CallbackName;
+diff --git a/node_modules/react-native-device-activity/build/index.js b/node_modules/react-native-device-activity/build/index.js
+index 67bb113..65eba36 100644
+--- a/node_modules/react-native-device-activity/build/index.js
++++ b/node_modules/react-native-device-activity/build/index.js
+@@ -136,6 +136,9 @@ export const activitySelectionMetadata = (activitySelection) => {
+ export const activitySelectionWithMetadata = (activitySelection) => {
+     return ReactNativeDeviceActivityModule?.activitySelectionWithMetadata(activitySelection);
+ };
++export const convertToIncludeCategories = (activitySelection) => {
++    return ReactNativeDeviceActivityModule?.convertToIncludeCategories(activitySelection);
++};
+ export const configureActions = ({ activityName, callbackName, actions, eventName, }) => {
+     const key = eventName
+         ? `actions_for_${activityName}_${callbackName}_${eventName}`
 diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
-index 8aee1f2..0edd7f4 100644
+index 8aee1f2..daea8eb 100644
 --- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
 +++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
 @@ -5,8 +5,59 @@ import FamilyControls
@@ -132,6 +158,31 @@ index 8aee1f2..0edd7f4 100644
    var includeEntireCategory: Bool
  }
  
+@@ -609,7 +666,23 @@ public class ReactNativeDeviceActivityModule: Module {
+         stripToken: stripToken
+       )
+     }
+-
++    Function("convertToIncludeCategories") {
++      (familyActivitySelection: [String: Any])
++        -> ActivitySelectionWithMetadata in
++      let selection = parseActivitySelectionInput(input: familyActivitySelection)
++      if #available(iOS 15.2, *) {
++        var convertedSelection = FamilyActivitySelection(includeEntireCategory: true)
++        convertedSelection.applicationTokens = selection.applicationTokens
++        convertedSelection.categoryTokens = selection.categoryTokens
++        convertedSelection.webDomainTokens = selection.webDomainTokens
++        return ActivitySelectionWithMetadata(
++          activitySelection: convertedSelection
++        )
++      }
++      return ActivitySelectionWithMetadata(
++        activitySelection: selection
++      )
++    }
+     Function("union") {
+       (
+         familyActivitySelection: [String: Any], familyActivitySelection2: [String: Any],
 diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift
 index f37a2ce..6f1d483 100644
 --- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityViewPersisted.swift
@@ -189,3 +240,22 @@ index 33738da..691bc7d 100644
      includeEntireCategory: false,
    };
  };
+diff --git a/node_modules/react-native-device-activity/src/index.ts b/node_modules/react-native-device-activity/src/index.ts
+index 0656b8d..6ede04e 100644
+--- a/node_modules/react-native-device-activity/src/index.ts
++++ b/node_modules/react-native-device-activity/src/index.ts
+@@ -278,7 +278,13 @@ export const activitySelectionWithMetadata = (
+     activitySelection,
+   );
+ };
+-
++export const convertToIncludeCategories = (
++  activitySelection: ActivitySelectionInputWithBlocks,
++): ActivitySelectionWithMetadata | undefined => {
++  return ReactNativeDeviceActivityModule?.convertToIncludeCategories(
++    activitySelection,
++  );
++};
+ export const configureActions = ({
+   activityName,
+   callbackName,

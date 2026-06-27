@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import {
   POSTHOG_HOST,
   screenAnalytics,
 } from '../lib/analytics';
+import { screenTimeService } from '../lib/services/screenTime';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
 
 const onboardingScreenOptions = {
@@ -31,8 +32,11 @@ function NotificationObserver() {
     if (Platform.OS === 'web') return;
 
     function openUnlockUrl(url: string | null) {
-      if (!url) return;
-      const openedFromShield = url.startsWith('device-activity://') || url.startsWith('bootyblock://unlock');
+      const openedFromShield = Boolean(
+        url?.startsWith('device-activity://')
+        || url?.startsWith('bootyblock://unlock')
+        || screenTimeService.consumeShieldOpenRequest(),
+      );
       if (openedFromShield) {
         router.push(onboardingComplete ? '/(tabs)/plan' : '/onboarding');
       }
@@ -40,6 +44,18 @@ function NotificationObserver() {
 
     void Linking.getInitialURL().then(openUnlockUrl);
     const subscription = Linking.addEventListener('url', ({ url }) => openUnlockUrl(url));
+
+    return () => subscription.remove();
+  }, [onboardingComplete]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && screenTimeService.consumeShieldOpenRequest()) {
+        router.push(onboardingComplete ? '/(tabs)/plan' : '/onboarding');
+      }
+    });
 
     return () => subscription.remove();
   }, [onboardingComplete]);

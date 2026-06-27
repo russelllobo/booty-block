@@ -4,10 +4,14 @@ import * as DeviceActivity from 'react-native-device-activity';
 import {
   ALWAYS_BLOCK_ACTIVITY,
   BANK_DEPLETED_EVENT,
+  BANK_PROGRESS_EVENT_PREFIX,
   BANKED_USAGE_ACTIVITY,
   SELECTION_ID,
+  SHIELD_OPEN_REQUEST_KEY,
   SHIELD_ID,
   UNLOCK_ACTIVITY,
+  USAGE_WINDOW_DEPLETED_EVENT,
+  USAGE_WINDOW_PROGRESS_EVENT_PREFIX,
 } from '../../constants/bootyblock';
 
 export type ScreenTimeStatus = 'unavailable' | 'notDetermined' | 'denied' | 'approved';
@@ -25,7 +29,7 @@ export type ScreenTimeApplicationMetadata = {
 };
 
 type ShieldActionWithUrl = Omit<DeviceActivity.ShieldAction, 'type'> & {
-  type: 'openUrlWithDispatch';
+  type: 'openUrl';
   url: string;
 };
 
@@ -36,6 +40,8 @@ type ShieldActionsWithUrl = Omit<DeviceActivity.ShieldActions, 'primary'> & {
 const approved = 2;
 const denied = 1;
 const notDetermined = 0;
+const PROGRESS_INTERVAL_SECONDS = 60;
+const SHIELD_OPEN_REQUEST_TTL_MS = 120_000;
 
 function toStatus(status: number | undefined): ScreenTimeStatus {
   if (status === approved) return 'approved';
@@ -48,13 +54,75 @@ function isAvailable() {
   return Platform.OS === 'ios' && DeviceActivity.isAvailable?.();
 }
 
-function durationComponents(totalMinutes: number) {
-  const minutes = Math.max(1, Math.round(totalMinutes));
+function durationComponentsFromSeconds(totalSeconds: number) {
+  const seconds = Math.max(1, Math.round(totalSeconds));
   return {
-    hour: Math.floor(minutes / 60),
-    minute: minutes % 60,
-    second: 0,
+    hour: Math.floor(seconds / 3600),
+    minute: Math.floor((seconds % 3600) / 60),
+    second: seconds % 60,
   };
+}
+
+function progressEventName(prefix: string, seconds: number) {
+  return `${prefix}${seconds}`;
+}
+
+function progressSecondsFromEventName(eventName: string | undefined, prefix: string) {
+  if (!eventName?.startsWith(prefix)) return null;
+  const seconds = Number(eventName.slice(prefix.length));
+  return Number.isFinite(seconds) ? seconds : null;
+}
+
+function buildUsageEvents(
+  serializedSelection: string,
+  totalSeconds: number,
+  depletedEventName: string,
+  progressEventPrefix: string,
+): DeviceActivity.DeviceActivityEvent[] {
+  const roundedSeconds = Math.max(1, Math.round(totalSeconds));
+  const progressEvents: DeviceActivity.DeviceActivityEvent[] = [];
+
+  for (
+    let seconds = PROGRESS_INTERVAL_SECONDS;
+    seconds < roundedSeconds;
+    seconds += PROGRESS_INTERVAL_SECONDS
+  ) {
+    progressEvents.push({
+      familyActivitySelection: serializedSelection,
+      threshold: durationComponentsFromSeconds(seconds),
+      eventName: progressEventName(progressEventPrefix, seconds),
+      includesPastActivity: false,
+    });
+  }
+
+  return [
+    ...progressEvents,
+    {
+      familyActivitySelection: serializedSelection,
+      threshold: durationComponentsFromSeconds(roundedSeconds),
+      eventName: depletedEventName,
+      includesPastActivity: false,
+    },
+  ];
+}
+
+function getNormalizedStoredSelection() {
+  const serializedSelection = DeviceActivity.getFamilyActivitySelectionId(SELECTION_ID);
+  if (!serializedSelection) return null;
+
+  const normalizedSelection = DeviceActivity.convertToIncludeCategories?.({
+    activitySelectionToken: serializedSelection,
+  })?.familyActivitySelection;
+
+  if (normalizedSelection && normalizedSelection !== serializedSelection) {
+    DeviceActivity.setFamilyActivitySelectionId({
+      id: SELECTION_ID,
+      familyActivitySelection: normalizedSelection,
+    });
+    return normalizedSelection;
+  }
+
+  return serializedSelection;
 }
 
 function selectionCount(summary: ScreenTimeSelectionSummary | null) {
@@ -125,7 +193,7 @@ export const screenTimeService = {
     const shieldActions: ShieldActionsWithUrl = {
       primary: {
         behavior: 'close',
-        type: 'openUrlWithDispatch',
+        type: 'openUrl',
         url: 'bootyblock://unlock',
       },
     };
@@ -136,9 +204,19 @@ export const screenTimeService = {
     DeviceActivity.updateShieldWithId(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, SHIELD_ID);
   },
 
+  consumeShieldOpenRequest() {
+    if (!isAvailable()) return false;
+
+    const requestedAt = DeviceActivity.userDefaultsGet<number>(SHIELD_OPEN_REQUEST_KEY);
+    DeviceActivity.userDefaultsRemove(SHIELD_OPEN_REQUEST_KEY);
+    return typeof requestedAt === 'number' && Date.now() - requestedAt < SHIELD_OPEN_REQUEST_TTL_MS;
+  },
+
   applyDefaultBlock() {
     if (!isAvailable()) return;
     DeviceActivity.stopMonitoring([BANKED_USAGE_ACTIVITY, UNLOCK_ACTIVITY]);
+    DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
+    DeviceActivity.cleanUpAfterActivity(UNLOCK_ACTIVITY);
     this.configureShield();
     DeviceActivity.clearWhitelistAndUpdateBlock('bootyblock-default-block');
     DeviceActivity.resetBlocks('bootyblock-default-block');
@@ -147,6 +225,7 @@ export const screenTimeService = {
 
   saveNativeSelectionConfigured() {
     if (!isAvailable()) return;
+    getNormalizedStoredSelection();
     this.configureShield();
     this.applyDefaultBlock();
   },
@@ -159,80 +238,143 @@ export const screenTimeService = {
     return typeof eventTimestamp === 'number' && eventTimestamp >= startedAt;
   },
 
-  async startUsageBankMonitor(minutes: number) {
+  getUsageBankProgressSeconds(startedAt: number | null | undefined) {
+    if (!isAvailable() || !startedAt) return 0;
+
+    return DeviceActivity.getEvents(BANKED_USAGE_ACTIVITY).reduce((latestProgress, event) => {
+      if (
+        event.callbackName !== 'eventDidReachThreshold'
+        || event.lastCalledAt.getTime() < startedAt
+      ) {
+        return latestProgress;
+      }
+
+      if (event.eventName === BANK_DEPLETED_EVENT) {
+        return Number.MAX_SAFE_INTEGER;
+      }
+
+      const progressSeconds = progressSecondsFromEventName(event.eventName, BANK_PROGRESS_EVENT_PREFIX);
+      return progressSeconds === null ? latestProgress : Math.max(latestProgress, progressSeconds);
+    }, 0);
+  },
+
+  hasUsageWindowDepleted(startedAt: number | null | undefined) {
+    if (!isAvailable() || !startedAt) return false;
+    const eventTimestamp = DeviceActivity.userDefaultsGet<number>(
+      `events_${UNLOCK_ACTIVITY}_eventDidReachThreshold_${USAGE_WINDOW_DEPLETED_EVENT}`,
+    );
+    return typeof eventTimestamp === 'number' && eventTimestamp >= startedAt;
+  },
+
+  getUsageWindowProgressSeconds(startedAt: number | null | undefined) {
+    if (!isAvailable() || !startedAt) return 0;
+
+    return DeviceActivity.getEvents(UNLOCK_ACTIVITY).reduce((latestProgress, event) => {
+      if (
+        event.callbackName !== 'eventDidReachThreshold'
+        || event.lastCalledAt.getTime() < startedAt
+      ) {
+        return latestProgress;
+      }
+
+      if (event.eventName === USAGE_WINDOW_DEPLETED_EVENT) {
+        return Number.MAX_SAFE_INTEGER;
+      }
+
+      const progressSeconds = progressSecondsFromEventName(event.eventName, USAGE_WINDOW_PROGRESS_EVENT_PREFIX);
+      return progressSeconds === null ? latestProgress : Math.max(latestProgress, progressSeconds);
+    }, 0);
+  },
+
+  onUsageBankThreshold(listener: () => void) {
+    if (!isAvailable()) return { remove: () => {} };
+
+    return DeviceActivity.onDeviceActivityMonitorEvent((event) => {
+      if (event.callbackName === 'eventDidReachThreshold') {
+        listener();
+      }
+    });
+  },
+
+  async startUsageWindow(totalSeconds: number) {
     if (!isAvailable()) return;
 
-    if (minutes <= 0) {
+    if (totalSeconds <= 0) {
       this.applyDefaultBlock();
       return;
     }
 
-    const serializedSelection = DeviceActivity.getFamilyActivitySelectionId(SELECTION_ID);
+    const serializedSelection = getNormalizedStoredSelection();
     if (!serializedSelection) {
-      console.warn('Cannot start usage bank monitor because no Screen Time selection is stored.');
+      console.warn('Cannot start usage window because no Screen Time selection is stored.');
       this.applyDefaultBlock();
       return;
     }
 
     DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.cleanUpAfterActivity(UNLOCK_ACTIVITY);
     DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
     this.configureShield();
-    DeviceActivity.clearWhitelistAndUpdateBlock('bootyblock-banked-usage');
-    DeviceActivity.resetBlocks('bootyblock-banked-usage');
-    DeviceActivity.blockSelection({ activitySelectionToken: serializedSelection }, 'bootyblock-banked-usage');
+    DeviceActivity.clearWhitelistAndUpdateBlock('bootyblock-usage-window');
 
     DeviceActivity.configureActions({
-      activityName: BANKED_USAGE_ACTIVITY,
+      activityName: UNLOCK_ACTIVITY,
       callbackName: 'eventDidReachThreshold',
-      eventName: BANK_DEPLETED_EVENT,
+      eventName: USAGE_WINDOW_DEPLETED_EVENT,
       actions: [
-        {
-          type: 'removeSelectionFromWhitelist',
-          familyActivitySelection: { activitySelectionToken: serializedSelection },
-        },
         {
           type: 'blockSelection',
           familyActivitySelectionId: SELECTION_ID,
           shieldId: SHIELD_ID,
+        },
+        {
+          type: 'stopMonitoring',
+          activityNames: [UNLOCK_ACTIVITY],
         },
       ],
     });
 
     DeviceActivity.addSelectionToWhitelistAndUpdateBlock(
       { activitySelectionToken: serializedSelection },
-      'bootyblock-banked-usage',
+      'bootyblock-usage-window',
     );
     if (__DEV__) {
       console.log('Bootyblock bank whitelist applied', DeviceActivity.userDefaultsGet('lastBlockUpdate'));
     }
 
     await DeviceActivity.startMonitoring(
-      BANKED_USAGE_ACTIVITY,
+      UNLOCK_ACTIVITY,
       {
         intervalStart: { hour: 0, minute: 0, second: 0 },
         intervalEnd: { hour: 23, minute: 59, second: 59 },
         repeats: true,
       },
-      [
-        {
-          familyActivitySelection: serializedSelection,
-          threshold: durationComponents(minutes),
-          eventName: BANK_DEPLETED_EVENT,
-          includesPastActivity: false,
-        },
-      ],
+      buildUsageEvents(
+        serializedSelection,
+        totalSeconds,
+        USAGE_WINDOW_DEPLETED_EVENT,
+        USAGE_WINDOW_PROGRESS_EVENT_PREFIX,
+      ),
     );
 
+    DeviceActivity.unblockSelection({ activitySelectionToken: serializedSelection }, 'bootyblock-usage-window');
     DeviceActivity.refreshManagedSettingsStore();
     if (__DEV__) {
-      console.log('Bootyblock bank monitor started', DeviceActivity.userDefaultsGet('lastBlockUpdate'));
+      console.log('Bootyblock usage window started', DeviceActivity.userDefaultsGet('lastBlockUpdate'));
     }
+  },
+
+  stopUsageWindow() {
+    if (!isAvailable()) return;
+    DeviceActivity.stopMonitoring([UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.cleanUpAfterActivity(UNLOCK_ACTIVITY);
+    DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
   },
 
   async startAlwaysBlockMonitor() {
     if (!isAvailable()) return;
     this.configureShield();
-    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
     DeviceActivity.configureActions({
       activityName: ALWAYS_BLOCK_ACTIVITY,
       callbackName: 'intervalDidStart',

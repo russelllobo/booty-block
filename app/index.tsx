@@ -4,23 +4,29 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { colors } from '../constants/theme';
+import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
-  const { hydrated, onboardingComplete } = useBootyblock();
+  const { hydrated, onboardingComplete, timeBankSeconds } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
 
   useEffect(() => {
     if (!hydrated) return;
-    const openedFromShield = linkingUrl?.startsWith('device-activity://') || linkingUrl?.startsWith('bootyblock://unlock');
+    const openedFromShield = Boolean(
+      linkingUrl?.startsWith('device-activity://')
+      || linkingUrl?.startsWith('bootyblock://unlock')
+      || screenTimeService.consumeShieldOpenRequest(),
+    );
     router.replace(
       onboardingComplete
         ? openedFromShield
+          || timeBankSeconds > 0
           ? '/(tabs)/plan'
           : '/(tabs)'
         : '/onboarding',
     );
-  }, [hydrated, linkingUrl, onboardingComplete]);
+  }, [hydrated, linkingUrl, onboardingComplete, timeBankSeconds]);
 
   if (!hydrated) {
     return (

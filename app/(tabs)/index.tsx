@@ -12,9 +12,35 @@ import { colors } from '../../constants/theme';
 import type { UnlockHistoryEntry } from '../../lib/store/BootyblockProvider';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-function bankLabel(minutes: number) {
-  if (minutes === 1) return '1 minute';
-  return `${minutes} minutes`;
+function formatBankDuration(totalSeconds: number) {
+  const roundedSeconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(roundedSeconds / 3600);
+  const remainingSeconds = roundedSeconds % 3600;
+  const durationMinutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const minuteLabel = String(durationMinutes).padStart(hours > 0 ? 2 : 1, '0');
+  const secondLabel = String(seconds).padStart(2, '0');
+
+  if (hours > 0) {
+    return `${hours}:${minuteLabel}:${secondLabel}`;
+  }
+
+  return `${minuteLabel}:${secondLabel}`;
+}
+
+function bankAccessibilityLabel(totalSeconds: number) {
+  const roundedSeconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(roundedSeconds / 3600);
+  const remainingSeconds = roundedSeconds % 3600;
+  const durationMinutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const parts = [
+    hours ? `${hours} ${hours === 1 ? 'hour' : 'hours'}` : null,
+    durationMinutes ? `${durationMinutes} ${durationMinutes === 1 ? 'minute' : 'minutes'}` : null,
+    `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`,
+  ].filter(Boolean);
+
+  return `${parts.join(', ')} remaining in bank`;
 }
 
 type StatsPeriod = 'daily' | 'weekly' | 'monthly';
@@ -219,7 +245,8 @@ function StatisticsPanel({
 
 export default function Home() {
   const {
-    timeBankMinutes,
+    timeBankSeconds,
+    usageWindowSeconds,
     selectedAppsConfigured,
     selectedAppsLabel,
     selectionSummary,
@@ -237,13 +264,16 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [syncTimeBank]);
 
-  const hasBank = timeBankMinutes > 0;
+  const hasBank = timeBankSeconds > 0;
+  const hasUsageWindow = usageWindowSeconds > 0;
+  const showUnlockedState = hasBank || hasUsageWindow;
 
   const status = useMemo(() => {
-    if (hasBank) return 'Bank active';
+    if (hasUsageWindow) return 'Using now';
+    if (hasBank) return 'Ready to use';
     if (selectedAppsConfigured) return 'Blocked';
     return 'Setup needed';
-  }, [hasBank, selectedAppsConfigured]);
+  }, [hasBank, hasUsageWindow, selectedAppsConfigured]);
   const blockedApplications = selectionSummary?.applications ?? [];
   const blockedAppFallbackCount = Math.max(
     0,
@@ -273,34 +303,39 @@ export default function Home() {
         }
       />
 
-      <View className={`overflow-hidden rounded-[36px] p-6 ${hasBank ? 'bg-mint' : 'bg-raspberry'}`}>
+      <View className={`overflow-hidden rounded-[36px] p-6 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
         <View className="flex-row items-start justify-between">
           <View>
             <Text
               className={`text-sm font-black uppercase tracking-[2px] ${
-                hasBank ? 'text-mink' : 'text-petal'
+                showUnlockedState ? 'text-mink' : 'text-petal'
               }`}
             >
               Current status
             </Text>
-            <Text className={`mt-2 text-5xl font-black ${hasBank ? 'text-cocoa' : 'text-white'}`}>
+            <Text className={`mt-2 text-5xl font-black ${showUnlockedState ? 'text-cocoa' : 'text-white'}`}>
               {status}
             </Text>
           </View>
           <View
             className={`h-16 w-16 items-center justify-center rounded-full ${
-              hasBank ? 'bg-white/55' : 'bg-white/20'
+              showUnlockedState ? 'bg-white/55' : 'bg-white/20'
             }`}
           >
-            <Flame size={30} stroke={hasBank ? colors.cocoa : colors.white} />
+            <Flame size={30} stroke={showUnlockedState ? colors.cocoa : colors.white} />
           </View>
         </View>
 
-        {hasBank ? (
+        {showUnlockedState ? (
           <View className="mt-8 rounded-[28px] bg-white/55 p-4">
-            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Banked time</Text>
-            <Text className="mt-1 text-3xl font-black text-cocoa">
-              {bankLabel(timeBankMinutes)}
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
+              {hasUsageWindow ? 'Current window' : 'Banked time'}
+            </Text>
+            <Text
+              className="mt-1 text-4xl font-black tabular-nums text-cocoa"
+              accessibilityLabel={bankAccessibilityLabel(hasUsageWindow ? usageWindowSeconds : timeBankSeconds)}
+            >
+              {formatBankDuration(hasUsageWindow ? usageWindowSeconds : timeBankSeconds)}
             </Text>
           </View>
         ) : null}
@@ -348,7 +383,19 @@ export default function Home() {
 
       <View className="mt-auto gap-3 pt-6">
         <Button label="Export Statistics" icon={BarChart3} variant="secondary" onPress={() => setStatisticsVisible(true)} />
-        <Button label="Earn minutes" icon={Dumbbell} onPress={() => router.push('/(tabs)/plan')} />
+        {hasBank ? (
+          <Button label="Use minutes" icon={Flame} onPress={() => router.push('/(tabs)/plan')} />
+        ) : (
+          <Button label="Earn minutes" icon={Dumbbell} onPress={() => router.push('/(tabs)/plan')} />
+        )}
+        {hasBank ? (
+          <Button
+            label="Earn more"
+            icon={Dumbbell}
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/(tabs)/plan', params: { mode: 'earn' } })}
+          />
+        ) : null}
         {!selectedAppsConfigured ? (
           <Button label="Choose blocked apps" icon={LockKeyhole} variant="secondary" onPress={() => router.push('/onboarding/apps')} />
         ) : null}
