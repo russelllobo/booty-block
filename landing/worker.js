@@ -400,12 +400,17 @@ function renderLanding() {
     }
 
     h1 {
-      max-width: 11ch;
+      max-width: 12.5ch;
       margin: 0;
       font-size: clamp(3.2rem, 7.5vw, 5.05rem);
       line-height: .98;
       letter-spacing: 0;
-      font-weight: 850;
+      font-weight: 700;
+      color: #3A1F2C;
+    }
+
+    .headline-accent {
+      color: var(--accent);
     }
 
     .lede {
@@ -706,7 +711,7 @@ function renderLanding() {
           <img class="mark" src="/logo.png" alt="" width="87" height="128">
           <span>Bootyblock</span>
         </div>
-        <h1 id="headline">App blocks with a squat tax</h1>
+        <h1 id="headline">Block your apps until you <span class="headline-accent">grow your booty</span></h1>
         <p class="lede">Block your distracting apps. Unlock them by doing the squats you promised yourself.</p>
         <a class="app-store-button" href="https://apps.apple.com/us/app/bootyblock-squat-to-scroll/id6782345701" rel="noreferrer" target="_blank" aria-label="Download Bootyblock on the App Store">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
