@@ -13,6 +13,7 @@ import {
   Weight,
   X,
 } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -29,6 +30,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
+import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Goal = {
@@ -52,6 +54,16 @@ const goals: Goal[] = [
 
 const NAME_INPUT_HEIGHT = 64;
 const FOCUSED_BOTTOM_PADDING = 132;
+const quizStepMetadata = {
+  1: {
+    key: 'profile_name',
+    title: 'What should we call you?',
+  },
+  2: {
+    key: 'goals',
+    title: 'What goals do you want to achieve using Bootyblock?',
+  },
+} as const;
 
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
@@ -61,11 +73,22 @@ function QuizHeader({ step, back }: { step: number; back: () => void }) {
 
 export default function Quiz() {
   const { setProfileName } = useBootyblock();
+  const posthog = usePostHog();
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const direction = useStepDirection(step);
+  const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/quiz',
+    stepMetadata.key,
+    stepMetadata.title,
+    step + 2,
+    30,
+  );
 
   function toggleGoal(label: string) {
     setSelectedGoals((current) => {

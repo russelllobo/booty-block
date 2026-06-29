@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
+import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const finishBackground = '#07070A';
@@ -13,10 +15,20 @@ const finishGradient = ['#3A0F26', '#07070A'] as const;
 
 export default function FinishSetup() {
   const { profileName } = useBootyblock();
+  const posthog = usePostHog();
   const firstName = profileName.trim().split(/\s+/)[0];
   const headline = firstName
     ? `${firstName}, let’s finish setting up Booty Block to help you succeed.`
     : 'Let’s finish setting up Booty Block to help you succeed.';
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/finish',
+    'finish_setup_intro',
+    'Finish setting up Booty Block',
+    27,
+    30,
+  );
 
   return (
     <Screen

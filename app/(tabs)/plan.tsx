@@ -2,7 +2,7 @@ import Slider from '@react-native-community/slider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock3, Dumbbell } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -13,7 +13,16 @@ import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Plan() {
-  const { requestedMinutes, setRequestedMinutes, timeBankSeconds, useBankedTime } = useBootyblock();
+  const {
+    requestedMinutes,
+    setRequestedMinutes,
+    timeBankSeconds,
+    useBankedTime,
+    isSubscribed,
+    subscriptionConfigured,
+    subscriptionError,
+    presentSubscriptionPaywall,
+  } = useBootyblock();
   const params = useLocalSearchParams<{ mode?: string }>();
   const hasBank = timeBankSeconds > 0;
   const maxSpendMinutes = Math.max(1, Math.ceil(timeBankSeconds / 60));
@@ -51,6 +60,19 @@ export default function Plan() {
   }
 
   async function handlePrimaryPress() {
+    if (!isSubscribed) {
+      const subscribed = await presentSubscriptionPaywall();
+      if (!subscribed) {
+        Alert.alert(
+          subscriptionConfigured ? 'Subscription needed' : 'RevenueCat setup needed',
+          subscriptionConfigured
+            ? 'Subscribe to unlock Bootyblock app blocking and squat-to-unlock sessions.'
+            : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+        );
+        return;
+      }
+    }
+
     if (mode === 'spend') {
       setSpending(true);
       try {
@@ -142,6 +164,15 @@ export default function Plan() {
             : 'One minute costs one squat. Banked time waits until you choose to use it.'}
         </Text>
       </View>
+
+      {!isSubscribed ? (
+        <View className="mt-4 rounded-[24px] border border-white/70 bg-white/65 p-4">
+          <Text className="text-lg font-black text-cocoa">Bootyblock Pro</Text>
+          <Text className="mt-1 text-sm font-semibold leading-5 text-mink">
+            A subscription keeps app blocking, squat sessions, progress stats, and unlock windows active on this iPhone.
+          </Text>
+        </View>
+      ) : null}
 
       <View className="mt-auto pt-4">
         <Button label={primaryLabel} icon={primaryIcon} onPress={handlePrimaryPress} loading={spending} />

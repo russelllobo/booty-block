@@ -1,4 +1,5 @@
 import type { PostHog } from 'posthog-react-native';
+import { useEffect } from 'react';
 
 import type { ScreenTimeSelectionSummary, ScreenTimeStatus } from './services/screenTime';
 
@@ -36,6 +37,36 @@ export function screenAnalytics(
 ) {
   if (!POSTHOG_ENABLED || !posthog) return;
   void posthog.screen(pathname, cleanProperties(properties));
+}
+
+export function trackOnboardingStepViewed(
+  posthog: PostHog | null | undefined,
+  route: string,
+  stepKey: string,
+  stepTitle: string,
+  stepIndex?: number,
+  stepCount?: number,
+) {
+  captureAnalytics(posthog, 'onboarding_step_viewed', {
+    route,
+    step_key: stepKey,
+    step_title: stepTitle,
+    step_index: stepIndex,
+    step_count: stepCount,
+  });
+}
+
+export function useOnboardingStepAnalytics(
+  posthog: PostHog | null | undefined,
+  route: string,
+  stepKey: string,
+  stepTitle: string,
+  stepIndex?: number,
+  stepCount?: number,
+) {
+  useEffect(() => {
+    trackOnboardingStepViewed(posthog, route, stepKey, stepTitle, stepIndex, stepCount);
+  }, [posthog, route, stepKey, stepTitle, stepIndex, stepCount]);
 }
 
 export function selectionAnalyticsProperties(summary: ScreenTimeSelectionSummary | null) {

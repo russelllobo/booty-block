@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import Slider from '@react-native-community/slider';
+import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
@@ -14,11 +15,22 @@ import { RollingNumber } from '../../components/RollingNumber';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
+import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const MIN_HOURS = 0.5;
 const MAX_HOURS = 12;
 const SLIDER_STEP = 0.5;
+const usageStepMetadata = {
+  1: {
+    key: 'current_daily_screen_time',
+    title: 'How much time do you spend on your phone every day?',
+  },
+  2: {
+    key: 'goal_daily_screen_time',
+    title: 'How much time would you like to spend instead?',
+  },
+} as const;
 
 function formatHours(value: number) {
   const hours = Math.floor(value);
@@ -137,6 +149,7 @@ function TimeSlider({
 export default function Usage() {
   const { profileName, dailyScreenTimeGoalHours, dailyScreenTimeHours, setUsageTargets } =
     useBootyblock();
+  const posthog = usePostHog();
   const [step, setStep] = useState(1);
   const [currentHours, setCurrentHours] = useState(dailyScreenTimeHours);
   const [goalHours, setGoalHours] = useState(
@@ -145,8 +158,18 @@ export default function Usage() {
   const direction = useStepDirection(step);
 
   const isGoal = step === 2;
+  const stepMetadata = usageStepMetadata[step as keyof typeof usageStepMetadata];
   const name = profileName || 'you';
   const goalMaximum = Math.max(MIN_HOURS, currentHours);
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/usage',
+    stepMetadata.key,
+    stepMetadata.title,
+    step + 4,
+    30,
+  );
 
   function back() {
     if (isGoal) {

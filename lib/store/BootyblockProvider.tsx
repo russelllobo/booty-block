@@ -3,6 +3,7 @@ import { createContext, PropsWithChildren, useCallback, useContext, useEffect, u
 import { AppState, Platform } from 'react-native';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
+import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
 import {
   screenTimeService,
   ScreenTimeSelectionSummary,
@@ -55,6 +56,10 @@ type BootyblockState = {
   usageWindowSeconds: number;
   unlockHistory: UnlockHistoryEntry[];
   currentStreak: number;
+  subscriptionHydrated: boolean;
+  subscriptionConfigured: boolean;
+  isSubscribed: boolean;
+  subscriptionError: string | null;
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
   setAgeRange: (ageRange: string) => void;
@@ -67,6 +72,10 @@ type BootyblockState = {
   bankTime: (minutes: number) => Promise<BankEarnedSession>;
   useBankedTime: (minutes: number) => Promise<boolean>;
   syncTimeBank: () => void;
+  refreshSubscription: () => Promise<boolean>;
+  restorePurchases: () => Promise<boolean>;
+  presentSubscriptionPaywall: () => Promise<boolean>;
+  openSubscriptionManagement: () => Promise<void>;
   resetAppData: () => Promise<void>;
 };
 
@@ -125,6 +134,10 @@ type StoredPayload = ReturnType<typeof defaultPayload> & {
 export function BootyblockProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
   const [payload, setPayload] = useState(defaultPayload);
+  const [subscriptionHydrated, setSubscriptionHydrated] = useState(Platform.OS === 'web');
+  const [subscriptionConfigured, setSubscriptionConfigured] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(Platform.OS === 'web');
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const payloadRef = useRef(payload);
 
   useEffect(() => {
@@ -210,6 +223,44 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     if (!hydrated) return;
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, [hydrated, payload]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const didConfigure = revenueCatService.configure();
+    setSubscriptionConfigured(didConfigure);
+
+    if (!didConfigure) {
+      setSubscriptionHydrated(true);
+      setIsSubscribed(false);
+      return;
+    }
+
+    let mounted = true;
+    revenueCatService.getCustomerInfo()
+      .then((customerInfo) => {
+        if (!mounted) return;
+        setIsSubscribed(hasActiveEntitlement(customerInfo));
+        setSubscriptionError(null);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        setSubscriptionError(error instanceof Error ? error.message : 'Could not load subscription status.');
+      })
+      .finally(() => {
+        if (mounted) setSubscriptionHydrated(true);
+      });
+
+    const removeListener = revenueCatService.addCustomerInfoUpdateListener((customerInfo) => {
+      setIsSubscribed(hasActiveEntitlement(customerInfo));
+      setSubscriptionError(null);
+    });
+
+    return () => {
+      mounted = false;
+      removeListener();
+    };
+  }, []);
 
   const completeOnboarding = useCallback(async () => {
     setPayload((current) => ({ ...current, onboardingComplete: true }));
@@ -398,6 +449,78 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, [syncTimeBank]);
 
+  const refreshSubscription = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      setIsSubscribed(true);
+      setSubscriptionHydrated(true);
+      setSubscriptionError(null);
+      return true;
+    }
+
+    if (!revenueCatService.configured) {
+      setSubscriptionConfigured(false);
+      setSubscriptionHydrated(true);
+      setSubscriptionError('RevenueCat is not configured yet.');
+      return false;
+    }
+
+    try {
+      const customerInfo = await revenueCatService.getCustomerInfo();
+      const active = hasActiveEntitlement(customerInfo);
+      setIsSubscribed(active);
+      setSubscriptionError(null);
+      return active;
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Could not refresh subscription status.');
+      return false;
+    }
+  }, []);
+
+  const restorePurchases = useCallback(async () => {
+    if (Platform.OS === 'web') return refreshSubscription();
+
+    if (!revenueCatService.configured) {
+      setSubscriptionError('RevenueCat is not configured yet.');
+      return false;
+    }
+
+    try {
+      const customerInfo = await revenueCatService.restorePurchases();
+      const active = hasActiveEntitlement(customerInfo);
+      setIsSubscribed(active);
+      setSubscriptionError(null);
+      return active;
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Could not restore purchases.');
+      return false;
+    }
+  }, [refreshSubscription]);
+
+  const presentSubscriptionPaywall = useCallback(async () => {
+    if (isSubscribed || Platform.OS === 'web') return true;
+
+    if (!revenueCatService.configured) {
+      setSubscriptionConfigured(false);
+      setSubscriptionError('RevenueCat is not configured yet.');
+      return false;
+    }
+
+    try {
+      const active = await revenueCatService.presentPaywallIfNeeded();
+      setIsSubscribed(active);
+      setSubscriptionError(null);
+      return active;
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : 'Could not show the subscription paywall.');
+      return false;
+    }
+  }, [isSubscribed]);
+
+  const openSubscriptionManagement = useCallback(async () => {
+    await revenueCatService.presentCustomerCenter();
+    await refreshSubscription();
+  }, [refreshSubscription]);
+
   const resetAppData = useCallback(async () => {
     screenTimeService.resetNativeSetup();
     const fresh = defaultPayload();
@@ -415,6 +538,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           : 'Selected apps configured'
         : 'No apps or categories selected',
       currentStreak: calculateCurrentStreak(payload.unlockHistory ?? []),
+      subscriptionHydrated,
+      subscriptionConfigured,
+      isSubscribed,
+      subscriptionError,
       completeOnboarding,
       setProfileName,
       setAgeRange,
@@ -427,11 +554,19 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       bankTime,
       useBankedTime,
       syncTimeBank,
+      refreshSubscription,
+      restorePurchases,
+      presentSubscriptionPaywall,
+      openSubscriptionManagement,
       resetAppData,
     }),
     [
       hydrated,
       payload,
+      subscriptionHydrated,
+      subscriptionConfigured,
+      isSubscribed,
+      subscriptionError,
       completeOnboarding,
       setProfileName,
       setAgeRange,
@@ -444,6 +579,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       bankTime,
       useBankedTime,
       syncTimeBank,
+      refreshSubscription,
+      restorePurchases,
+      presentSubscriptionPaywall,
+      openSubscriptionManagement,
       resetAppData,
     ],
   );

@@ -97,6 +97,25 @@ function AnalyticsScreenTracker() {
   return null;
 }
 
+function SubscriptionGate() {
+  const pathname = usePathname();
+  const {
+    hydrated,
+    onboardingComplete,
+    subscriptionHydrated,
+    isSubscribed,
+  } = useBootyblock();
+
+  useEffect(() => {
+    if (!hydrated || !subscriptionHydrated || !onboardingComplete || isSubscribed) return;
+    if (!pathname || pathname.startsWith('/onboarding')) return;
+
+    router.replace('/onboarding/apps');
+  }, [hydrated, isSubscribed, onboardingComplete, pathname, subscriptionHydrated]);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <PostHogProvider
@@ -116,6 +135,7 @@ export default function RootLayout() {
           <BootyblockProvider>
             <AnalyticsScreenTracker />
             <NotificationObserver />
+            <SubscriptionGate />
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
               <Stack.Screen name="index" />

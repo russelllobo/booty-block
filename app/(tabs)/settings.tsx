@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { AppWindow, BarChart3, Camera, FileText, LifeBuoy, RotateCcw, ShieldCheck } from 'lucide-react-native';
+import { AppWindow, BarChart3, Camera, FileText, LifeBuoy, RefreshCcw, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 
@@ -13,8 +13,21 @@ import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Settings() {
-  const { screenTimeStatus, selectedAppsConfigured, selectedAppsLabel, unlockHistory, resetAppData } = useBootyblock();
+  const {
+    screenTimeStatus,
+    selectedAppsConfigured,
+    selectedAppsLabel,
+    unlockHistory,
+    subscriptionConfigured,
+    isSubscribed,
+    subscriptionError,
+    restorePurchases,
+    presentSubscriptionPaywall,
+    openSubscriptionManagement,
+    resetAppData,
+  } = useBootyblock();
   const [statisticsVisible, setStatisticsVisible] = useState(false);
+  const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -42,6 +55,41 @@ export default function Settings() {
     );
   };
 
+  async function subscribeOrManage() {
+    setSubscriptionBusy(true);
+    try {
+      if (isSubscribed) {
+        await openSubscriptionManagement();
+        return;
+      }
+
+      const subscribed = await presentSubscriptionPaywall();
+      if (!subscribed && !subscriptionConfigured) {
+        Alert.alert(
+          'RevenueCat setup needed',
+          subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+        );
+      }
+    } finally {
+      setSubscriptionBusy(false);
+    }
+  }
+
+  async function restore() {
+    setSubscriptionBusy(true);
+    try {
+      const restored = await restorePurchases();
+      Alert.alert(
+        restored ? 'Subscription restored' : 'No active subscription found',
+        restored
+          ? 'Bootyblock Pro is active on this device.'
+          : subscriptionError ?? 'No active Bootyblock Pro purchase was found for this App Store account.',
+      );
+    } finally {
+      setSubscriptionBusy(false);
+    }
+  }
+
   return (
     <Screen>
       <Header title="Settings" subtitle="Manage app blocking, calibration, privacy, and support." />
@@ -61,6 +109,43 @@ export default function Settings() {
 
         <SectionPanel title="Blocked apps" subtitle={selectedAppsLabel}>
           <Button label={selectedAppsConfigured ? 'Change selection' : 'Choose apps'} icon={AppWindow} variant="secondary" onPress={() => router.push('/onboarding/apps')} />
+        </SectionPanel>
+
+        <SectionPanel
+          title="Subscription"
+          subtitle={isSubscribed ? 'Bootyblock Pro is active.' : 'Subscribe to keep app blocking and squat-to-unlock sessions active.'}
+        >
+          <View className="gap-3">
+            <View className="flex-row items-center gap-3">
+              <View className="h-12 w-12 items-center justify-center rounded-full bg-petal">
+                <Sparkles size={23} stroke={colors.raspberry} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-black text-cocoa">
+                  {isSubscribed ? 'Active' : subscriptionConfigured ? 'Not subscribed' : 'Setup needed'}
+                </Text>
+                <Text className="text-sm font-semibold text-mink">
+                  {subscriptionConfigured
+                    ? 'Managed by RevenueCat and the App Store.'
+                    : 'Add a RevenueCat API key to enable purchases.'}
+                </Text>
+              </View>
+            </View>
+            <Button
+              label={isSubscribed ? 'Manage subscription' : 'Subscribe'}
+              icon={Sparkles}
+              variant="secondary"
+              loading={subscriptionBusy}
+              onPress={subscribeOrManage}
+            />
+            <Button
+              label="Restore purchases"
+              icon={RefreshCcw}
+              variant="ghost"
+              loading={subscriptionBusy}
+              onPress={restore}
+            />
+          </View>
         </SectionPanel>
 
         <SectionPanel title="Camera calibration" subtitle="Re-run the setup tips if squat counting feels off.">

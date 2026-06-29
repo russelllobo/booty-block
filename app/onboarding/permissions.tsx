@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { usePostHog } from 'posthog-react-native';
 import { Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { Button } from '../../components/Button';
@@ -7,6 +8,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { StarsBackground } from '../../components/StarsBackground';
+import { useOnboardingStepAnalytics } from '../../lib/analytics';
 
 function PermissionArtwork({ height }: { height: number }) {
   return (
@@ -33,7 +35,17 @@ const styles = StyleSheet.create({
 
 export default function Permissions() {
   const { height } = useWindowDimensions();
+  const posthog = usePostHog();
   const artworkHeight = Math.min(570, Math.max(330, height - 360));
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/permissions',
+    'understanding_situation',
+    'Understanding more about your situation',
+    2,
+    30,
+  );
 
   return (
     <Screen scroll={false} flush backgroundColor="#000000">

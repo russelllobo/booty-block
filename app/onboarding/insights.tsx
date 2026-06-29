@@ -39,6 +39,7 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { ComponentType, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -59,6 +60,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
+import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Choice = {
@@ -87,6 +89,68 @@ const routineGradient = ['#4A1232', '#1B0B16', '#050509'] as const;
 const routineGlass = 'rgba(255, 255, 255, 0.12)';
 const routineGlassBorder = 'rgba(255, 255, 255, 0.28)';
 const DEFAULT_ROUTINE_REMINDER = { hour: 12, minute: 55 };
+const insightStepMetadata = {
+  1: {
+    key: 'time_sink_apps',
+    title: 'Which apps take most of your time?',
+  },
+  2: {
+    key: 'habit_friction',
+    title: 'What usually makes it hard to quit?',
+  },
+  3: {
+    key: 'usage_feelings',
+    title: 'How does using these apps for too long make you feel?',
+  },
+  4: {
+    key: 'current_state',
+    title: 'Current state',
+  },
+  5: {
+    key: 'age_range',
+    title: 'How old are you?',
+  },
+  6: {
+    key: 'calculating_projection',
+    title: 'Calculating your projection',
+  },
+  7: {
+    key: 'result_comparison',
+    title: 'Your screen dependence score',
+  },
+  8: {
+    key: 'projection_warning',
+    title: 'Lifetime screen time projection',
+  },
+  9: {
+    key: 'reclaimed_time',
+    title: 'Time you could reclaim',
+  },
+  10: {
+    key: 'previous_methods',
+    title: 'What have you already tried?',
+  },
+  11: {
+    key: 'method_feedback',
+    title: 'Why previous methods did not stick',
+  },
+  12: {
+    key: 'replacement_science',
+    title: 'Replacement beats restriction',
+  },
+  13: {
+    key: 'exercise_link',
+    title: 'Exercise changes the reward loop',
+  },
+  14: {
+    key: 'scroll_unlock',
+    title: 'Squat to unlock scrolling',
+  },
+  15: {
+    key: 'routine_reminder',
+    title: 'Choose your daily reminder',
+  },
+} as const;
 const currentStateStageDelay = {
   current: 0,
   bootyLock: 1000,
@@ -2155,6 +2219,7 @@ function RoutineReminderSlide({
 export default function Insights() {
   const { ageRange, dailyScreenTimeGoalHours, dailyScreenTimeHours, setAgeRange } =
     useBootyblock();
+  const posthog = usePostHog();
   const [step, setStep] = useState(1);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
@@ -2162,6 +2227,7 @@ export default function Insights() {
   const [selectedTried, setSelectedTried] = useState<string[]>([]);
   const [selectedAgeRange, setSelectedAgeRange] = useState('');
   const direction = useStepDirection(step);
+  const stepMetadata = insightStepMetadata[step as keyof typeof insightStepMetadata];
   const completeCalculating = useCallback(() => setStep(7), []);
   const darkScreen =
     step === 4 ||
@@ -2217,6 +2283,15 @@ export default function Insights() {
   );
   const percentVsAverage = Math.round(
     ((dailyScreenTimeHours - US_AVERAGE_PHONE_HOURS) / US_AVERAGE_PHONE_HOURS) * 100,
+  );
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/insights',
+    stepMetadata.key,
+    stepMetadata.title,
+    step + 6,
+    30,
   );
 
   function toggle(

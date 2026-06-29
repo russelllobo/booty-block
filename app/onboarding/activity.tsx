@@ -9,7 +9,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
-import { captureAnalytics } from '../../lib/analytics';
+import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type ActivityOption = {
@@ -30,6 +30,15 @@ export default function Activity() {
   const posthog = usePostHog();
   const [selected, setSelected] = useState<string | null>(null);
   const currentSelection = selected ?? exerciseFrequency;
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/activity',
+    'exercise_frequency',
+    'How often do you currently exercise?',
+    26,
+    30,
+  );
 
   function next() {
     if (!currentSelection) return;

@@ -8,7 +8,11 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
-import { captureAnalytics, screenTimeStatusProperties } from '../../lib/analytics';
+import {
+  captureAnalytics,
+  screenTimeStatusProperties,
+  useOnboardingStepAnalytics,
+} from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function ScreenTime() {
@@ -21,6 +25,15 @@ export default function ScreenTime() {
   const dialogHeight = dialogWidth * (682 / 938);
   const dialogTopGap = Math.min(92, Math.max(56, height * 0.085));
   const arrowBounce = useRef(new Animated.Value(0)).current;
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/screentime',
+    'screen_time_permission',
+    'Connect Bootyblock to Screen Time, Securely.',
+    28,
+    30,
+  );
 
   useEffect(() => {
     if (approved) {

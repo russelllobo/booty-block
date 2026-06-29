@@ -11,7 +11,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
-import { captureAnalytics } from '../../lib/analytics';
+import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 
 const notificationBackground = '#07070A';
 const notificationGradient = ['#3A0F26', '#07070A'] as const;
@@ -21,6 +21,15 @@ export default function NotificationPermission() {
   const [loading, setLoading] = useState(false);
   const { height } = useWindowDimensions();
   const promptHeight = Math.min(236, Math.max(178, height * 0.25));
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/notifications',
+    'notification_permission',
+    'Allow Bootyblock to send you notifications',
+    29,
+    30,
+  );
 
   async function requestNotifications() {
     captureAnalytics(posthog, 'notification_permission_started');

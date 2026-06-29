@@ -13,7 +13,11 @@ import { SectionPanel } from '../../components/SectionPanel';
 import { SlidePanel } from '../../components/SlidePanel';
 import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
-import { captureAnalytics, selectionAnalyticsProperties } from '../../lib/analytics';
+import {
+  captureAnalytics,
+  selectionAnalyticsProperties,
+  useOnboardingStepAnalytics,
+} from '../../lib/analytics';
 import {
   screenTimeService,
   ScreenTimeSelectionSummary,
@@ -23,8 +27,12 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 export default function Apps() {
   const {
     completeOnboarding,
+    presentSubscriptionPaywall,
     markSelectionConfigured,
     onboardingComplete,
+    isSubscribed,
+    subscriptionConfigured,
+    subscriptionError,
     selectedAppsConfigured,
     screenTimeStatus,
   } = useBootyblock();
@@ -35,6 +43,15 @@ export default function Apps() {
     webPreview ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 } : null,
   );
   const hasSelection = Boolean(selectionSummary);
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/apps',
+    'blocked_apps_picker',
+    'Blocked apps',
+    30,
+    30,
+  );
 
   useEffect(() => {
     if (nativePickerReady) {
@@ -53,12 +70,25 @@ export default function Apps() {
       return;
     }
     captureAnalytics(posthog, 'blocked_apps_selected', selectionAnalyticsProperties(selectionSummary));
-    if (onboardingComplete) {
+    if (onboardingComplete && isSubscribed) {
       router.back();
       return;
     }
 
-    await completeOnboarding();
+    const subscribed = await presentSubscriptionPaywall();
+    if (!subscribed) {
+      Alert.alert(
+        subscriptionConfigured ? 'Subscription needed' : 'RevenueCat setup needed',
+        subscriptionConfigured
+          ? 'Subscribe to finish setup and start using Bootyblock.'
+          : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+      );
+      return;
+    }
+
+    if (!onboardingComplete) {
+      await completeOnboarding();
+    }
     router.replace('/(tabs)');
   }
 
@@ -142,7 +172,7 @@ export default function Apps() {
           <View className="mt-auto pt-6">
             {nativePickerReady || webPreview ? (
               <Button
-                label={hasSelection ? (onboardingComplete ? 'Save blocked apps' : 'Finish setup') : 'Choose apps above'}
+                label={hasSelection ? (onboardingComplete && isSubscribed ? 'Save blocked apps' : 'Finish setup') : 'Choose apps above'}
                 icon={Check}
                 disabled={!hasSelection}
                 onPress={save}

@@ -1,0 +1,119 @@
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+import Purchases, {
+  CustomerInfo,
+  CustomerInfoUpdateListener,
+  LOG_LEVEL,
+} from 'react-native-purchases';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+
+export const REVENUECAT_ENTITLEMENT_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'pro';
+
+const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
+const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
+const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+
+let configured = false;
+
+function getApiKey() {
+  if (Platform.OS === 'ios') return IOS_API_KEY;
+  if (Platform.OS === 'android') return ANDROID_API_KEY;
+  return null;
+}
+
+function isNativePurchasePlatform() {
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+}
+
+function assertConfigured() {
+  if (!configured) {
+    throw new Error('RevenueCat is not configured. Add your RevenueCat API key before testing subscriptions.');
+  }
+}
+
+export function hasActiveEntitlement(customerInfo: CustomerInfo | null | undefined) {
+  return Boolean(customerInfo?.entitlements.active[REVENUECAT_ENTITLEMENT_ID]);
+}
+
+export const revenueCatService = {
+  get entitlementId() {
+    return REVENUECAT_ENTITLEMENT_ID;
+  },
+
+  get configured() {
+    return configured;
+  },
+
+  get canUseNativePurchases() {
+    return isNativePurchasePlatform() && Boolean(getApiKey());
+  },
+
+  configure() {
+    if (configured || !isNativePurchasePlatform()) return configured;
+
+    const apiKey = getApiKey();
+    if (!apiKey) return false;
+
+    if (__DEV__) {
+      void Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    }
+
+    Purchases.configure({ apiKey } as Parameters<typeof Purchases.configure>[0]);
+    configured = true;
+    return true;
+  },
+
+  async getCustomerInfo() {
+    assertConfigured();
+    return Purchases.getCustomerInfo();
+  },
+
+  async restorePurchases() {
+    assertConfigured();
+    return Purchases.restorePurchases();
+  },
+
+  addCustomerInfoUpdateListener(listener: CustomerInfoUpdateListener) {
+    if (!configured) return () => undefined;
+
+    Purchases.addCustomerInfoUpdateListener(listener);
+    return () => {
+      Purchases.removeCustomerInfoUpdateListener(listener);
+    };
+  },
+
+  async presentPaywallIfNeeded() {
+    assertConfigured();
+    const result = await RevenueCatUI.presentPaywallIfNeeded({
+      requiredEntitlementIdentifier: REVENUECAT_ENTITLEMENT_ID,
+      displayCloseButton: true,
+    });
+
+    if (
+      result === PAYWALL_RESULT.NOT_PRESENTED ||
+      result === PAYWALL_RESULT.PURCHASED ||
+      result === PAYWALL_RESULT.RESTORED
+    ) {
+      const customerInfo = await Purchases.getCustomerInfo();
+      return hasActiveEntitlement(customerInfo);
+    }
+
+    return false;
+  },
+
+  async presentCustomerCenter() {
+    if (configured) {
+      try {
+        await RevenueCatUI.presentCustomerCenter();
+        return;
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('RevenueCat Customer Center unavailable, opening Apple subscriptions.', error);
+        }
+      }
+    }
+
+    await Linking.openURL(APPLE_MANAGE_SUBSCRIPTIONS_URL);
+  },
+};

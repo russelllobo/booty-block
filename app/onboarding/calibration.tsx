@@ -10,7 +10,7 @@ import { PoseOverlay } from '../../components/PoseOverlay';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
-import { captureAnalytics } from '../../lib/analytics';
+import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCameraView';
@@ -87,6 +87,15 @@ export default function Calibration() {
 
   const PhaseIcon = phase.icon;
   const cameraGranted = webPreview || Boolean(permission?.granted);
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/calibration',
+    'calibration_squat_check',
+    'Do one squat',
+    25,
+    30,
+  );
 
   async function finish() {
     if (!onboardingComplete) {

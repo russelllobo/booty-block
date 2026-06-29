@@ -15,7 +15,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
-import { captureAnalytics } from '../../lib/analytics';
+import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 
 type SetupSlide = {
   eyebrow: string;
@@ -91,6 +91,15 @@ export default function Setup() {
   const slide = slides[step];
   const isLast = step === slides.length - 1;
   const mediaHeight = Math.min(430, Math.max(270, height * 0.48));
+
+  useOnboardingStepAnalytics(
+    posthog,
+    '/onboarding/setup',
+    `setup_${step + 1}`,
+    slide.title,
+    step + 22,
+    30,
+  );
 
   function back() {
     if (step > 0) {

@@ -20,6 +20,7 @@ export default {
     const pages = {
       '/privacy': renderPrivacy,
       '/support': renderSupport,
+      '/terms': renderTerms,
     };
     const renderPage = pages[pathname];
 
@@ -117,6 +118,59 @@ function renderSupport() {
   });
 }
 
+function renderTerms() {
+  return renderInfoPage({
+    title: 'Terms of Service',
+    description: 'The terms that apply to Bootyblock, including Bootyblock Pro subscriptions.',
+    content: `
+      <p class="updated">Effective June 29, 2026</p>
+      <p>These Terms of Service explain the rules for using Bootyblock, including the Bootyblock mobile app, website, support channels, and Bootyblock Pro subscription features.</p>
+
+      <h2>Acceptance of these terms</h2>
+      <p>By downloading, accessing, subscribing to, or using Bootyblock, you agree to these terms. If you do not agree, do not use Bootyblock.</p>
+
+      <h2>What Bootyblock does</h2>
+      <p>Bootyblock helps you place movement between you and distracting apps. You choose apps or categories with Apple’s Screen Time controls, then earn unlock time by completing squat sessions counted with on-device camera processing.</p>
+      <p>Bootyblock is a productivity and fitness-support tool. It is not medical advice, physical therapy, or a substitute for professional guidance. Stop using Bootyblock and consult a qualified professional if an exercise causes pain, dizziness, or discomfort.</p>
+
+      <h2>Eligibility and account responsibility</h2>
+      <p>You must be at least 13 years old to use Bootyblock. You are responsible for your device, App Store account, subscription choices, Screen Time permissions, and any activity that occurs through your device.</p>
+
+      <h2>Bootyblock Pro subscription</h2>
+      <p>Bootyblock Pro is an auto-renewable subscription that keeps app blocking, squat-to-unlock sessions, progress stats, and unlock windows active on supported devices. Subscription options, prices, trial availability, renewal periods, and included features are shown in the app or on the App Store purchase sheet before you confirm a purchase.</p>
+      <p>Payment is charged to your Apple ID when you confirm purchase. Unless you cancel at least 24 hours before the end of the current billing period, your subscription renews automatically. Your Apple ID may be charged for renewal within 24 hours before the end of the current period.</p>
+      <p>You can manage or cancel your subscription in Apple account settings. Deleting Bootyblock does not automatically cancel your subscription. Refund requests are handled by Apple under Apple’s policies.</p>
+
+      <h2>Free trials and promotions</h2>
+      <p>If a free trial or promotional offer is available, its details will be shown before purchase. Unless you cancel before the trial or promotional period ends, the subscription converts to a paid auto-renewing subscription.</p>
+
+      <h2>Permissions and device requirements</h2>
+      <p>Bootyblock requires supported iPhone hardware and iOS features, including Camera access and Apple Screen Time permissions, to provide its core functionality. Some features may not work if permissions are denied, unavailable, revoked, restricted by device settings, or changed by Apple.</p>
+
+      <h2>Acceptable use</h2>
+      <p>You agree not to misuse Bootyblock, interfere with the service, attempt to reverse engineer protected parts of the app, bypass payment requirements, abuse support channels, or use Bootyblock in a way that violates applicable law or another person’s rights.</p>
+
+      <h2>Privacy</h2>
+      <p>Your use of Bootyblock is also governed by the <a href="/privacy">Bootyblock Privacy Policy</a>, which explains how information is processed in the app and on this website.</p>
+
+      <h2>Third-party services</h2>
+      <p>Bootyblock relies on third-party services such as Apple’s App Store, Apple Screen Time frameworks, RevenueCat subscription infrastructure, and Cloudflare website delivery. Those services may be governed by their own terms and policies.</p>
+
+      <h2>Changes to Bootyblock or these terms</h2>
+      <p>We may update Bootyblock, change features, or revise these terms as the product evolves. The effective date at the top of this page shows when the latest terms took effect. Continued use after an update means you accept the updated terms.</p>
+
+      <h2>Disclaimers</h2>
+      <p>Bootyblock is provided as is and as available. We do not promise that the app will be uninterrupted, error-free, compatible with every device setting, or able to block every app in every circumstance.</p>
+
+      <h2>Limitation of liability</h2>
+      <p>To the maximum extent permitted by law, Bootyblock and its operators will not be liable for indirect, incidental, special, consequential, exemplary, or punitive damages, or for loss of data, profits, goodwill, or other intangible losses arising from your use of the service.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about these terms can be sent to <a href="mailto:russell@russell.systems">russell@russell.systems</a>.</p>
+    `,
+  });
+}
+
 function renderNotFound() {
   return renderInfoPage({
     title: 'Page not found',
@@ -170,6 +224,7 @@ function renderInfoPage({ title, description, content }) {
   </main>
   <footer class="shell">
     <span>© 2026 Bootyblock</span>
+    <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
     <a href="/support">Support</a>
   </footer>
@@ -664,6 +719,7 @@ function renderLanding() {
         </a>
         <a class="follow" href="https://www.tiktok.com/@booty.block" rel="noreferrer" target="_blank">Follow on TikTok ↗</a>
         <nav class="site-links" aria-label="Legal and support">
+          <a href="/terms">Terms of Service</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/support">Support</a>
         </nav>

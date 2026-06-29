@@ -8,27 +8,27 @@ import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
-  const { hydrated, onboardingComplete, timeBankSeconds } = useBootyblock();
+  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated, isSubscribed } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !subscriptionHydrated) return;
     const openedFromShield = Boolean(
       linkingUrl?.startsWith('device-activity://')
       || linkingUrl?.startsWith('bootyblock://unlock')
       || screenTimeService.consumeShieldOpenRequest(),
     );
     router.replace(
-      onboardingComplete
+      onboardingComplete && isSubscribed
         ? openedFromShield
           || timeBankSeconds > 0
           ? '/(tabs)/plan'
           : '/(tabs)'
         : '/onboarding',
     );
-  }, [hydrated, linkingUrl, onboardingComplete, timeBankSeconds]);
+  }, [hydrated, isSubscribed, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
 
-  if (!hydrated) {
+  if (!hydrated || !subscriptionHydrated) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
         <ActivityIndicator color={colors.raspberry} />
