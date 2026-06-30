@@ -103,15 +103,21 @@ function SubscriptionGate() {
     hydrated,
     onboardingComplete,
     subscriptionHydrated,
-    isSubscribed,
+    hasAppAccess,
   } = useBootyblock();
 
   useEffect(() => {
-    if (!hydrated || !subscriptionHydrated || !onboardingComplete || isSubscribed) return;
-    if (!pathname || pathname.startsWith('/onboarding')) return;
+    if (!hydrated || !subscriptionHydrated || hasAppAccess) return;
+    if (!onboardingComplete) {
+      if (!pathname || pathname.startsWith('/onboarding')) return;
+      router.replace('/onboarding');
+      return;
+    }
+
+    if (pathname === '/onboarding/apps') return;
 
     router.replace('/onboarding/apps');
-  }, [hydrated, isSubscribed, onboardingComplete, pathname, subscriptionHydrated]);
+  }, [hasAppAccess, hydrated, onboardingComplete, pathname, subscriptionHydrated]);
 
   return null;
 }
@@ -150,6 +156,8 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="session" />

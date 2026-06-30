@@ -9,6 +9,8 @@ import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
 export const REVENUECAT_ENTITLEMENT_ID =
   process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'pro';
+export const REVENUECAT_ONE_TIME_OFFERING_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_ONE_TIME_OFFERING_ID ?? 'one_time_offer';
 
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
@@ -33,8 +35,21 @@ function assertConfigured() {
 }
 
 export function hasActiveEntitlement(customerInfo: CustomerInfo | null | undefined) {
-  return Boolean(customerInfo?.entitlements.active[REVENUECAT_ENTITLEMENT_ID]);
+  const entitlement = customerInfo?.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
+  if (!entitlement) return false;
+
+  if (entitlement.expirationDate && entitlement.unsubscribeDetectedAt) {
+    return false;
+  }
+
+  return true;
 }
+
+export type PaywallAccessResult = {
+  active: boolean;
+  cancelled: boolean;
+  result: PAYWALL_RESULT;
+};
 
 export const revenueCatService = {
   get entitlementId() {
@@ -83,7 +98,7 @@ export const revenueCatService = {
     };
   },
 
-  async presentPaywallIfNeeded() {
+  async presentPaywallIfNeededWithResult(): Promise<PaywallAccessResult> {
     assertConfigured();
     const result = await RevenueCatUI.presentPaywallIfNeeded({
       requiredEntitlementIdentifier: REVENUECAT_ENTITLEMENT_ID,
@@ -96,10 +111,61 @@ export const revenueCatService = {
       result === PAYWALL_RESULT.RESTORED
     ) {
       const customerInfo = await Purchases.getCustomerInfo();
-      return hasActiveEntitlement(customerInfo);
+      return {
+        active: hasActiveEntitlement(customerInfo),
+        cancelled: false,
+        result,
+      };
     }
 
-    return false;
+    return {
+      active: false,
+      cancelled: result === PAYWALL_RESULT.CANCELLED,
+      result,
+    };
+  },
+
+  async presentPaywallWithResult(): Promise<PaywallAccessResult> {
+    assertConfigured();
+    const result = await RevenueCatUI.presentPaywall({
+      displayCloseButton: true,
+    });
+    const customerInfo = await Purchases.getCustomerInfo();
+
+    return {
+      active: hasActiveEntitlement(customerInfo),
+      cancelled: result === PAYWALL_RESULT.CANCELLED,
+      result,
+    };
+  },
+
+  async presentOneTimeOfferPaywallWithResult(): Promise<PaywallAccessResult> {
+    assertConfigured();
+    const offerings = await Purchases.getOfferings();
+    const offering = offerings.all[REVENUECAT_ONE_TIME_OFFERING_ID];
+
+    if (!offering) {
+      throw new Error('The one-time offer is not available right now. Please try again in a moment.');
+    }
+
+    const result = await RevenueCatUI.presentPaywall({
+      offering,
+      displayCloseButton: true,
+    });
+    const customerInfo = await Purchases.getCustomerInfo();
+
+    return {
+      active: hasActiveEntitlement(customerInfo),
+      cancelled: result === PAYWALL_RESULT.CANCELLED,
+      result,
+    };
+  },
+
+  async presentPaywallIfNeeded(options?: { force?: boolean }) {
+    const outcome = options?.force
+      ? await this.presentPaywallWithResult()
+      : await this.presentPaywallIfNeededWithResult();
+    return outcome.active;
   },
 
   async presentCustomerCenter() {

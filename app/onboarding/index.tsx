@@ -1,8 +1,16 @@
 import { router } from 'expo-router';
+import { Asset } from 'expo-asset';
 import { ArrowRight } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { useCallback, useEffect, useRef } from 'react';
-import { Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
@@ -14,6 +22,10 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const SKIP_ONBOARDING_TAPS = 5;
 const TAP_RESET_MS = 1200;
+const SQUATTING_DEMO_ASPECT_RATIO = 394 / 648;
+const squattingDemo = require('../../assets/onboarding/squatting-cut.gif');
+const squattingPoster = require('../../assets/onboarding/squatting-poster.jpg');
+const slideTwoArtwork = require('../../assets/onboarding/slide-two.jpg');
 
 export default function Onboarding() {
   const { height } = useWindowDimensions();
@@ -21,7 +33,8 @@ export default function Onboarding() {
   const posthog = usePostHog();
   const skipTapCountRef = useRef(0);
   const skipTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const demoHeight = Math.min(410, Math.max(260, height * 0.44));
+  const slideTwoPreloadRef = useRef<Promise<unknown> | null>(null);
+  const demoHeight = Math.min(500, Math.max(340, height * 0.54));
 
   useOnboardingStepAnalytics(
     posthog,
@@ -52,12 +65,25 @@ export default function Onboarding() {
     }, TAP_RESET_MS);
   }, [completeOnboarding]);
 
-  useEffect(() => {
-    const source = Image.resolveAssetSource(require('../../assets/onboarding/slide-two.jpg'));
-    if (source?.uri) {
-      void Image.prefetch(source.uri);
+  const preloadSlideTwo = useCallback(() => {
+    if (!slideTwoPreloadRef.current) {
+      const source = Image.resolveAssetSource(slideTwoArtwork);
+      slideTwoPreloadRef.current = Promise.all([
+        Asset.loadAsync(slideTwoArtwork),
+        source?.uri ? Image.prefetch(source.uri) : Promise.resolve(false),
+      ]).catch(() => undefined);
     }
+
+    return slideTwoPreloadRef.current;
   }, []);
+
+  const handleGetStarted = useCallback(() => {
+    router.push('/onboarding/permissions');
+  }, []);
+
+  useEffect(() => {
+    void preloadSlideTwo();
+  }, [preloadSlideTwo]);
 
   useEffect(() => {
     return () => {
@@ -83,10 +109,24 @@ export default function Onboarding() {
           </View>
 
           <View
-            className="overflow-hidden rounded-[34px] border border-white/80 bg-black"
-            style={[{ height: demoHeight }, shadow]}
+            className="overflow-hidden rounded-[34px]"
+            style={[
+              { alignSelf: 'center', aspectRatio: SQUATTING_DEMO_ASPECT_RATIO, height: demoHeight },
+              shadow,
+            ]}
           >
-            <View className="flex-1 bg-black" />
+            <Image
+              source={squattingPoster}
+              accessibilityLabel="Squat demo"
+              resizeMode="contain"
+              style={styles.demoImage}
+            />
+            <Image
+              source={squattingDemo}
+              accessibilityLabel="Squat demo animation"
+              resizeMode="contain"
+              style={[styles.demoImage, styles.demoAnimation]}
+            />
           </View>
 
           <View className="flex-1 justify-end pt-5">
@@ -99,7 +139,7 @@ export default function Onboarding() {
               <Button
                 label="Get started"
                 icon={ArrowRight}
-                onPress={() => router.push('/onboarding/permissions')}
+                onPress={handleGetStarted}
               />
             </View>
           </View>
@@ -108,3 +148,13 @@ export default function Onboarding() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  demoAnimation: {
+    position: 'absolute',
+  },
+  demoImage: {
+    height: '100%',
+    width: '100%',
+  },
+});

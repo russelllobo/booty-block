@@ -72,7 +72,7 @@ function QuizHeader({ step, back }: { step: number; back: () => void }) {
 }
 
 export default function Quiz() {
-  const { setProfileName } = useBootyblock();
+  const { setOnboardingGoals, setProfileName } = useBootyblock();
   const posthog = usePostHog();
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
@@ -237,6 +237,7 @@ export default function Quiz() {
               disabled={selectedGoals.length === 0}
               onPress={() => {
                 setProfileName(name);
+                setOnboardingGoals(selectedGoals);
                 router.push('/onboarding/usage');
               }}
             />

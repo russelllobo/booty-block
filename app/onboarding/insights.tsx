@@ -76,6 +76,7 @@ type AgeOption = {
 };
 
 const US_AVERAGE_PHONE_HOURS = 4.5;
+const RESULT_PERCENT_HIGHER_THAN_AVERAGE = 63;
 const TARGET_AGE = 80;
 const currentStateBackground = '#07070A';
 const currentStateGradient = ['#3A0F26', '#07070A'] as const;
@@ -584,7 +585,12 @@ function CurrentStateSlide({
               >
                 With
               </Text>
-              <BrandLockup height={38} label="BootyBlock logo" />
+              <BrandLockup
+                height={38}
+                label="BootyBlock logo"
+                textColor={colors.white}
+                textTranslateY={0}
+              />
             </View>
 
             <View className="mt-5 flex-row flex-wrap justify-center gap-2.5">
@@ -714,26 +720,19 @@ function ResultBar({
 function ResultComparisonSlide({
   currentScore,
   averageScore,
-  percentVsAverage,
   onContinue,
 }: {
   currentScore: number;
   averageScore: number;
-  percentVsAverage: number;
   onContinue: () => void;
 }) {
-  const comparisonLabel =
-    percentVsAverage >= 0
-      ? `${percentVsAverage}% higher`
-      : `${Math.abs(percentVsAverage)}% lower`;
-
   return (
     <View className="flex-1">
       <View className="flex-1 justify-between pb-1 pt-1">
         <FadeInStage delay={resultComparisonStageDelay.headline}>
           <View className="px-10">
             <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
-              It doesn't look good so far...
+              You're higher than average
             </Text>
 
             <Text className="mt-8 text-center text-[18px] font-bold leading-7 text-white">
@@ -767,7 +766,7 @@ function ResultComparisonSlide({
         <View>
           <FadeInStage delay={resultComparisonStageDelay.summary}>
             <Text className="mb-7 px-10 text-center text-[28px] font-bold leading-[33px] text-white">
-              <Text style={{ color: resultOrange }}>{comparisonLabel}</Text> than the average!
+              <Text style={{ color: resultOrange }}>{RESULT_PERCENT_HIGHER_THAN_AVERAGE}% higher</Text> than the average!
             </Text>
           </FadeInStage>
 
@@ -2272,17 +2271,16 @@ export default function Insights() {
         ? selectedFeelings
         : selectedTried;
   const currentDays = daysPerYear(dailyScreenTimeHours);
-  const currentDependenceScore = dependenceScore(dailyScreenTimeHours);
   const averageDependenceScore = dependenceScore(US_AVERAGE_PHONE_HOURS);
+  const fixedResultScore = Math.round(
+    averageDependenceScore * (1 + RESULT_PERCENT_HIGHER_THAN_AVERAGE / 100),
+  );
   const projectionAgeRange = selectedAgeRange || ageRange;
   const remainingYears = Math.max(1, TARGET_AGE - ageMidpoint(projectionAgeRange));
   const projectedYears = yearsUntilTargetAge(dailyScreenTimeHours, projectionAgeRange);
   const reclaimedYears = Math.max(
     0,
     yearsUntilTargetAge(dailyScreenTimeHours - dailyScreenTimeGoalHours, projectionAgeRange),
-  );
-  const percentVsAverage = Math.round(
-    ((dailyScreenTimeHours - US_AVERAGE_PHONE_HOURS) / US_AVERAGE_PHONE_HOURS) * 100,
   );
 
   useOnboardingStepAnalytics(
@@ -2462,9 +2460,8 @@ export default function Insights() {
           <CalculatingSlide onComplete={completeCalculating} />
         ) : step === 7 ? (
           <ResultComparisonSlide
-            currentScore={currentDependenceScore}
+            currentScore={fixedResultScore}
             averageScore={averageDependenceScore}
-            percentVsAverage={percentVsAverage}
             onContinue={() => setStep(8)}
           />
         ) : step === 8 ? (

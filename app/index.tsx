@@ -1,14 +1,15 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { BrandLockup } from '../components/BrandLockup';
 import { colors } from '../constants/theme';
 import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
-  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated, isSubscribed } = useBootyblock();
+  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated, hasAppAccess } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
 
   useEffect(() => {
@@ -19,32 +20,28 @@ export default function Index() {
       || screenTimeService.consumeShieldOpenRequest(),
     );
     router.replace(
-      onboardingComplete && isSubscribed
+      onboardingComplete && hasAppAccess
         ? openedFromShield
           || timeBankSeconds > 0
           ? '/(tabs)/plan'
           : '/(tabs)'
-        : '/onboarding',
+        : onboardingComplete
+          ? '/onboarding/apps'
+          : '/onboarding',
     );
-  }, [hydrated, isSubscribed, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
+  }, [hasAppAccess, hydrated, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
 
   if (!hydrated || !subscriptionHydrated) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
-        <ActivityIndicator color={colors.raspberry} />
-        <Text style={{ marginTop: 16, color: colors.cocoa, fontSize: 18, fontWeight: '700' }}>
-          Loading Bootyblock...
-        </Text>
-      </View>
-    );
+    return <LoadingLockup />;
   }
 
+  return <LoadingLockup />;
+}
+
+function LoadingLockup() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
-      <ActivityIndicator color={colors.raspberry} />
-      <Text style={{ marginTop: 16, color: colors.cocoa, fontSize: 18, fontWeight: '700' }}>
-        Opening Bootyblock...
-      </Text>
+      <BrandLockup height={42} label="BootyBlock logo" />
     </View>
   );
 }

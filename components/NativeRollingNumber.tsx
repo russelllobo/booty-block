@@ -8,6 +8,7 @@ import { RollingNumber } from './RollingNumber';
 type NativeRollingNumberProps = {
   value: string | number;
   color?: string;
+  countsDown?: boolean;
   fontSize?: number;
   fontWeight?: '900' | '800' | '700' | '600';
   letterSpacing?: number;
@@ -33,6 +34,7 @@ if (Platform.OS === 'ios') {
 export function NativeRollingNumber({
   value,
   color = colors.cocoa,
+  countsDown: explicitCountsDown,
   fontSize = 124,
   fontWeight = '900',
   letterSpacing = 0,
@@ -41,9 +43,10 @@ export function NativeRollingNumber({
   const stringValue = String(value);
   const previousNumericValue = useRef(Number(value));
   const currentNumericValue = Number(value);
-  const countsDown = Number.isFinite(currentNumericValue)
+  const inferredCountsDown = Number.isFinite(currentNumericValue)
     && Number.isFinite(previousNumericValue.current)
     && currentNumericValue < previousNumericValue.current;
+  const countsDown = explicitCountsDown ?? inferredCountsDown;
 
   useEffect(() => {
     previousNumericValue.current = currentNumericValue;

@@ -22,7 +22,7 @@ export default function Settings() {
     isSubscribed,
     subscriptionError,
     restorePurchases,
-    presentSubscriptionPaywall,
+    requestSubscriptionAccess,
     openSubscriptionManagement,
     resetAppData,
   } = useBootyblock();
@@ -63,7 +63,7 @@ export default function Settings() {
         return;
       }
 
-      const subscribed = await presentSubscriptionPaywall();
+      const subscribed = await requestSubscriptionAccess();
       if (!subscribed && !subscriptionConfigured) {
         Alert.alert(
           'RevenueCat setup needed',

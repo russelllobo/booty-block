@@ -10,16 +10,17 @@ import {
 } from 'react-native';
 
 import { Button } from '../../components/Button';
+import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
-import { RollingNumber } from '../../components/RollingNumber';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-const MIN_HOURS = 0.5;
-const MAX_HOURS = 12;
+const CURRENT_MIN_HOURS = 2;
+const CURRENT_MAX_HOURS = 8;
+const GOAL_MIN_HOURS = 0.5;
 const SLIDER_STEP = 0.5;
 const usageStepMetadata = {
   1: {
@@ -41,14 +42,22 @@ function formatHours(value: number) {
   return `${hours}h ${minutes}m`;
 }
 
-function formatHoursFixed(value: number) {
+function splitHours(value: number) {
   const hours = Math.floor(value);
   const minutes = Math.round((value - hours) * 60);
-  return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+
+  return {
+    hours: String(hours),
+    minutes: String(minutes).padStart(2, '0'),
+  };
 }
 
 function daysPerYear(hoursPerDay: number) {
   return Math.round((hoursPerDay * 365) / 24);
+}
+
+function halfOfCurrentHours(currentHours: number) {
+  return Math.max(GOAL_MIN_HOURS, currentHours / 2);
 }
 
 function UsageHeader({ step, back }: { step: number; back: () => void }) {
@@ -57,11 +66,13 @@ function UsageHeader({ step, back }: { step: number; back: () => void }) {
 
 function TimeSlider({
   value,
+  minimumValue,
   maximumValue,
   onChange,
   tone,
 }: {
   value: number;
+  minimumValue: number;
   maximumValue: number;
   onChange: (value: number) => void;
   tone: 'pink' | 'mint';
@@ -71,6 +82,7 @@ function TimeSlider({
   const lastHapticAt = useRef(0);
   const accent = tone === 'pink' ? colors.raspberry : '#32B764';
   const rollDirection = value >= previousRenderedValue.current ? 'up' : 'down';
+  const timeParts = splitHours(value);
 
   useEffect(() => {
     previousRenderedValue.current = value;
@@ -78,9 +90,9 @@ function TimeSlider({
   }, [value]);
 
   function update(nextValue: number) {
-    const clampedRawValue = Math.min(maximumValue, Math.max(MIN_HOURS, nextValue));
+    const clampedRawValue = Math.min(maximumValue, Math.max(minimumValue, nextValue));
     const steppedValue = Math.round(clampedRawValue / SLIDER_STEP) * SLIDER_STEP;
-    const clampedValue = Math.min(maximumValue, Math.max(MIN_HOURS, steppedValue));
+    const clampedValue = Math.min(maximumValue, Math.max(minimumValue, steppedValue));
 
     if (clampedValue !== lastValue.current) {
       lastValue.current = clampedValue;
@@ -101,21 +113,34 @@ function TimeSlider({
     >
       <View style={styles.sliderFrame}>
         <View pointerEvents="none" style={styles.valueLabel}>
-          <RollingNumber
-            value={formatHoursFixed(value)}
-            color={accent}
-            fontSize={34}
-            fontWeight="900"
-            letterSpacing={0}
-            smooth
-            direction={rollDirection}
-          />
+          <View style={styles.valueRow}>
+            <NativeRollingNumber
+              value={timeParts.hours}
+              color={accent}
+              countsDown={rollDirection === 'down'}
+              fontSize={34}
+              fontWeight="900"
+              letterSpacing={0}
+              style={styles.hoursValue}
+            />
+            <Text style={[styles.valueUnit, { color: accent }]}>h</Text>
+            <NativeRollingNumber
+              value={timeParts.minutes}
+              color={accent}
+              countsDown={rollDirection === 'down'}
+              fontSize={34}
+              fontWeight="900"
+              letterSpacing={0}
+              style={styles.minutesValue}
+            />
+            <Text style={[styles.valueUnit, { color: accent }]}>m</Text>
+          </View>
         </View>
 
         <Slider
           accessibilityLabel="Daily screen time in hours"
           accessibilityValue={{
-            min: MIN_HOURS,
+            min: minimumValue,
             max: maximumValue,
             now: value,
             text: formatHours(value),
@@ -127,7 +152,7 @@ function TimeSlider({
           onAccessibilityAction={({ nativeEvent }) => {
             update(value + (nativeEvent.actionName === 'increment' ? SLIDER_STEP : -SLIDER_STEP));
           }}
-          minimumValue={MIN_HOURS}
+          minimumValue={minimumValue}
           maximumValue={maximumValue}
           step={SLIDER_STEP}
           value={value}
@@ -139,7 +164,7 @@ function TimeSlider({
         />
       </View>
       <View className="mt-1 flex-row justify-between px-1">
-        <Text className="text-xs font-black text-mink">{formatHours(MIN_HOURS)}</Text>
+        <Text className="text-xs font-black text-mink">{formatHours(minimumValue)}</Text>
         <Text className="text-xs font-black text-mink">{formatHours(maximumValue)}</Text>
       </View>
     </View>
@@ -147,20 +172,23 @@ function TimeSlider({
 }
 
 export default function Usage() {
-  const { profileName, dailyScreenTimeGoalHours, dailyScreenTimeHours, setUsageTargets } =
+  const { profileName, dailyScreenTimeHours, setUsageTargets } =
     useBootyblock();
   const posthog = usePostHog();
-  const [step, setStep] = useState(1);
-  const [currentHours, setCurrentHours] = useState(dailyScreenTimeHours);
-  const [goalHours, setGoalHours] = useState(
-    Math.min(dailyScreenTimeGoalHours, dailyScreenTimeHours),
+  const initialCurrentHours = Math.min(
+    CURRENT_MAX_HOURS,
+    Math.max(CURRENT_MIN_HOURS, dailyScreenTimeHours),
   );
+  const [step, setStep] = useState(1);
+  const [currentHours, setCurrentHours] = useState(initialCurrentHours);
+  const [goalHours, setGoalHours] = useState(halfOfCurrentHours(initialCurrentHours));
   const direction = useStepDirection(step);
 
   const isGoal = step === 2;
   const stepMetadata = usageStepMetadata[step as keyof typeof usageStepMetadata];
   const name = profileName || 'you';
-  const goalMaximum = Math.max(MIN_HOURS, currentHours);
+  const sliderMinimum = isGoal ? GOAL_MIN_HOURS : CURRENT_MIN_HOURS;
+  const sliderMaximum = isGoal ? Math.max(GOAL_MIN_HOURS, currentHours) : CURRENT_MAX_HOURS;
 
   useOnboardingStepAnalytics(
     posthog,
@@ -181,9 +209,7 @@ export default function Usage() {
 
   function continueFlow() {
     if (!isGoal) {
-      setGoalHours((current) =>
-        Math.min(current, Math.max(MIN_HOURS, currentHours - 0.5)),
-      );
+      setGoalHours(halfOfCurrentHours(currentHours));
       setStep(2);
       return;
     }
@@ -214,7 +240,8 @@ export default function Usage() {
           <View className="flex-1 justify-center py-4">
             <TimeSlider
               value={isGoal ? goalHours : currentHours}
-              maximumValue={isGoal ? goalMaximum : MAX_HOURS}
+              minimumValue={sliderMinimum}
+              maximumValue={sliderMaximum}
               onChange={isGoal ? setGoalHours : setCurrentHours}
               tone={isGoal ? 'mint' : 'pink'}
             />
@@ -243,6 +270,26 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
+  },
+  valueRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: 46,
+    justifyContent: 'center',
+  },
+  hoursValue: {
+    height: 46,
+    width: 28,
+  },
+  minutesValue: {
+    height: 46,
+    marginLeft: 7,
+    width: 48,
+  },
+  valueUnit: {
+    fontSize: 34,
+    fontWeight: '900',
+    lineHeight: 42,
   },
   nativeSlider: {
     width: '100%',

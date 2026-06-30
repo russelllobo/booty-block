@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowUp, Bell } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { useState } from 'react';
-import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -16,11 +16,23 @@ import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytic
 const notificationBackground = '#07070A';
 const notificationGradient = ['#3A0F26', '#07070A'] as const;
 
-export default function NotificationPermission() {
+type NotificationPermissionContentProps = {
+  onBack: () => void;
+  onComplete?: () => void;
+};
+
+export function NotificationPermissionContent({
+  onBack,
+  onComplete = () => router.replace('/onboarding/calculating'),
+}: NotificationPermissionContentProps) {
   const posthog = usePostHog();
   const [loading, setLoading] = useState(false);
-  const { height } = useWindowDimensions();
-  const promptHeight = Math.min(236, Math.max(178, height * 0.25));
+  const { height, width } = useWindowDimensions();
+  const promptRowWidth = Math.min(width - 40, 360);
+  const dialogWidth = Math.min(width * 0.7, promptRowWidth - 62);
+  const dialogHeight = dialogWidth * (970 / 950);
+  const dialogTopGap = Math.min(42, Math.max(18, height * 0.035));
+  const arrowBounce = useRef(new Animated.Value(0)).current;
 
   useOnboardingStepAnalytics(
     posthog,
@@ -28,8 +40,29 @@ export default function NotificationPermission() {
     'notification_permission',
     'Allow Bootyblock to send you notifications',
     29,
-    30,
+    32,
   );
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowBounce, {
+          toValue: -10,
+          duration: 520,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowBounce, {
+          toValue: 0,
+          duration: 520,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [arrowBounce]);
 
   async function requestNotifications() {
     captureAnalytics(posthog, 'notification_permission_started');
@@ -60,18 +93,14 @@ export default function NotificationPermission() {
       }
     } finally {
       setLoading(false);
-      router.replace('/onboarding/apps');
+      onComplete();
     }
   }
 
   return (
-    <Screen
-      scroll={false}
-      backgroundColor={notificationBackground}
-      backgroundGradient={notificationGradient}
-    >
+    <>
       <StatusBar style="light" animated />
-      <OnboardingProgress step={25} onBack={() => router.back()} showBar={false} dark />
+      <OnboardingProgress step={25} onBack={onBack} showBar={false} dark />
 
       <SlidePanel>
         <View className="flex-1 justify-between">
@@ -88,35 +117,34 @@ export default function NotificationPermission() {
           </View>
 
           <View className="items-center">
-            <View
-              className="w-full justify-center overflow-hidden rounded-[32px] border border-white/10 bg-black/45 px-5"
-              style={[styles.placeholder, { height: promptHeight }]}
-            >
-              <View className="rounded-[24px] bg-white px-5 py-5">
-                <View className="items-center">
-                  <View className="h-12 w-12 items-center justify-center rounded-2xl bg-raspberry">
-                    <Bell size={25} stroke={colors.white} strokeWidth={2.5} />
-                  </View>
-                  <Text className="mt-4 text-center text-[17px] font-bold leading-6 text-cocoa">
-                    "Bootyblock" Would Like to Send You Notifications
-                  </Text>
-                  <Text className="mt-2 text-center text-[13px] font-semibold leading-5 text-mink">
-                    Notifications may include alerts, sounds, and icon badges.
-                  </Text>
-                </View>
-
-                <View className="mt-5 flex-row overflow-hidden rounded-2xl border border-raspberry/15">
-                  <View className="flex-1 items-center justify-center border-r border-raspberry/15 py-3">
-                    <Text className="text-sm font-bold text-mink">Don't Allow</Text>
-                  </View>
-                  <View className="flex-1 items-center justify-center py-3">
-                    <Text className="text-sm font-bold text-raspberry">Allow</Text>
-                  </View>
-                </View>
+            <View style={{ height: dialogHeight, marginTop: dialogTopGap, width: promptRowWidth }}>
+              <View style={{ height: dialogHeight, width: dialogWidth }}>
+                <Image
+                  source={require('../../assets/onboarding/notification-dialog-crop.png')}
+                  accessibilityLabel="Example notification permission prompt"
+                  resizeMode="contain"
+                  style={styles.promptImage}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue to notification permission"
+                  disabled={loading}
+                  onPress={requestNotifications}
+                  style={styles.promptAllowTarget}
+                />
               </View>
-            </View>
-            <View className="mt-3 h-10 w-10 items-center justify-center rounded-full bg-white/10">
-              <ArrowUp size={25} stroke="#8CF6FF" strokeWidth={2.8} />
+              <Animated.View
+                style={[
+                  styles.promptArrow,
+                  {
+                    left: dialogWidth + 4,
+                    top: dialogHeight * 0.43,
+                    transform: [{ translateX: arrowBounce }, { rotate: '-90deg' }],
+                  },
+                ]}
+              >
+                <ArrowUp size={56} stroke={colors.raspberry} strokeWidth={2.8} />
+              </Animated.View>
             </View>
           </View>
 
@@ -130,16 +158,35 @@ export default function NotificationPermission() {
           </View>
         </View>
       </SlidePanel>
+    </>
+  );
+}
+
+export default function NotificationPermission() {
+  return (
+    <Screen
+      scroll={false}
+      backgroundColor={notificationBackground}
+      backgroundGradient={notificationGradient}
+    >
+      <NotificationPermissionContent onBack={() => router.back()} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    shadowColor: '#8CF6FF',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    elevation: 8,
+  promptImage: {
+    height: '100%',
+    width: '100%',
+  },
+  promptAllowTarget: {
+    height: '13%',
+    left: '7%',
+    position: 'absolute',
+    top: '46%',
+    width: '86%',
+  },
+  promptArrow: {
+    position: 'absolute',
   },
 });

@@ -40,7 +40,7 @@ export function Header({ title, subtitle, back, settings, logo, centerLogo, logo
         {!logo && subtitle ? <Text className="mt-1 text-base font-semibold text-mink">{subtitle}</Text> : null}
       </View>
       {rightAccessory || settings ? (
-        <View className="z-10 flex-row items-center gap-2">
+        <View className="z-[40] flex-row items-center gap-2">
           {rightAccessory}
           {settings ? (
             <Pressable

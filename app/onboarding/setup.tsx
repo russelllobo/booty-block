@@ -8,7 +8,7 @@ import {
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useState } from 'react';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -18,9 +18,9 @@ import { colors, shadow } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 
 type SetupSlide = {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  body: string;
+  body?: string;
   media?: 'phone' | 'squat';
 };
 
@@ -43,33 +43,43 @@ const slides: SetupSlide[] = [
     media: 'squat',
   },
   {
-    eyebrow: 'Detection tips',
-    title: 'Make squats easy to read',
-    body: 'A clear frame helps Bootyblock count faster and keeps your blocked apps honest.',
+    title: 'Tips for better detection',
   },
 ];
 
+const setupMedia = {
+  phone: require('../../assets/onboarding/position-phone-floor.gif'),
+  squat: require('../../assets/onboarding/position-step-back-squat.gif'),
+};
+
 const tips: Tip[] = [
   { icon: Smartphone, text: 'Make sure your whole body is fully in frame.' },
-  { icon: Lightbulb, text: 'Use a clear background with strong lighting.' },
-  { icon: Shirt, text: 'Tuck in loose shirts and avoid very baggy pants.' },
+  { icon: Lightbulb, text: 'Make sure the background is clear and well-lit.' },
+  { icon: Shirt, text: 'Tuck in shirts and pants that are too baggy.' },
 ];
 
-function MediaPlaceholder({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
+function SetupMedia({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
   return (
     <View
-      accessibilityLabel={`${type} setup image placeholder`}
-      className="overflow-hidden rounded-[34px] border border-white/80 bg-black"
+      className="overflow-hidden rounded-[34px] border border-white/80"
       style={[{ height }, shadow]}
-    />
+    >
+      <Image
+        key={type}
+        source={setupMedia[type]}
+        accessibilityLabel={type === 'phone' ? 'Phone placement demo animation' : 'Step back and squat demo animation'}
+        resizeMode="contain"
+        style={styles.mediaImage}
+      />
+    </View>
   );
 }
 
 function TipsPanel({ height }: { height: number }) {
   return (
     <View
-      className="justify-center gap-4 rounded-[34px] border border-white/80 bg-white/85 p-5"
-      style={[{ minHeight: height }, shadow]}
+      className="justify-center gap-4"
+      style={{ minHeight: height }}
     >
       {tips.map(({ icon: Icon, text }) => (
         <View key={text} className="flex-row items-center gap-4 rounded-[24px] bg-petal/70 p-4">
@@ -125,9 +135,11 @@ export default function Setup() {
       <SlidePanel stepKey={step} direction={direction}>
         <View className="flex-1">
           <View className="mb-4">
-            <Text className="text-center text-sm font-black uppercase tracking-[2px] text-raspberry">
-              {slide.eyebrow}
-            </Text>
+            {slide.eyebrow ? (
+              <Text className="text-center text-sm font-black uppercase tracking-[2px] text-raspberry">
+                {slide.eyebrow}
+              </Text>
+            ) : null}
             <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-cocoa">
               {slide.title}
             </Text>
@@ -135,9 +147,9 @@ export default function Setup() {
 
           <View className="flex-1 justify-center">
             {slide.media === 'phone' ? (
-              <MediaPlaceholder type="phone" height={mediaHeight} />
+              <SetupMedia type="phone" height={mediaHeight} />
             ) : slide.media === 'squat' ? (
-              <MediaPlaceholder type="squat" height={mediaHeight} />
+              <SetupMedia type="squat" height={mediaHeight} />
             ) : (
               <TipsPanel height={mediaHeight} />
             )}
@@ -158,3 +170,10 @@ export default function Setup() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  mediaImage: {
+    height: '100%',
+    width: '100%',
+  },
+});

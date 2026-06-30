@@ -9,7 +9,7 @@ import {
 
 import { colors } from '../constants/theme';
 
-export const ONBOARDING_TOTAL = 26;
+export const ONBOARDING_TOTAL = 28;
 
 let lastStep = 0;
 

@@ -42,6 +42,18 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-asset",
+        {
+          "assets": [
+            "assets/onboarding/squatting-cut.gif",
+            "assets/onboarding/squatting-poster.jpg",
+            "assets/onboarding/slide-two.jpg",
+            "assets/onboarding/position-phone-floor.gif",
+            "assets/onboarding/position-step-back-squat.gif"
+          ]
+        }
+      ],
       "./plugins/with-local-notifications-only",
       [
         "expo-camera",

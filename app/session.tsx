@@ -20,12 +20,18 @@ import { useBootyblock } from '../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../modules/booty-pose/src/BootyPoseCameraView';
 
 export default function Session() {
-  const { requestedMinutes, bankTime } = useBootyblock();
+  const {
+    requestedMinutes,
+    bankTime,
+    subscriptionHydrated,
+    isSubscribed,
+  } = useBootyblock();
   const posthog = usePostHog();
   const target = requestedMinutes * MINUTES_TO_SQUATS;
   const [permission, requestPermission] = useCameraPermissions();
   const [sessionActive, setSessionActive] = useState(true);
-  const pose = usePoseSession({ target, active: Boolean(permission?.granted) && sessionActive });
+  const subscriptionReady = subscriptionHydrated && isSubscribed;
+  const pose = usePoseSession({ target, active: subscriptionReady && Boolean(permission?.granted) && sessionActive });
   const unlockStarted = useRef(false);
   const countScale = useRef(new Animated.Value(1)).current;
   const countFlash = useRef(new Animated.Value(0)).current;
@@ -36,6 +42,14 @@ export default function Session() {
   const [celebrating, setCelebrating] = useState(false);
 
   useEffect(() => {
+    if (!subscriptionHydrated || isSubscribed) return;
+
+    setSessionActive(false);
+    router.replace('/onboarding/apps');
+  }, [isSubscribed, subscriptionHydrated]);
+
+  useEffect(() => {
+    if (!subscriptionReady) return;
     if (pose.count < target || unlockStarted.current) return;
 
     unlockStarted.current = true;
@@ -67,14 +81,16 @@ export default function Session() {
     return () => {
       cancelled = true;
     };
-  }, [bankTime, pose.count, posthog, requestedMinutes, target]);
+  }, [bankTime, pose.count, posthog, requestedMinutes, subscriptionReady, target]);
 
   useEffect(() => {
+    if (!subscriptionReady) return;
+
     captureAnalytics(posthog, 'session_started', {
       minutes: requestedMinutes,
       target_squats: target,
     });
-  }, [posthog, requestedMinutes, target]);
+  }, [posthog, requestedMinutes, subscriptionReady, target]);
 
   useEffect(() => {
     const previous = prevCountRef.current;
@@ -110,6 +126,16 @@ export default function Session() {
       }),
     ]).start();
   }, [countScale, countFlash, remainingSquats]);
+
+  if (!subscriptionReady) {
+    return (
+      <Screen scroll={false}>
+        <View className="flex-1 items-center justify-center">
+          <BrandLockup height={42} label="BootyBlock logo" />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false}>

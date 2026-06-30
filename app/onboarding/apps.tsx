@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { AppWindow, Check, RotateCcw } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -27,10 +27,12 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 export default function Apps() {
   const {
     completeOnboarding,
-    presentSubscriptionPaywall,
+    requestSubscriptionAccess,
     markSelectionConfigured,
     onboardingComplete,
+    hasAppAccess,
     isSubscribed,
+    subscriptionHydrated,
     subscriptionConfigured,
     subscriptionError,
     selectedAppsConfigured,
@@ -42,6 +44,8 @@ export default function Apps() {
   const [selectionSummary, setSelectionSummary] = useState<ScreenTimeSelectionSummary | null>(
     webPreview ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 } : null,
   );
+  const [subscriptionGateReady, setSubscriptionGateReady] = useState(webPreview);
+  const [subscriptionGateBusy, setSubscriptionGateBusy] = useState(false);
   const hasSelection = Boolean(selectionSummary);
 
   useOnboardingStepAnalytics(
@@ -49,8 +53,8 @@ export default function Apps() {
     '/onboarding/apps',
     'blocked_apps_picker',
     'Blocked apps',
-    30,
-    30,
+    33,
+    33,
   );
 
   useEffect(() => {
@@ -59,7 +63,39 @@ export default function Apps() {
     }
   }, [nativePickerReady]);
 
+  async function openSubscriptionGate() {
+    setSubscriptionGateBusy(true);
+    const subscribed = await requestSubscriptionAccess();
+    setSubscriptionGateBusy(false);
+    if (subscribed) {
+        setSubscriptionGateReady(true);
+    }
+  }
+
+  useEffect(() => {
+    if (webPreview) {
+      setSubscriptionGateReady(true);
+      return;
+    }
+
+    if (!subscriptionHydrated) return;
+
+    if (isSubscribed) {
+      setSubscriptionGateReady(true);
+      return;
+    }
+
+    setSubscriptionGateReady(false);
+    void openSubscriptionGate();
+  }, [isSubscribed, subscriptionHydrated, webPreview]);
+
   async function save() {
+    if (!hasAppAccess) {
+      setSubscriptionGateReady(false);
+      await openSubscriptionGate();
+      return;
+    }
+
     const configured = await markSelectionConfigured();
     if (!configured) {
       captureAnalytics(posthog, 'blocked_apps_selection_save_failed');
@@ -75,26 +111,57 @@ export default function Apps() {
       return;
     }
 
-    const subscribed = await presentSubscriptionPaywall();
-    if (!subscribed) {
-      Alert.alert(
-        subscriptionConfigured ? 'Subscription needed' : 'RevenueCat setup needed',
-        subscriptionConfigured
-          ? 'Subscribe to finish setup and start using Bootyblock.'
-          : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
-      );
-      return;
-    }
-
     if (!onboardingComplete) {
       await completeOnboarding();
     }
     router.replace('/(tabs)');
   }
 
+  if (!subscriptionGateReady) {
+    return (
+      <Screen>
+        <OnboardingProgress step={29} onBack={() => router.back()} />
+
+        <SlidePanel>
+          <View className="flex-1 justify-center gap-6">
+            <Header title="Bootyblock Pro" subtitle="Subscribe before choosing the apps Bootyblock should protect." />
+
+            <View className="items-center gap-5 rounded-[28px] bg-white/75 p-7">
+              <View className="h-20 w-20 items-center justify-center rounded-full bg-petal">
+                {subscriptionGateBusy ? (
+                  <ActivityIndicator color={colors.raspberry} />
+                ) : (
+                  <AppWindow size={34} stroke={colors.raspberry} />
+                )}
+              </View>
+              <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
+                {subscriptionGateBusy ? 'Opening subscription' : 'Subscription needed'}
+              </Text>
+              <Text className="text-center text-base font-semibold leading-6 text-mink">
+                {subscriptionConfigured
+                  ? 'The app picker opens right after Bootyblock Pro is active.'
+                  : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.'}
+              </Text>
+            </View>
+
+            <View className="mt-auto">
+              <Button
+                label={subscriptionGateBusy ? 'Opening paywall' : 'Continue'}
+                icon={Check}
+                disabled={subscriptionGateBusy}
+                loading={subscriptionGateBusy}
+                onPress={openSubscriptionGate}
+              />
+            </View>
+          </View>
+        </SlidePanel>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      <OnboardingProgress step={26} onBack={() => router.back()} />
+      <OnboardingProgress step={29} onBack={() => router.back()} />
 
       <SlidePanel>
         <View className="flex-1">

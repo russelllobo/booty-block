@@ -39,7 +39,9 @@ export type UnlockHistoryEntry = {
 type BootyblockState = {
   hydrated: boolean;
   onboardingComplete: boolean;
+  hasAppAccess: boolean;
   profileName: string;
+  onboardingGoals: string[];
   ageRange: string;
   exerciseFrequency: string;
   dailyScreenTimeHours: number;
@@ -62,6 +64,7 @@ type BootyblockState = {
   subscriptionError: string | null;
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
+  setOnboardingGoals: (goals: string[]) => void;
   setAgeRange: (ageRange: string) => void;
   setExerciseFrequency: (frequency: string) => void;
   setUsageTargets: (currentHours: number, goalHours: number) => void;
@@ -74,7 +77,8 @@ type BootyblockState = {
   syncTimeBank: () => void;
   refreshSubscription: () => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
-  presentSubscriptionPaywall: () => Promise<boolean>;
+  presentSubscriptionPaywall: (options?: { force?: boolean }) => Promise<boolean>;
+  requestSubscriptionAccess: () => Promise<boolean>;
   openSubscriptionManagement: () => Promise<void>;
   resetAppData: () => Promise<void>;
 };
@@ -83,6 +87,10 @@ const STORAGE_KEY = 'bootyblock:v1';
 const USAGE_WINDOW_MONITOR_VERSION = 1;
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
+
+function hasSubscriptionAccess(isSubscribed: boolean) {
+  return Platform.OS === 'web' || isSubscribed;
+}
 
 function elapsedSecondsSince(startedAt: number | null | undefined) {
   if (!startedAt) return 0;
@@ -96,9 +104,10 @@ function defaultPayload() {
   return {
     onboardingComplete: webUiPreview,
     profileName: '',
+    onboardingGoals: [] as string[],
     ageRange: '18-24',
     exerciseFrequency: '',
-    dailyScreenTimeHours: 4,
+    dailyScreenTimeHours: 5,
     dailyScreenTimeGoalHours: 3,
     routineReminderTime: null as RoutineReminderTime | null,
     screenTimeStatus: webUiPreview ? 'approved' as ScreenTimeStatus : screenTimeService.getAuthorizationStatus(),
@@ -138,6 +147,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionConfigured, setSubscriptionConfigured] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(Platform.OS === 'web');
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const accessRequestRef = useRef<Promise<boolean> | null>(null);
   const payloadRef = useRef(payload);
 
   useEffect(() => {
@@ -270,6 +280,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload((current) => ({ ...current, profileName: name.trim() }));
   }, []);
 
+  const setOnboardingGoals = useCallback((goals: string[]) => {
+    setPayload((current) => ({ ...current, onboardingGoals: goals }));
+  }, []);
+
   const setAgeRange = useCallback((ageRange: string) => {
     setPayload((current) => ({ ...current, ageRange }));
   }, []);
@@ -297,6 +311,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   const markSelectionConfigured = useCallback(async () => {
+    if (!hasSubscriptionAccess(isSubscribed)) return false;
+
     if (Platform.OS === 'web') {
       setPayload((current) => ({
         ...current,
@@ -317,13 +333,17 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       selectionSummary,
     }));
     return true;
-  }, []);
+  }, [isSubscribed]);
 
   const setRequestedMinutes = useCallback((minutes: number) => {
     setPayload((current) => ({ ...current, requestedMinutes: minutes }));
   }, []);
 
   const bankTime = useCallback(async (minutes: number) => {
+    if (!hasSubscriptionAccess(isSubscribed)) {
+      throw new Error('Bootyblock Pro is required to bank app time.');
+    }
+
     const squats = minutes * MINUTES_TO_SQUATS;
     const completedAt = Date.now();
     const nextBankSeconds = (payloadRef.current.timeBankSeconds ?? (payloadRef.current.timeBankMinutes ?? 0) * 60) + (minutes * 60);
@@ -349,9 +369,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       bankedMinutes: nextBankMinutes,
       completedAt,
     };
-  }, []);
+  }, [isSubscribed]);
 
   const useBankedTime = useCallback(async (minutes: number) => {
+    if (!hasSubscriptionAccess(isSubscribed)) return false;
+
     const requestedSeconds = Math.max(0, Math.round(minutes * 60));
     const availableSeconds = payloadRef.current.timeBankSeconds ?? 0;
     const spendSeconds = Math.min(requestedSeconds, availableSeconds);
@@ -376,7 +398,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       };
     });
     return true;
-  }, []);
+  }, [isSubscribed]);
 
   const syncTimeBank = useCallback(() => {
     setPayload((current) => {
@@ -435,6 +457,22 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    if (!subscriptionHydrated || hasSubscriptionAccess(isSubscribed)) return;
+
+    screenTimeService.applyDefaultBlock();
+    setPayload((current) => (
+      current.usageWindow || current.usageWindowSeconds > 0 || current.usageWindowMonitorVersion !== 0
+        ? {
+            ...current,
+            usageWindow: null,
+            usageWindowSeconds: 0,
+            usageWindowMonitorVersion: 0,
+          }
+        : current
+    ));
+  }, [isSubscribed, subscriptionHydrated]);
+
+  useEffect(() => {
     syncTimeBank();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -476,6 +514,18 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'web' || !revenueCatService.configured) return;
+
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refreshSubscription();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refreshSubscription]);
+
   const restorePurchases = useCallback(async () => {
     if (Platform.OS === 'web') return refreshSubscription();
 
@@ -496,8 +546,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, [refreshSubscription]);
 
-  const presentSubscriptionPaywall = useCallback(async () => {
-    if (isSubscribed || Platform.OS === 'web') return true;
+  const presentSubscriptionPaywall = useCallback(async (options?: { force?: boolean }) => {
+    if ((isSubscribed && !options?.force) || Platform.OS === 'web') return true;
 
     if (!revenueCatService.configured) {
       setSubscriptionConfigured(false);
@@ -506,7 +556,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
 
     try {
-      const active = await revenueCatService.presentPaywallIfNeeded();
+      const active = await revenueCatService.presentPaywallIfNeeded(options);
       setIsSubscribed(active);
       setSubscriptionError(null);
       return active;
@@ -515,6 +565,55 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       return false;
     }
   }, [isSubscribed]);
+
+  const requestSubscriptionAccess = useCallback(async () => {
+    if (hasSubscriptionAccess(isSubscribed)) return true;
+    if (accessRequestRef.current) return accessRequestRef.current;
+
+    const request = (async () => {
+      if (Platform.OS === 'web') return true;
+
+      if (!revenueCatService.configured) {
+        setSubscriptionConfigured(false);
+        setSubscriptionError('RevenueCat is not configured yet.');
+        return false;
+      }
+
+      try {
+        const outcome = await revenueCatService.presentPaywallIfNeededWithResult();
+
+        if (outcome.active) {
+          await refreshSubscription();
+          setIsSubscribed(true);
+          setSubscriptionError(null);
+          return true;
+        }
+
+        if (outcome.cancelled) {
+          const offerOutcome = await revenueCatService.presentOneTimeOfferPaywallWithResult();
+          if (offerOutcome.active) {
+            await refreshSubscription();
+            setIsSubscribed(true);
+            setSubscriptionError(null);
+            return true;
+          }
+
+          return false;
+        }
+
+        setSubscriptionError('Subscription was not completed. Please try again.');
+        return false;
+      } catch (error) {
+        setSubscriptionError(error instanceof Error ? error.message : 'Could not show the subscription paywall.');
+        return false;
+      }
+    })();
+
+    accessRequestRef.current = request;
+    const active = await request;
+    accessRequestRef.current = null;
+    return active;
+  }, [isSubscribed, refreshSubscription]);
 
   const openSubscriptionManagement = useCallback(async () => {
     await revenueCatService.presentCustomerCenter();
@@ -532,6 +631,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     () => ({
       hydrated,
       ...payload,
+      hasAppAccess: hasSubscriptionAccess(isSubscribed),
       selectedAppsLabel: payload.selectedAppsConfigured
         ? payload.selectionSummary
           ? screenTimeService.formatSelectionSummary(payload.selectionSummary)
@@ -544,6 +644,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       subscriptionError,
       completeOnboarding,
       setProfileName,
+      setOnboardingGoals,
       setAgeRange,
       setExerciseFrequency,
       setUsageTargets,
@@ -557,6 +658,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,
+      requestSubscriptionAccess,
       openSubscriptionManagement,
       resetAppData,
     }),
@@ -582,12 +684,17 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,
+      requestSubscriptionAccess,
       openSubscriptionManagement,
       resetAppData,
     ],
   );
 
-  return <BootyblockContext.Provider value={value}>{children}</BootyblockContext.Provider>;
+  return (
+    <BootyblockContext.Provider value={value}>
+      {children}
+    </BootyblockContext.Provider>
+  );
 }
 
 export function useBootyblock() {

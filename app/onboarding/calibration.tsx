@@ -72,11 +72,9 @@ export default function Calibration() {
   const displayPhase = useCalibrationDisplayPhase(pose.phase, pose.visible);
 
   const phase: Phase = !pose.visible
-    ? { instruction: 'STEP BACK', icon: ArrowDown, accent: colors.white }
-    : displayPhase === 'calibrating'
-      ? { instruction: 'STAND TALL', icon: ArrowDown, accent: colors.white }
-      : displayPhase === 'standing'
-        ? { instruction: 'DO ONE SQUAT', icon: ArrowDown, accent: colors.white }
+    ? { instruction: 'Place the phone on the floor against the wall, facing you', icon: ArrowDown, accent: colors.white }
+    : displayPhase === 'calibrating' || displayPhase === 'standing'
+      ? { instruction: 'DO ONE SQUAT', icon: ArrowDown, accent: colors.white }
         : displayPhase === 'descending'
           ? { instruction: 'GO LOWER', icon: ArrowDown, accent: colors.white }
           : displayPhase === 'bottom'
@@ -123,23 +121,27 @@ export default function Calibration() {
             {permission?.granted && !webPreview ? (
               <>
                 <Text
-                  className="text-center font-black"
-                  numberOfLines={2}
+                  className="text-center font-bold"
+                  numberOfLines={3}
                   adjustsFontSizeToFit
                   style={{
                     color: phase.accent,
-                    fontSize: Math.min(48, Math.max(32, width * 0.095)),
-                    lineHeight: Math.min(50, Math.max(34, width * 0.1)),
-                    letterSpacing: -1.5,
+                    fontSize: phase.instruction.length > 20
+                      ? Math.min(28, Math.max(20, width * 0.06))
+                      : Math.min(48, Math.max(32, width * 0.095)),
+                    lineHeight: phase.instruction.length > 20
+                      ? Math.min(32, Math.max(24, width * 0.07))
+                      : Math.min(50, Math.max(34, width * 0.1)),
+                    letterSpacing: phase.instruction.length > 20 ? -0.5 : -1.5,
                   }}
                 >
                   {phase.instruction}
                 </Text>
                 <PhaseIcon
-                  size={74}
+                  size={phase.instruction.length > 20 ? 54 : 74}
                   strokeWidth={4}
                   stroke={phase.accent}
-                  style={{ marginTop: 2 }}
+                  style={{ marginTop: 6 }}
                 />
               </>
             ) : (

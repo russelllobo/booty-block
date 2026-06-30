@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { CheckCircle2, Sparkles } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button } from '../components/Button';
@@ -8,7 +9,23 @@ import { colors } from '../constants/theme';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Success() {
-  const { timeBankMinutes } = useBootyblock();
+  const { timeBankMinutes, subscriptionHydrated, isSubscribed } = useBootyblock();
+
+  useEffect(() => {
+    if (!subscriptionHydrated || isSubscribed) return;
+
+    router.replace('/onboarding/apps');
+  }, [isSubscribed, subscriptionHydrated]);
+
+  if (!subscriptionHydrated || !isSubscribed) {
+    return (
+      <Screen scroll={false}>
+        <View className="flex-1 items-center justify-center">
+          <Sparkles size={42} stroke={colors.raspberry} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false}>
