@@ -134,6 +134,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="statistics" />
               <Stack.Screen name="session" />
               <Stack.Screen name="success" />
             </Stack>

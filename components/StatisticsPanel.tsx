@@ -103,13 +103,11 @@ function buildStatsBuckets(history: UnlockHistoryEntry[], period: StatsPeriod, n
   });
 }
 
-export function StatisticsPanel({
-  visible,
+export function StatisticsContent({
   history,
   now,
   onClose,
 }: {
-  visible: boolean;
   history: UnlockHistoryEntry[];
   now: number;
   onClose: () => void;
@@ -122,86 +120,102 @@ export function StatisticsPanel({
   const latest = history[0];
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View className="flex-1 bg-blush px-6 pb-6 pt-16">
-        <View className="flex-row items-start justify-between">
-          <View>
-            <Text className="text-sm font-black uppercase tracking-[2px] text-mink">Statistics</Text>
-            <Text className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa">Progress</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close statistics"
-            onPress={onClose}
-            className="h-11 w-11 items-center justify-center rounded-full bg-white"
-          >
-            <X size={22} stroke={colors.cocoa} />
-          </Pressable>
+    <View className="flex-1 bg-blush px-6 pb-6 pt-16">
+      <View className="flex-row items-start justify-between">
+        <View>
+          <Text className="text-sm font-black uppercase tracking-[2px] text-mink">Statistics</Text>
+          <Text className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa">Progress</Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close statistics"
+          onPress={onClose}
+          className="h-11 w-11 items-center justify-center rounded-full bg-white"
+        >
+          <X size={22} stroke={colors.cocoa} />
+        </Pressable>
+      </View>
 
-        <View className="mt-6 flex-row rounded-full bg-white/80 p-1">
-          {(Object.keys(periodLabels) as StatsPeriod[]).map((option) => {
-            const active = period === option;
+      <View className="mt-6 flex-row rounded-full bg-white/80 p-1">
+        {(Object.keys(periodLabels) as StatsPeriod[]).map((option) => {
+          const active = period === option;
+          return (
+            <Pressable
+              key={option}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => setPeriod(option)}
+              className={['min-h-11 flex-1 items-center justify-center rounded-full', active ? 'bg-raspberry' : 'bg-transparent'].join(' ')}
+            >
+              <Text className={['text-sm font-black', active ? 'text-white' : 'text-mink'].join(' ')}>
+                {periodLabels[option]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View className="mt-5 rounded-[28px] bg-white/80 p-5">
+        <View className="flex-row justify-between">
+          <View>
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Squats</Text>
+            <Text className="mt-1 text-4xl font-black text-cocoa">{totalSquats}</Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Minutes</Text>
+            <Text className="mt-1 text-4xl font-black text-raspberry">{totalMinutes}</Text>
+          </View>
+        </View>
+        <Text className="mt-4 text-sm font-bold text-mink">
+          {latest ? `Last workout ${new Date(latest.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'No workouts logged yet'}
+        </Text>
+      </View>
+
+      <View className="mt-5 flex-1 rounded-[28px] bg-white/80 p-5">
+        <View className="h-64 flex-row items-end gap-2">
+          {buckets.map((bucket) => {
+            const height = `${Math.max(bucket.squats ? 8 : 2, (bucket.squats / maxSquats) * 100)}%` as DimensionValue;
             return (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setPeriod(option)}
-                className={['min-h-11 flex-1 items-center justify-center rounded-full', active ? 'bg-raspberry' : 'bg-transparent'].join(' ')}
-              >
-                <Text className={['text-sm font-black', active ? 'text-white' : 'text-mink'].join(' ')}>
-                  {periodLabels[option]}
-                </Text>
-              </Pressable>
+              <View key={bucket.key} className="flex-1 items-center justify-end">
+                <Text className="mb-2 text-xs font-black text-cocoa">{bucket.squats}</Text>
+                <View className="h-full w-full justify-end rounded-full bg-petal/60">
+                  <View className="w-full rounded-full bg-raspberry" style={{ height }} />
+                </View>
+              </View>
             );
           })}
         </View>
-
-        <View className="mt-5 rounded-[28px] bg-white/80 p-5">
-          <View className="flex-row justify-between">
-            <View>
-              <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Squats</Text>
-              <Text className="mt-1 text-4xl font-black text-cocoa">{totalSquats}</Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Minutes</Text>
-              <Text className="mt-1 text-4xl font-black text-raspberry">{totalMinutes}</Text>
-            </View>
-          </View>
-          <Text className="mt-4 text-sm font-bold text-mink">
-            {latest ? `Last workout ${new Date(latest.completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'No workouts logged yet'}
-          </Text>
-        </View>
-
-        <View className="mt-5 flex-1 rounded-[28px] bg-white/80 p-5">
-          <View className="h-64 flex-row items-end gap-2">
-            {buckets.map((bucket) => {
-              const height = `${Math.max(bucket.squats ? 8 : 2, (bucket.squats / maxSquats) * 100)}%` as DimensionValue;
-              return (
-                <View key={bucket.key} className="flex-1 items-center justify-end">
-                  <Text className="mb-2 text-xs font-black text-cocoa">{bucket.squats}</Text>
-                  <View className="h-full w-full justify-end rounded-full bg-petal/60">
-                    <View className="w-full rounded-full bg-raspberry" style={{ height }} />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-          <View className="mt-3 flex-row gap-2">
-            {buckets.map((bucket) => (
-              <Text
-                key={bucket.key}
-                className="flex-1 text-center text-[10px] font-black text-mink"
-                numberOfLines={2}
-                adjustsFontSizeToFit
-              >
-                {bucket.label}
-              </Text>
-            ))}
-          </View>
+        <View className="mt-3 flex-row gap-2">
+          {buckets.map((bucket) => (
+            <Text
+              key={bucket.key}
+              className="flex-1 text-center text-[10px] font-black text-mink"
+              numberOfLines={2}
+              adjustsFontSizeToFit
+            >
+              {bucket.label}
+            </Text>
+          ))}
         </View>
       </View>
+    </View>
+  );
+}
+
+export function StatisticsPanel({
+  visible,
+  history,
+  now,
+  onClose,
+}: {
+  visible: boolean;
+  history: UnlockHistoryEntry[];
+  now: number;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <StatisticsContent history={history} now={now} onClose={onClose} />
     </Modal>
   );
 }

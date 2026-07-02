@@ -1,6 +1,6 @@
 import Slider from '@react-native-community/slider';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Clock3, Dumbbell, LucideIcon, Sparkles } from 'lucide-react-native';
+import { Clock3, Dumbbell } from 'lucide-react-native';
 import { ReactNode, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,14 +16,12 @@ type PlanTourTip = {
   eyebrow: string;
   title: string;
   body: string;
-  icon: LucideIcon;
 };
 
 const planTourTip: PlanTourTip = {
   eyebrow: 'Move first',
   title: 'Earn minutes on this tab',
   body: 'Choose how much time you want back, then start the squat session that banks those minutes.',
-  icon: Dumbbell,
 };
 
 function TourHighlight({ children, active }: { children: ReactNode; active: boolean }) {
@@ -35,32 +33,11 @@ function TourHighlight({ children, active }: { children: ReactNode; active: bool
   );
 }
 
-function TourDots() {
-  return (
-    <View className="flex-row items-center justify-center gap-2">
-      {[0, 1, 2].map((index) => (
-        <View
-          key={index}
-          className="h-2.5 rounded-full"
-          style={{
-            width: index === 1 ? 24 : 10,
-            backgroundColor: index === 1 ? colors.raspberry : `${colors.raspberry}33`,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 function PlanTourOverlay({
   onNext,
-  onSkip,
 }: {
   onNext: () => void;
-  onSkip: () => void;
 }) {
-  const TipIcon = planTourTip.icon;
-
   return (
     <>
       <Pressable
@@ -77,13 +54,10 @@ function PlanTourOverlay({
       />
       <View pointerEvents="box-none" style={styles.tourCardWrap}>
         <View
-          className="rounded-[30px] border border-white/80 bg-white px-5 py-5"
+          className="self-center rounded-[30px] border border-white/80 bg-white px-5 py-5"
           style={styles.tourCard}
         >
           <View className="flex-row items-start gap-3">
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-petal">
-              <TipIcon size={22} stroke={colors.raspberry} strokeWidth={2.7} />
-            </View>
             <View className="flex-1">
               <Text className="text-xs font-black uppercase tracking-wide text-mink">{planTourTip.eyebrow}</Text>
               <Text className="mt-1 text-[22px] font-black leading-[26px] text-cocoa">{planTourTip.title}</Text>
@@ -92,17 +66,13 @@ function PlanTourOverlay({
           </View>
 
           <View className="mt-5 flex-row items-center justify-between gap-4">
-            <TourDots />
+            <View />
             <View className="flex-row items-center gap-3">
-              <Pressable accessibilityRole="button" onPress={onSkip} hitSlop={12}>
-                <Text className="text-sm font-black text-mink">Skip</Text>
-              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 onPress={onNext}
                 className="flex-row items-center gap-2 rounded-full bg-raspberry px-4 py-2.5"
               >
-                <Sparkles size={16} stroke={colors.white} strokeWidth={2.7} />
                 <Text className="text-sm font-black text-white">Next</Text>
               </Pressable>
             </View>
@@ -292,7 +262,6 @@ export default function Plan() {
       {tourActive ? (
         <PlanTourOverlay
           onNext={() => router.replace({ pathname: '/(tabs)', params: { appTour: 'home', tourStep: 'streak' } })}
-          onSkip={() => router.replace('/(tabs)')}
         />
       ) : null}
     </Screen>
@@ -328,14 +297,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
   tourCardWrap: {
-    bottom: 22,
+    bottom: 80,
     left: 0,
-    paddingHorizontal: 0,
+    paddingHorizontal: 22,
     position: 'absolute',
     right: 0,
     zIndex: 30,
   },
   tourCard: {
+    maxWidth: 360,
+    width: '100%',
     shadowColor: colors.cherry,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.22,

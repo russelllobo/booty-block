@@ -11,13 +11,10 @@ import {
   Smile,
   Users,
   Weight,
-  X,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -35,7 +32,7 @@ import {
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors, shadow } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -64,12 +61,6 @@ const quizStepMetadata = {
   1: ONBOARDING_STEPS.profileName,
   2: ONBOARDING_STEPS.goals,
 } as const;
-type NameLetterPhase = 'enter' | 'exit';
-type DisplayNameLetter = {
-  id: number;
-  letter: string;
-  phase: NameLetterPhase;
-};
 
 const NAME_LETTER_STYLE = {
   color: colors.cocoa,
@@ -80,157 +71,14 @@ const NAME_LETTER_STYLE = {
   lineHeight: 82,
 };
 
-const NAME_GHOST_STYLE = {
-  ...NAME_LETTER_STYLE,
-  position: 'absolute' as const,
-  left: 0,
-  top: 0,
-};
-
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
     <OnboardingProgress step={step + 1} onBack={back} />
   );
 }
 
-function AnimatedNameLetter({
-  letter,
-  phase,
-  onExitComplete,
-}: {
-  letter: string;
-  phase: NameLetterPhase;
-  onExitComplete: () => void;
-}) {
-  const progress = useRef(new Animated.Value(phase === 'enter' ? 0 : 1)).current;
-  const onExitCompleteRef = useRef(onExitComplete);
-
-  useEffect(() => {
-    onExitCompleteRef.current = onExitComplete;
-  }, [onExitComplete]);
-
-  useEffect(() => {
-    Animated.timing(progress, {
-      toValue: phase === 'enter' ? 1 : 0,
-      duration: phase === 'enter' ? 360 : 240,
-      easing: phase === 'enter' ? Easing.out(Easing.cubic) : Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && phase === 'exit') onExitCompleteRef.current();
-    });
-  }, [phase, progress]);
-
-  const mainStyle = {
-    opacity: progress,
-    transform: [
-      {
-        translateY: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: phase === 'enter' ? [24, 0] : [-18, 0],
-        }),
-      },
-      {
-        scale: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: phase === 'enter' ? [0.94, 1] : [0.9, 1],
-        }),
-      },
-    ],
-  };
-
-  const nearGhostStyle = {
-    opacity: progress.interpolate({
-      inputRange: [0, 0.62, 1],
-      outputRange: [0.38, 0.2, 0],
-    }),
-    transform: [
-      {
-        translateY: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: phase === 'enter' ? [-18, 0] : [18, 0],
-        }),
-      },
-      {
-        scale: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1.16, 1],
-        }),
-      },
-    ],
-  };
-
-  const farGhostStyle = {
-    opacity: progress.interpolate({
-      inputRange: [0, 0.72, 1],
-      outputRange: [0.22, 0.08, 0],
-    }),
-    transform: [
-      {
-        translateY: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: phase === 'enter' ? [38, 0] : [-34, 0],
-        }),
-      },
-      {
-        scale: progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1.26, 1],
-        }),
-      },
-    ],
-  };
-
-  return (
-    <View style={{ position: 'relative' }}>
-      <Text style={[NAME_LETTER_STYLE, { opacity: 0 }]}>{letter}</Text>
-      <Animated.Text style={[NAME_GHOST_STYLE, farGhostStyle, { color: colors.raspberry }]}>
-        {letter}
-      </Animated.Text>
-      <Animated.Text style={[NAME_GHOST_STYLE, nearGhostStyle, { color: colors.petal }]}>
-        {letter}
-      </Animated.Text>
-      <Animated.Text style={[NAME_GHOST_STYLE, mainStyle, { color: colors.cocoa }]}>
-        {letter}
-      </Animated.Text>
-    </View>
-  );
-}
-
-function AnimatedNameDisplay({ name }: { name: string }) {
-  const nextLetterId = useRef(0);
-  const [displayLetters, setDisplayLetters] = useState<DisplayNameLetter[]>([]);
-
-  useEffect(() => {
-    setDisplayLetters((current) => {
-      const activeLetters = current.filter((letter) => letter.phase !== 'exit');
-      const exitingLetters = current.filter((letter) => letter.phase === 'exit');
-      const nextLetters = name.split('');
-      let retainedLength = 0;
-
-      while (
-        retainedLength < activeLetters.length &&
-        retainedLength < nextLetters.length &&
-        activeLetters[retainedLength].letter === nextLetters[retainedLength]
-      ) {
-        retainedLength += 1;
-      }
-
-      const retainedLetters = activeLetters.slice(0, retainedLength);
-      const removedLetters = activeLetters.slice(retainedLength).map((letter) => ({
-        ...letter,
-        phase: 'exit' as const,
-      }));
-      const addedLetters = nextLetters.slice(retainedLength).map((letter) => ({
-        id: nextLetterId.current++,
-        letter,
-        phase: 'enter' as const,
-      }));
-
-      return [...retainedLetters, ...removedLetters, ...exitingLetters, ...addedLetters];
-    });
-  }, [name]);
-
-  if (displayLetters.length === 0) {
+function NameDisplay({ name }: { name: string }) {
+  if (name.length === 0) {
     return (
       <Text className="text-[54px] font-bold leading-[62px] text-mink/35">
         Your name
@@ -239,18 +87,9 @@ function AnimatedNameDisplay({ name }: { name: string }) {
   }
 
   return (
-    <>
-      {displayLetters.map(({ id, letter, phase }) => (
-        <AnimatedNameLetter
-          key={id}
-          letter={letter === ' ' ? '\u00A0' : letter}
-          phase={phase}
-          onExitComplete={() => {
-            setDisplayLetters((current) => current.filter((item) => item.id !== id));
-          }}
-        />
-      ))}
-    </>
+    <Text style={NAME_LETTER_STYLE}>
+      {name}
+    </Text>
   );
 }
 
@@ -341,7 +180,7 @@ export default function Quiz() {
                     className="min-h-[142px] flex-row flex-wrap content-center items-center"
                     pointerEvents="none"
                   >
-                    <AnimatedNameDisplay name={name} />
+                    <NameDisplay name={name} />
                   </View>
 
                   <TextInput
@@ -368,19 +207,6 @@ export default function Quiz() {
                     selectionColor={colors.raspberry}
                   />
 
-                  {name.length > 0 ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Clear name"
-                      onPress={() => setName('')}
-                      className="absolute right-0 top-0 h-11 w-11 items-center justify-center rounded-full bg-petal"
-                      style={shadow}
-                    >
-                      <X size={20} stroke={colors.raspberry} strokeWidth={3} />
-                    </Pressable>
-                  ) : (
-                    <View />
-                  )}
                 </Pressable>
 
                 <View className="flex-1" />

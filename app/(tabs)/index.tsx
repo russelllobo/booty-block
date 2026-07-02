@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, Flame, Lock, LockKeyhole, LucideIcon, Sparkles, Unlock } from 'lucide-react-native';
+import { type Href, router, useLocalSearchParams } from 'expo-router';
+import { Dumbbell, Flame, Lock, LockKeyhole, Unlock } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,30 +16,26 @@ type HomeTip = {
   eyebrow: string;
   title: string;
   body: string;
-  icon: LucideIcon;
 };
 
 const homeTips: HomeTip[] = [
   {
     id: 'balance',
-    eyebrow: 'Home base',
+    eyebrow: 'home',
     title: 'Your lock status lives here',
     body: 'See whether your distracting apps are locked, how many are protected, and what is ready to use.',
-    icon: Lock,
   },
   {
     id: 'earn',
     eyebrow: 'Move first',
     title: 'Earn minutes with squats',
     body: 'Start a quick squat session whenever you want more scrolling time back.',
-    icon: Dumbbell,
   },
   {
     id: 'streak',
     eyebrow: 'Momentum',
     title: 'Build your streak',
     body: 'Every day you earn minutes keeps your progress visible at the top of Home.',
-    icon: Flame,
   },
 ];
 
@@ -93,34 +89,14 @@ function TourHighlight({
   );
 }
 
-function TourDots({ activeIndex }: { activeIndex: number }) {
-  return (
-    <View className="flex-row items-center justify-center gap-2">
-      {homeTips.map((tip, index) => (
-        <View
-          key={tip.id}
-          className="h-2.5 rounded-full"
-          style={{
-            width: index === activeIndex ? 24 : 10,
-            backgroundColor: index === activeIndex ? colors.raspberry : `${colors.raspberry}33`,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
 function HomeTourOverlay({
   step,
   onNext,
-  onSkip,
 }: {
   step: number;
   onNext: () => void;
-  onSkip: () => void;
 }) {
   const tip = homeTips[step];
-  const TipIcon = tip.icon;
   const isLastStep = step === homeTips.length - 1;
 
   return (
@@ -139,13 +115,10 @@ function HomeTourOverlay({
       />
       <View pointerEvents="box-none" style={styles.tourCardWrap}>
         <View
-          className="rounded-[30px] border border-white/80 bg-white px-5 py-5"
+          className="self-center rounded-[30px] border border-white/80 bg-white px-5 py-5"
           style={styles.tourCard}
         >
           <View className="flex-row items-start gap-3">
-            <View className="h-12 w-12 items-center justify-center rounded-full bg-petal">
-              <TipIcon size={22} stroke={colors.raspberry} strokeWidth={2.7} />
-            </View>
             <View className="flex-1">
               <Text className="text-xs font-black uppercase tracking-wide text-mink">{tip.eyebrow}</Text>
               <Text className="mt-1 text-[22px] font-black leading-[26px] text-cocoa">{tip.title}</Text>
@@ -154,21 +127,13 @@ function HomeTourOverlay({
           </View>
 
           <View className="mt-5 flex-row items-center justify-between gap-4">
-            <TourDots activeIndex={step} />
+            <View />
             <View className="flex-row items-center gap-3">
-              <Pressable accessibilityRole="button" onPress={onSkip} hitSlop={12}>
-                <Text className="text-sm font-black text-mink">Skip</Text>
-              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 onPress={onNext}
                 className="flex-row items-center gap-2 rounded-full bg-raspberry px-4 py-2.5"
               >
-                {isLastStep ? (
-                  <Sparkles size={16} stroke={colors.white} strokeWidth={2.7} />
-                ) : (
-                  <Sparkles size={16} stroke={colors.white} strokeWidth={2.7} />
-                )}
                 <Text className="text-sm font-black text-white">
                   {isLastStep ? 'Done' : 'Next'}
                 </Text>
@@ -280,6 +245,11 @@ export default function Home() {
   }
 
   function continueTour() {
+    if (tourStep === 0) {
+      router.replace({ pathname: '/(tabs)/plan', params: { planTour: 'onboarding' } });
+      return;
+    }
+
     if (tourStep >= homeTips.length - 1) {
       finishTour();
       return;
@@ -296,10 +266,12 @@ export default function Home() {
         logoHeight={48}
         rightAccessory={
           <TourHighlight id="streak" activeId={activeSpotlight}>
-            <View
+            <Pressable
+              accessibilityRole="button"
               className="h-11 flex-row items-center gap-1 rounded-full bg-white/70 px-3"
-              accessible
               accessibilityLabel={`${currentStreak} day streak`}
+              accessibilityHint="Opens statistics"
+              onPress={() => router.push('/statistics' as Href)}
             >
               <Flame
                 size={18}
@@ -307,7 +279,7 @@ export default function Home() {
                 fill={currentStreak > 0 ? colors.raspberry : 'transparent'}
               />
               <Text className="text-base font-black text-cocoa">{currentStreak}</Text>
-            </View>
+            </Pressable>
           </TourHighlight>
         }
       />
@@ -391,7 +363,6 @@ export default function Home() {
         <HomeTourOverlay
           step={tourStep}
           onNext={continueTour}
-          onSkip={finishTour}
         />
       ) : null}
     </Screen>
@@ -427,14 +398,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
   tourCardWrap: {
-    bottom: 22,
+    bottom: 80,
     left: 0,
-    paddingHorizontal: 0,
+    paddingHorizontal: 22,
     position: 'absolute',
     right: 0,
     zIndex: 30,
   },
   tourCard: {
+    maxWidth: 360,
+    width: '100%',
     shadowColor: colors.cherry,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.22,
