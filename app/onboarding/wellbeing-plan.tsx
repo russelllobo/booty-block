@@ -237,6 +237,7 @@ function FeatureTile({
 export default function WellbeingPlan() {
   const posthog = usePostHog();
   const {
+    completeOnboarding,
     profileName,
     onboardingGoals,
     exerciseFrequency,
@@ -263,6 +264,11 @@ export default function WellbeingPlan() {
     31,
     32,
   );
+
+  async function showMeAround() {
+    await completeOnboarding();
+    router.replace({ pathname: '/(tabs)', params: { tour: 'onboarding' } });
+  }
 
   return (
     <Screen scroll={false} backgroundColor={background} backgroundGradient={gradient}>
@@ -447,7 +453,7 @@ export default function WellbeingPlan() {
             <Button
               label="Show me around"
               icon={Moon}
-              onPress={() => router.replace({ pathname: '/(tabs)', params: { tour: 'onboarding' } })}
+              onPress={showMeAround}
             />
           </View>
         </View>

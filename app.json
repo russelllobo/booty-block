@@ -6,7 +6,7 @@
       "bootyblock",
       "device-activity"
     ],
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -130,6 +130,12 @@
         "projectId": "80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
       }
     },
-    "owner": "russelllobo"
+    "owner": "russelllobo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
+    }
   }
 }
