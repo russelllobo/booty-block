@@ -124,8 +124,8 @@ export default function Plan() {
     subscriptionError,
     requestSubscriptionAccess,
   } = useBootyblock();
-  const params = useLocalSearchParams<{ mode?: string; tour?: string }>();
-  const tourActive = params.tour === 'onboarding';
+  const params = useLocalSearchParams<{ mode?: string; planTour?: string }>();
+  const tourActive = params.planTour === 'onboarding';
   const hasBank = timeBankSeconds > 0;
   const maxSpendMinutes = Math.max(1, Math.ceil(timeBankSeconds / 60));
   const [mode, setMode] = useState<'spend' | 'earn'>(hasBank && params.mode !== 'earn' ? 'spend' : 'earn');
@@ -171,12 +171,13 @@ export default function Plan() {
     if (!hasAppAccess) {
       const subscribed = await requestSubscriptionAccess();
       if (!subscribed) {
-        Alert.alert(
-          subscriptionConfigured ? 'Subscription needed' : 'RevenueCat setup needed',
-          subscriptionConfigured
-            ? 'Subscribe to unlock Bootyblock app blocking and squat-to-unlock sessions.'
-            : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
-        );
+        if (!subscriptionConfigured) {
+          Alert.alert(
+            'RevenueCat setup needed',
+            subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+          );
+        }
+        router.replace('/(tabs)');
         return;
       }
     }
@@ -290,8 +291,8 @@ export default function Plan() {
 
       {tourActive ? (
         <PlanTourOverlay
-          onNext={() => router.replace({ pathname: '/(tabs)', params: { tour: 'onboarding', tourStep: 'streak' } })}
-          onSkip={() => router.replace('/onboarding/apps')}
+          onNext={() => router.replace({ pathname: '/(tabs)', params: { appTour: 'home', tourStep: 'streak' } })}
+          onSkip={() => router.replace('/(tabs)')}
         />
       ) : null}
     </Screen>

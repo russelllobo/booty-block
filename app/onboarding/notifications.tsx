@@ -12,6 +12,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 
 const notificationBackground = '#07070A';
 const notificationGradient = ['#3A0F26', '#07070A'] as const;
@@ -37,10 +38,10 @@ export function NotificationPermissionContent({
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/notifications',
-    'notification_permission',
-    'Allow Bootyblock to send you notifications',
-    29,
-    32,
+    ONBOARDING_STEPS.notificationPermission.key,
+    ONBOARDING_STEPS.notificationPermission.title,
+    ONBOARDING_STEPS.notificationPermission.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   useEffect(() => {

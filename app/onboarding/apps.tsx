@@ -18,6 +18,7 @@ import {
   selectionAnalyticsProperties,
   useOnboardingStepAnalytics,
 } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import {
   screenTimeService,
   ScreenTimeSelectionSummary,
@@ -51,10 +52,10 @@ export default function Apps() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/apps',
-    'blocked_apps_picker',
-    'Blocked apps',
-    33,
-    33,
+    ONBOARDING_STEPS.blockedAppsPicker.key,
+    ONBOARDING_STEPS.blockedAppsPicker.title,
+    ONBOARDING_STEPS.blockedAppsPicker.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   useEffect(() => {
@@ -68,8 +69,10 @@ export default function Apps() {
     const subscribed = await requestSubscriptionAccess();
     setSubscriptionGateBusy(false);
     if (subscribed) {
-        setSubscriptionGateReady(true);
+      setSubscriptionGateReady(true);
+      return;
     }
+    router.replace('/(tabs)');
   }
 
   useEffect(() => {
@@ -86,7 +89,6 @@ export default function Apps() {
     }
 
     setSubscriptionGateReady(false);
-    void openSubscriptionGate();
   }, [isSubscribed, subscriptionHydrated, webPreview]);
 
   async function save() {

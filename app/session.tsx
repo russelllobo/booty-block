@@ -45,7 +45,7 @@ export default function Session() {
     if (!subscriptionHydrated || isSubscribed) return;
 
     setSessionActive(false);
-    router.replace('/onboarding/apps');
+    router.replace('/(tabs)');
   }, [isSubscribed, subscriptionHydrated]);
 
   useEffect(() => {

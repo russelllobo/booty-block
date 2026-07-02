@@ -9,6 +9,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { StarsBackground } from '../../components/StarsBackground';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 
 function PermissionArtwork({ height }: { height: number }) {
   return (
@@ -41,10 +42,10 @@ export default function Permissions() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/permissions',
-    'understanding_situation',
-    'Understanding more about your situation',
-    2,
-    30,
+    ONBOARDING_STEPS.understandingSituation.key,
+    ONBOARDING_STEPS.understandingSituation.title,
+    ONBOARDING_STEPS.understandingSituation.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   return (

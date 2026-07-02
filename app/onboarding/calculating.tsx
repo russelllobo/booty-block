@@ -11,6 +11,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 
 const background = '#07070A';
 const gradient = ['#3A0F26', '#07070A'] as const;
@@ -108,10 +109,10 @@ export default function CalculatingPlan() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/calculating',
-    'calculating_wellbeing_plan',
-    'Calculating your first-week plan',
-    30,
-    32,
+    ONBOARDING_STEPS.calculatingWellbeingPlan.key,
+    ONBOARDING_STEPS.calculatingWellbeingPlan.title,
+    ONBOARDING_STEPS.calculatingWellbeingPlan.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   useEffect(() => {

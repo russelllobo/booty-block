@@ -27,6 +27,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const background = '#07070A';
@@ -259,15 +260,15 @@ export default function WellbeingPlan() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/wellbeing-plan',
-    'first_week_wellbeing_plan',
-    'Your first-week wellbeing plan',
-    31,
-    32,
+    ONBOARDING_STEPS.firstWeekWellbeingPlan.key,
+    ONBOARDING_STEPS.firstWeekWellbeingPlan.title,
+    ONBOARDING_STEPS.firstWeekWellbeingPlan.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   async function showMeAround() {
     await completeOnboarding();
-    router.replace({ pathname: '/(tabs)', params: { tour: 'onboarding' } });
+    router.replace({ pathname: '/(tabs)', params: { appTour: 'home' } });
   }
 
   return (

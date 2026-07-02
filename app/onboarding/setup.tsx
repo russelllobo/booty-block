@@ -16,8 +16,10 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS, OnboardingStep } from '../../lib/onboardingSteps';
 
 type SetupSlide = {
+  analyticsStep: OnboardingStep;
   eyebrow?: string;
   title: string;
   body?: string;
@@ -31,18 +33,21 @@ type Tip = {
 
 const slides: SetupSlide[] = [
   {
+    analyticsStep: ONBOARDING_STEPS.setupPhone,
     eyebrow: 'Setup',
     title: 'Put your phone on the floor',
     body: 'Face the camera toward you in a well-lit area so Bootyblock can see your full body.',
     media: 'phone',
   },
   {
+    analyticsStep: ONBOARDING_STEPS.setupSquat,
     eyebrow: 'Squats',
     title: 'Step back and squat',
     body: 'Keep your whole body in frame, then do one clean squat to finish calibration.',
     media: 'squat',
   },
   {
+    analyticsStep: ONBOARDING_STEPS.setupTips,
     title: 'Tips for better detection',
   },
 ];
@@ -105,10 +110,10 @@ export default function Setup() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/setup',
-    `setup_${step + 1}`,
-    slide.title,
-    step + 22,
-    30,
+    slide.analyticsStep.key,
+    slide.analyticsStep.title,
+    slide.analyticsStep.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   function back() {

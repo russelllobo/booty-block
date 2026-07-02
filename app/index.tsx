@@ -9,7 +9,7 @@ import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
-  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated, hasAppAccess } = useBootyblock();
+  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
 
   useEffect(() => {
@@ -20,16 +20,14 @@ export default function Index() {
       || screenTimeService.consumeShieldOpenRequest(),
     );
     router.replace(
-      onboardingComplete && hasAppAccess
+      onboardingComplete
         ? openedFromShield
           || timeBankSeconds > 0
           ? '/(tabs)/plan'
           : '/(tabs)'
-        : onboardingComplete
-          ? '/onboarding/apps'
-          : '/onboarding',
+        : '/onboarding',
     );
-  }, [hasAppAccess, hydrated, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
+  }, [hydrated, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
 
   if (!hydrated || !subscriptionHydrated) {
     return <LoadingLockup />;

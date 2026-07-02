@@ -51,6 +51,14 @@ export type PaywallAccessResult = {
   result: PAYWALL_RESULT;
 };
 
+function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
+  return (
+    result === PAYWALL_RESULT.NOT_PRESENTED ||
+    result === PAYWALL_RESULT.PURCHASED ||
+    result === PAYWALL_RESULT.RESTORED
+  );
+}
+
 export const revenueCatService = {
   get entitlementId() {
     return REVENUECAT_ENTITLEMENT_ID;
@@ -105,11 +113,7 @@ export const revenueCatService = {
       displayCloseButton: true,
     });
 
-    if (
-      result === PAYWALL_RESULT.NOT_PRESENTED ||
-      result === PAYWALL_RESULT.PURCHASED ||
-      result === PAYWALL_RESULT.RESTORED
-    ) {
+    if (shouldRefreshAccessAfterPaywall(result)) {
       const customerInfo = await Purchases.getCustomerInfo();
       return {
         active: hasActiveEntitlement(customerInfo),
@@ -130,10 +134,18 @@ export const revenueCatService = {
     const result = await RevenueCatUI.presentPaywall({
       displayCloseButton: true,
     });
-    const customerInfo = await Purchases.getCustomerInfo();
+
+    if (shouldRefreshAccessAfterPaywall(result)) {
+      const customerInfo = await Purchases.getCustomerInfo();
+      return {
+        active: hasActiveEntitlement(customerInfo),
+        cancelled: false,
+        result,
+      };
+    }
 
     return {
-      active: hasActiveEntitlement(customerInfo),
+      active: false,
       cancelled: result === PAYWALL_RESULT.CANCELLED,
       result,
     };
@@ -152,10 +164,18 @@ export const revenueCatService = {
       offering,
       displayCloseButton: true,
     });
-    const customerInfo = await Purchases.getCustomerInfo();
+
+    if (shouldRefreshAccessAfterPaywall(result)) {
+      const customerInfo = await Purchases.getCustomerInfo();
+      return {
+        active: hasActiveEntitlement(customerInfo),
+        cancelled: false,
+        result,
+      };
+    }
 
     return {
-      active: hasActiveEntitlement(customerInfo),
+      active: false,
       cancelled: result === PAYWALL_RESULT.CANCELLED,
       result,
     };

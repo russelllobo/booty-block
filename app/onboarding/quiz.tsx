@@ -14,8 +14,10 @@ import {
   X,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useState } from 'react';
+import { ComponentType, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -26,11 +28,16 @@ import {
 } from 'react-native';
 
 import { Button } from '../../components/Button';
+import {
+  AnimatedOnboardingOption,
+  AnimatedOnboardingOptionIcon,
+} from '../../components/AnimatedOnboardingOption';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Goal = {
@@ -52,22 +59,198 @@ const goals: Goal[] = [
   { label: 'Join challenges & compete', icon: Medal },
 ];
 
-const NAME_INPUT_HEIGHT = 64;
 const FOCUSED_BOTTOM_PADDING = 132;
 const quizStepMetadata = {
-  1: {
-    key: 'profile_name',
-    title: 'What should we call you?',
-  },
-  2: {
-    key: 'goals',
-    title: 'What goals do you want to achieve using Bootyblock?',
-  },
+  1: ONBOARDING_STEPS.profileName,
+  2: ONBOARDING_STEPS.goals,
 } as const;
+type NameLetterPhase = 'enter' | 'exit';
+type DisplayNameLetter = {
+  id: number;
+  letter: string;
+  phase: NameLetterPhase;
+};
+
+const NAME_LETTER_STYLE = {
+  color: colors.cocoa,
+  fontSize: 72,
+  fontWeight: '700' as const,
+  includeFontPadding: false,
+  letterSpacing: 0.4,
+  lineHeight: 82,
+};
+
+const NAME_GHOST_STYLE = {
+  ...NAME_LETTER_STYLE,
+  position: 'absolute' as const,
+  left: 0,
+  top: 0,
+};
 
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
     <OnboardingProgress step={step + 1} onBack={back} />
+  );
+}
+
+function AnimatedNameLetter({
+  letter,
+  phase,
+  onExitComplete,
+}: {
+  letter: string;
+  phase: NameLetterPhase;
+  onExitComplete: () => void;
+}) {
+  const progress = useRef(new Animated.Value(phase === 'enter' ? 0 : 1)).current;
+  const onExitCompleteRef = useRef(onExitComplete);
+
+  useEffect(() => {
+    onExitCompleteRef.current = onExitComplete;
+  }, [onExitComplete]);
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: phase === 'enter' ? 1 : 0,
+      duration: phase === 'enter' ? 360 : 240,
+      easing: phase === 'enter' ? Easing.out(Easing.cubic) : Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && phase === 'exit') onExitCompleteRef.current();
+    });
+  }, [phase, progress]);
+
+  const mainStyle = {
+    opacity: progress,
+    transform: [
+      {
+        translateY: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: phase === 'enter' ? [24, 0] : [-18, 0],
+        }),
+      },
+      {
+        scale: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: phase === 'enter' ? [0.94, 1] : [0.9, 1],
+        }),
+      },
+    ],
+  };
+
+  const nearGhostStyle = {
+    opacity: progress.interpolate({
+      inputRange: [0, 0.62, 1],
+      outputRange: [0.38, 0.2, 0],
+    }),
+    transform: [
+      {
+        translateY: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: phase === 'enter' ? [-18, 0] : [18, 0],
+        }),
+      },
+      {
+        scale: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1.16, 1],
+        }),
+      },
+    ],
+  };
+
+  const farGhostStyle = {
+    opacity: progress.interpolate({
+      inputRange: [0, 0.72, 1],
+      outputRange: [0.22, 0.08, 0],
+    }),
+    transform: [
+      {
+        translateY: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: phase === 'enter' ? [38, 0] : [-34, 0],
+        }),
+      },
+      {
+        scale: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1.26, 1],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View style={{ position: 'relative' }}>
+      <Text style={[NAME_LETTER_STYLE, { opacity: 0 }]}>{letter}</Text>
+      <Animated.Text style={[NAME_GHOST_STYLE, farGhostStyle, { color: colors.raspberry }]}>
+        {letter}
+      </Animated.Text>
+      <Animated.Text style={[NAME_GHOST_STYLE, nearGhostStyle, { color: colors.petal }]}>
+        {letter}
+      </Animated.Text>
+      <Animated.Text style={[NAME_GHOST_STYLE, mainStyle, { color: colors.cocoa }]}>
+        {letter}
+      </Animated.Text>
+    </View>
+  );
+}
+
+function AnimatedNameDisplay({ name }: { name: string }) {
+  const nextLetterId = useRef(0);
+  const [displayLetters, setDisplayLetters] = useState<DisplayNameLetter[]>([]);
+
+  useEffect(() => {
+    setDisplayLetters((current) => {
+      const activeLetters = current.filter((letter) => letter.phase !== 'exit');
+      const exitingLetters = current.filter((letter) => letter.phase === 'exit');
+      const nextLetters = name.split('');
+      let retainedLength = 0;
+
+      while (
+        retainedLength < activeLetters.length &&
+        retainedLength < nextLetters.length &&
+        activeLetters[retainedLength].letter === nextLetters[retainedLength]
+      ) {
+        retainedLength += 1;
+      }
+
+      const retainedLetters = activeLetters.slice(0, retainedLength);
+      const removedLetters = activeLetters.slice(retainedLength).map((letter) => ({
+        ...letter,
+        phase: 'exit' as const,
+      }));
+      const addedLetters = nextLetters.slice(retainedLength).map((letter) => ({
+        id: nextLetterId.current++,
+        letter,
+        phase: 'enter' as const,
+      }));
+
+      return [...retainedLetters, ...removedLetters, ...exitingLetters, ...addedLetters];
+    });
+  }, [name]);
+
+  if (displayLetters.length === 0) {
+    return (
+      <Text className="text-[54px] font-bold leading-[62px] text-mink/35">
+        Your name
+      </Text>
+    );
+  }
+
+  return (
+    <>
+      {displayLetters.map(({ id, letter, phase }) => (
+        <AnimatedNameLetter
+          key={id}
+          letter={letter === ' ' ? '\u00A0' : letter}
+          phase={phase}
+          onExitComplete={() => {
+            setDisplayLetters((current) => current.filter((item) => item.id !== id));
+          }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -78,16 +261,27 @@ export default function Quiz() {
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const nameInputRef = useRef<TextInput>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
+
+  useEffect(() => {
+    if (step !== 1) return;
+
+    const focusTimer = setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 350);
+
+    return () => clearTimeout(focusTimer);
+  }, [step]);
 
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/quiz',
     stepMetadata.key,
     stepMetadata.title,
-    step + 2,
-    30,
+    stepMetadata.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   function toggleGoal(label: string) {
@@ -137,16 +331,25 @@ export default function Quiz() {
                   </Text>
                 </View>
 
-                <View
-                  className={[
-                    'mt-6 h-16 flex-row items-center gap-4 rounded-full border-2 bg-white px-6',
-                    focused ? 'border-raspberry' : 'border-petal',
-                  ].join(' ')}
-                  style={shadow}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Name input"
+                  onPress={() => nameInputRef.current?.focus()}
+                  className="mt-6 min-h-[176px] justify-center"
                 >
+                  <View
+                    className="min-h-[142px] flex-row flex-wrap content-center items-center"
+                    pointerEvents="none"
+                  >
+                    <AnimatedNameDisplay name={name} />
+                  </View>
+
                   <TextInput
+                    ref={nameInputRef}
                     autoCapitalize="words"
                     autoCorrect={false}
+                    autoFocus
+                    caretHidden
                     placeholder="Your name"
                     placeholderTextColor={colors.mink}
                     returnKeyType="next"
@@ -155,13 +358,12 @@ export default function Quiz() {
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                     onSubmitEditing={() => name.trim() && setStep(2)}
-                    className="h-16 flex-1 text-xl font-bold text-cocoa"
+                    className="absolute inset-0 text-[1px] text-transparent"
                     style={{
-                      height: NAME_INPUT_HEIGHT,
                       includeFontPadding: false,
+                      opacity: 0.01,
                       paddingBottom: 0,
                       paddingTop: 0,
-                      textAlignVertical: 'center',
                     }}
                     selectionColor={colors.raspberry}
                   />
@@ -171,14 +373,15 @@ export default function Quiz() {
                       accessibilityRole="button"
                       accessibilityLabel="Clear name"
                       onPress={() => setName('')}
-                      className="h-8 w-8 items-center justify-center rounded-full bg-petal"
+                      className="absolute right-0 top-0 h-11 w-11 items-center justify-center rounded-full bg-petal"
+                      style={shadow}
                     >
-                      <X size={16} stroke={colors.raspberry} strokeWidth={3} />
+                      <X size={20} stroke={colors.raspberry} strokeWidth={3} />
                     </Pressable>
                   ) : (
-                    <View className="h-8 w-8" />
+                    <View />
                   )}
-                </View>
+                </Pressable>
 
                 <View className="flex-1" />
 
@@ -204,30 +407,26 @@ export default function Quiz() {
               {goals.map(({ label, icon: Icon }) => {
                 const selected = selectedGoals.includes(label);
                 return (
-                  <Pressable
+                  <AnimatedOnboardingOption
                     key={label}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: selected }}
+                    selected={selected}
                     onPress={() => toggleGoal(label)}
-                    className={[
-                      'min-h-[68px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3',
-                      selected ? 'border-raspberry bg-petal' : 'border-petal bg-white/75',
-                    ].join(' ')}
+                    className="min-h-[68px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3"
                   >
-                    <View
-                      className={[
-                        'h-11 w-11 items-center justify-center rounded-full',
-                        selected ? 'bg-raspberry' : 'bg-petal',
-                      ].join(' ')}
+                    <AnimatedOnboardingOptionIcon
+                      selected={selected}
+                      className="h-11 w-11 items-center justify-center rounded-full"
                     >
                       <Icon
                         size={22}
                         stroke={selected ? colors.white : colors.raspberry}
                         strokeWidth={2.4}
                       />
-                    </View>
+                    </AnimatedOnboardingOptionIcon>
                     <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>
-                  </Pressable>
+                  </AnimatedOnboardingOption>
                 );
               })}
             </ScrollView>

@@ -76,7 +76,8 @@
         "react-native-device-activity",
         {
           "appleTeamId": "SZ78KGUF6B",
-          "appGroup": "group.com.bootyblock.app"
+          "appGroup": "group.com.bootyblock.app",
+          "copyToTargetFolder": false
         }
       ],
       "@react-native-community/datetimepicker",

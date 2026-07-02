@@ -84,6 +84,7 @@ type BootyblockState = {
 };
 
 const STORAGE_KEY = 'bootyblock:v1';
+const RESET_SUBSCRIPTION_STATE_KEY = 'bootyblock:subscription-reset';
 const USAGE_WINDOW_MONITOR_VERSION = 1;
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
@@ -149,6 +150,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const accessRequestRef = useRef<Promise<boolean> | null>(null);
   const payloadRef = useRef(payload);
+  const subscriptionResetLockedRef = useRef(false);
 
   useEffect(() => {
     payloadRef.current = payload;
@@ -247,11 +249,32 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
 
     let mounted = true;
-    revenueCatService.getCustomerInfo()
-      .then((customerInfo) => {
+    let removeListener: () => void = () => undefined;
+
+    AsyncStorage.getItem(RESET_SUBSCRIPTION_STATE_KEY)
+      .then((locked) => {
         if (!mounted) return;
-        setIsSubscribed(hasActiveEntitlement(customerInfo));
-        setSubscriptionError(null);
+        subscriptionResetLockedRef.current = locked === 'true';
+
+        removeListener = revenueCatService.addCustomerInfoUpdateListener((customerInfo) => {
+          if (subscriptionResetLockedRef.current) return;
+          setIsSubscribed(hasActiveEntitlement(customerInfo));
+          setSubscriptionError(null);
+        });
+
+        if (subscriptionResetLockedRef.current) {
+          setIsSubscribed(false);
+          setSubscriptionError(null);
+          setSubscriptionHydrated(true);
+          return undefined;
+        }
+
+        return revenueCatService.getCustomerInfo()
+          .then((customerInfo) => {
+            if (!mounted) return;
+            setIsSubscribed(hasActiveEntitlement(customerInfo));
+            setSubscriptionError(null);
+          });
       })
       .catch((error) => {
         if (!mounted) return;
@@ -260,11 +283,6 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       .finally(() => {
         if (mounted) setSubscriptionHydrated(true);
       });
-
-    const removeListener = revenueCatService.addCustomerInfoUpdateListener((customerInfo) => {
-      setIsSubscribed(hasActiveEntitlement(customerInfo));
-      setSubscriptionError(null);
-    });
 
     return () => {
       mounted = false;
@@ -502,6 +520,12 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       return false;
     }
 
+    if (subscriptionResetLockedRef.current) {
+      setIsSubscribed(false);
+      setSubscriptionError(null);
+      return false;
+    }
+
     try {
       const customerInfo = await revenueCatService.getCustomerInfo();
       const active = hasActiveEntitlement(customerInfo);
@@ -537,6 +561,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     try {
       const customerInfo = await revenueCatService.restorePurchases();
       const active = hasActiveEntitlement(customerInfo);
+      if (active) {
+        subscriptionResetLockedRef.current = false;
+        await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
+      }
       setIsSubscribed(active);
       setSubscriptionError(null);
       return active;
@@ -580,9 +608,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       }
 
       try {
-        const outcome = await revenueCatService.presentPaywallIfNeededWithResult();
+        const outcome = await revenueCatService.presentPaywallWithResult();
 
         if (outcome.active) {
+          subscriptionResetLockedRef.current = false;
+          await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
           await refreshSubscription();
           setIsSubscribed(true);
           setSubscriptionError(null);
@@ -592,6 +622,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         if (outcome.cancelled) {
           const offerOutcome = await revenueCatService.presentOneTimeOfferPaywallWithResult();
           if (offerOutcome.active) {
+            subscriptionResetLockedRef.current = false;
+            await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
             await refreshSubscription();
             setIsSubscribed(true);
             setSubscriptionError(null);
@@ -623,7 +655,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const resetAppData = useCallback(async () => {
     screenTimeService.resetNativeSetup();
     const fresh = defaultPayload();
+    subscriptionResetLockedRef.current = true;
+    setIsSubscribed(Platform.OS === 'web');
+    setSubscriptionError(null);
     setPayload(fresh);
+    await AsyncStorage.setItem(RESET_SUBSCRIPTION_STATE_KEY, 'true');
     await AsyncStorage.removeItem(STORAGE_KEY);
   }, []);
 

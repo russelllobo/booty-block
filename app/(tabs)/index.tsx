@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { AppWindow, Dumbbell, Flame, Lock, LockKeyhole, LucideIcon, Sparkles, Unlock } from 'lucide-react-native';
+import { Dumbbell, Flame, Lock, LockKeyhole, LucideIcon, Sparkles, Unlock } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -165,12 +165,12 @@ function HomeTourOverlay({
                 className="flex-row items-center gap-2 rounded-full bg-raspberry px-4 py-2.5"
               >
                 {isLastStep ? (
-                  <AppWindow size={16} stroke={colors.white} strokeWidth={2.7} />
+                  <Sparkles size={16} stroke={colors.white} strokeWidth={2.7} />
                 ) : (
                   <Sparkles size={16} stroke={colors.white} strokeWidth={2.7} />
                 )}
                 <Text className="text-sm font-black text-white">
-                  {isLastStep ? 'Choose apps' : 'Next'}
+                  {isLastStep ? 'Done' : 'Next'}
                 </Text>
               </Pressable>
             </View>
@@ -182,7 +182,7 @@ function HomeTourOverlay({
 }
 
 export default function Home() {
-  const params = useLocalSearchParams<{ tour?: string; tourStep?: string }>();
+  const params = useLocalSearchParams<{ appTour?: string; tourStep?: string }>();
   const {
     timeBankSeconds,
     usageWindowSeconds,
@@ -197,7 +197,7 @@ export default function Home() {
   } = useBootyblock();
   const [, setTick] = useState(Date.now);
   const [tourStep, setTourStep] = useState(params.tourStep === 'streak' ? 2 : 0);
-  const tourActive = params.tour === 'onboarding';
+  const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
 
   useEffect(() => {
@@ -255,14 +255,31 @@ export default function Home() {
   }
 
   function finishTour() {
-    void openBlockedApps();
+    setTourStep(0);
+    router.replace('/(tabs)');
+  }
+
+  async function openEarnPlan(mode: 'default' | 'earn' = 'default') {
+    if (hasAppAccess) {
+      router.push(mode === 'earn' ? { pathname: '/(tabs)/plan', params: { mode: 'earn' } } : '/(tabs)/plan');
+      return;
+    }
+
+    const subscribed = await requestSubscriptionAccess();
+    if (subscribed) {
+      router.push(mode === 'earn' ? { pathname: '/(tabs)/plan', params: { mode: 'earn' } } : '/(tabs)/plan');
+      return;
+    }
+
+    if (!subscriptionConfigured) {
+      Alert.alert(
+        'RevenueCat setup needed',
+        subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+      );
+    }
   }
 
   function continueTour() {
-    if (tourStep === 0) {
-      router.replace({ pathname: '/(tabs)/plan', params: { tour: 'onboarding', mode: 'earn' } });
-      return;
-    }
     if (tourStep >= homeTips.length - 1) {
       finishTour();
       return;
@@ -348,9 +365,9 @@ export default function Home() {
 
       <View className="mt-auto gap-3 pt-6">
         {hasBank ? (
-          <Button label="Use minutes" icon={Flame} onPress={() => router.push('/(tabs)/plan')} />
+          <Button label="Use minutes" icon={Flame} onPress={() => void openEarnPlan()} />
         ) : (
-          <Button label="Earn minutes" icon={Dumbbell} onPress={() => router.push('/(tabs)/plan')} />
+          <Button label="Earn minutes" icon={Dumbbell} onPress={() => void openEarnPlan()} />
         )}
         {hasBank ? (
           <Button
@@ -358,12 +375,16 @@ export default function Home() {
             icon={Dumbbell}
             variant="secondary"
             noOutline
-            onPress={() => router.push({ pathname: '/(tabs)/plan', params: { mode: 'earn' } })}
+            onPress={() => void openEarnPlan('earn')}
           />
         ) : null}
-        {!selectedAppsConfigured ? (
-          <Button label="Choose blocked apps" icon={LockKeyhole} variant="secondary" noOutline onPress={() => void openBlockedApps()} />
-        ) : null}
+        <Button
+          label={selectedAppsConfigured ? 'Change blocked apps' : 'Choose blocked apps'}
+          icon={LockKeyhole}
+          variant="secondary"
+          noOutline
+          onPress={() => void openBlockedApps()}
+        />
       </View>
 
       {tourActive ? (

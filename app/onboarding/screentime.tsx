@@ -14,6 +14,7 @@ import {
   screenTimeStatusProperties,
   useOnboardingStepAnalytics,
 } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { NotificationPermissionContent } from './notifications';
 
@@ -41,10 +42,10 @@ export default function ScreenTime() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/screentime',
-    'screen_time_permission',
-    'Connect Bootyblock to Screen Time, Securely.',
-    28,
-    32,
+    ONBOARDING_STEPS.screenTimePermission.key,
+    ONBOARDING_STEPS.screenTimePermission.title,
+    ONBOARDING_STEPS.screenTimePermission.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   useEffect(() => {

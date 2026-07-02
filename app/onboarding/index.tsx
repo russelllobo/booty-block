@@ -18,6 +18,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const SKIP_ONBOARDING_TAPS = 5;
@@ -39,10 +40,10 @@ export default function Onboarding() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding',
-    'welcome',
-    'Block your apps until you grow your booty',
-    1,
-    30,
+    ONBOARDING_STEPS.welcome.key,
+    ONBOARDING_STEPS.welcome.title,
+    ONBOARDING_STEPS.welcome.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   const handleLogoPress = useCallback(() => {

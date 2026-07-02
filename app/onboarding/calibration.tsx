@@ -11,6 +11,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCameraView';
@@ -89,10 +90,10 @@ export default function Calibration() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/calibration',
-    'calibration_squat_check',
-    'Do one squat',
-    25,
-    30,
+    ONBOARDING_STEPS.calibrationSquatCheck.key,
+    ONBOARDING_STEPS.calibrationSquatCheck.title,
+    ONBOARDING_STEPS.calibrationSquatCheck.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   async function finish() {

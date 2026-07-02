@@ -14,7 +14,7 @@ export default function Success() {
   useEffect(() => {
     if (!subscriptionHydrated || isSubscribed) return;
 
-    router.replace('/onboarding/apps');
+    router.replace('/(tabs)');
   }, [isSubscribed, subscriptionHydrated]);
 
   if (!subscriptionHydrated || !isSubscribed) {

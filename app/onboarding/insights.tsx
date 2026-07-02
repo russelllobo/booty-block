@@ -56,11 +56,16 @@ import {
 
 import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
+import {
+  AnimatedOnboardingOption,
+  AnimatedOnboardingOptionIcon,
+} from '../../components/AnimatedOnboardingOption';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Choice = {
@@ -91,66 +96,21 @@ const routineGlass = 'rgba(255, 255, 255, 0.12)';
 const routineGlassBorder = 'rgba(255, 255, 255, 0.28)';
 const DEFAULT_ROUTINE_REMINDER = { hour: 12, minute: 55 };
 const insightStepMetadata = {
-  1: {
-    key: 'time_sink_apps',
-    title: 'Which apps take most of your time?',
-  },
-  2: {
-    key: 'habit_friction',
-    title: 'What usually makes it hard to quit?',
-  },
-  3: {
-    key: 'usage_feelings',
-    title: 'How does using these apps for too long make you feel?',
-  },
-  4: {
-    key: 'current_state',
-    title: 'Current state',
-  },
-  5: {
-    key: 'age_range',
-    title: 'How old are you?',
-  },
-  6: {
-    key: 'calculating_projection',
-    title: 'Calculating your projection',
-  },
-  7: {
-    key: 'result_comparison',
-    title: 'Your screen dependence score',
-  },
-  8: {
-    key: 'projection_warning',
-    title: 'Lifetime screen time projection',
-  },
-  9: {
-    key: 'reclaimed_time',
-    title: 'Time you could reclaim',
-  },
-  10: {
-    key: 'previous_methods',
-    title: 'What have you already tried?',
-  },
-  11: {
-    key: 'method_feedback',
-    title: 'Why previous methods did not stick',
-  },
-  12: {
-    key: 'replacement_science',
-    title: 'Replacement beats restriction',
-  },
-  13: {
-    key: 'exercise_link',
-    title: 'Exercise changes the reward loop',
-  },
-  14: {
-    key: 'scroll_unlock',
-    title: 'Squat to unlock scrolling',
-  },
-  15: {
-    key: 'routine_reminder',
-    title: 'Choose your daily reminder',
-  },
+  1: ONBOARDING_STEPS.timeSinkApps,
+  2: ONBOARDING_STEPS.habitFriction,
+  3: ONBOARDING_STEPS.usageFeelings,
+  4: ONBOARDING_STEPS.currentState,
+  5: ONBOARDING_STEPS.ageRange,
+  6: ONBOARDING_STEPS.calculatingProjection,
+  7: ONBOARDING_STEPS.resultComparison,
+  8: ONBOARDING_STEPS.projectionWarning,
+  9: ONBOARDING_STEPS.reclaimedTime,
+  10: ONBOARDING_STEPS.previousMethods,
+  11: ONBOARDING_STEPS.methodFeedback,
+  12: ONBOARDING_STEPS.replacementScience,
+  13: ONBOARDING_STEPS.exerciseLink,
+  14: ONBOARDING_STEPS.scrollUnlock,
+  15: ONBOARDING_STEPS.routineReminder,
 } as const;
 const currentStateStageDelay = {
   current: 0,
@@ -372,29 +332,25 @@ function ChoiceRow({
   const Icon = choice.icon;
 
   return (
-    <Pressable
+    <AnimatedOnboardingOption
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
+      selected={selected}
       onPress={onPress}
-      className={[
-        'min-h-[62px] flex-row items-center gap-4 rounded-full border-2 px-3 py-2.5',
-        selected ? 'border-raspberry bg-petal' : 'border-petal bg-white/75',
-      ].join(' ')}
+      className="min-h-[62px] flex-row items-center gap-4 rounded-full border-2 px-3 py-2.5"
     >
-      <View
-        className={[
-          'h-11 w-11 items-center justify-center rounded-full',
-          selected ? 'bg-raspberry' : 'bg-petal',
-        ].join(' ')}
+      <AnimatedOnboardingOptionIcon
+        selected={selected}
+        className="h-11 w-11 items-center justify-center rounded-full"
       >
         {selected ? (
           <Check size={22} stroke={colors.white} strokeWidth={3} />
         ) : (
           <Icon size={21} stroke={colors.raspberry} strokeWidth={2.4} />
         )}
-      </View>
+      </AnimatedOnboardingOptionIcon>
       <Text className="flex-1 text-[15px] font-bold leading-5 text-cocoa">{choice.label}</Text>
-    </Pressable>
+    </AnimatedOnboardingOption>
   );
 }
 
@@ -2288,8 +2244,8 @@ export default function Insights() {
     '/onboarding/insights',
     stepMetadata.key,
     stepMetadata.title,
-    step + 6,
-    30,
+    stepMetadata.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   function toggle(
@@ -2418,31 +2374,27 @@ export default function Insights() {
               {ageOptions.map(({ label, value, icon: Icon }) => {
                 const selected = selectedAgeRange === value;
                 return (
-                  <Pressable
+                  <AnimatedOnboardingOption
                     key={value}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: selected }}
+                    selected={selected}
                     onPress={() => setSelectedAgeRange(value)}
-                    className={[
-                      'min-h-[66px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3',
-                      selected ? 'border-raspberry bg-petal' : 'border-petal bg-white/75',
-                    ].join(' ')}
+                    className="min-h-[66px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3"
                   >
-                    <View
-                      className={[
-                        'h-11 w-11 items-center justify-center rounded-full',
-                        selected ? 'bg-raspberry' : 'bg-petal',
-                      ].join(' ')}
+                    <AnimatedOnboardingOptionIcon
+                      selected={selected}
+                      className="h-11 w-11 items-center justify-center rounded-full"
                     >
                       <Icon
                         size={21}
                         stroke={selected ? colors.white : colors.raspberry}
                         strokeWidth={2.5}
                       />
-                    </View>
+                    </AnimatedOnboardingOptionIcon>
                     <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>
                     {selected ? <Check size={22} stroke={colors.raspberry} strokeWidth={3} /> : null}
-                  </Pressable>
+                  </AnimatedOnboardingOption>
                 );
               })}
             </View>

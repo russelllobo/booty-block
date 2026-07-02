@@ -2,14 +2,19 @@ import { router } from 'expo-router';
 import { CalendarDays, Dumbbell, Footprints, Flame, LucideIcon } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
+import {
+  AnimatedOnboardingOption,
+  AnimatedOnboardingOptionIcon,
+} from '../../components/AnimatedOnboardingOption';
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type ActivityOption = {
@@ -34,10 +39,10 @@ export default function Activity() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/activity',
-    'exercise_frequency',
-    'How often do you currently exercise?',
-    26,
-    30,
+    ONBOARDING_STEPS.exerciseFrequency.key,
+    ONBOARDING_STEPS.exerciseFrequency.title,
+    ONBOARDING_STEPS.exerciseFrequency.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   function next() {
@@ -70,26 +75,22 @@ export default function Activity() {
               const active = currentSelection === value;
 
               return (
-                <Pressable
+                <AnimatedOnboardingOption
                   key={value}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
+                  selected={active}
                   onPress={() => setSelected(value)}
-                  className={[
-                    'min-h-[68px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3',
-                    active ? 'border-raspberry bg-petal' : 'border-petal bg-white/75',
-                  ].join(' ')}
+                  className="min-h-[68px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3"
                 >
-                  <View
-                    className={[
-                      'h-11 w-11 items-center justify-center rounded-full',
-                      active ? 'bg-raspberry' : 'bg-petal',
-                    ].join(' ')}
+                  <AnimatedOnboardingOptionIcon
+                    selected={active}
+                    className="h-11 w-11 items-center justify-center rounded-full"
                   >
                     <Icon size={23} stroke={active ? colors.white : colors.raspberry} strokeWidth={2.4} />
-                  </View>
+                  </AnimatedOnboardingOptionIcon>
                   <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>
-                </Pressable>
+                </AnimatedOnboardingOption>
               );
             })}
           </View>

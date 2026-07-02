@@ -16,6 +16,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const CURRENT_MIN_HOURS = 2;
@@ -23,14 +24,8 @@ const CURRENT_MAX_HOURS = 8;
 const GOAL_MIN_HOURS = 0.5;
 const SLIDER_STEP = 0.5;
 const usageStepMetadata = {
-  1: {
-    key: 'current_daily_screen_time',
-    title: 'How much time do you spend on your phone every day?',
-  },
-  2: {
-    key: 'goal_daily_screen_time',
-    title: 'How much time would you like to spend instead?',
-  },
+  1: ONBOARDING_STEPS.currentDailyScreenTime,
+  2: ONBOARDING_STEPS.goalDailyScreenTime,
 } as const;
 
 function formatHours(value: number) {
@@ -118,7 +113,7 @@ function TimeSlider({
               value={timeParts.hours}
               color={accent}
               countsDown={rollDirection === 'down'}
-              fontSize={34}
+              fontSize={58}
               fontWeight="900"
               letterSpacing={0}
               style={styles.hoursValue}
@@ -128,7 +123,7 @@ function TimeSlider({
               value={timeParts.minutes}
               color={accent}
               countsDown={rollDirection === 'down'}
-              fontSize={34}
+              fontSize={58}
               fontWeight="900"
               letterSpacing={0}
               style={styles.minutesValue}
@@ -195,8 +190,8 @@ export default function Usage() {
     '/onboarding/usage',
     stepMetadata.key,
     stepMetadata.title,
-    step + 4,
-    30,
+    stepMetadata.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   function back() {
@@ -261,12 +256,12 @@ export default function Usage() {
 
 const styles = StyleSheet.create({
   sliderFrame: {
-    paddingTop: 44,
+    paddingTop: 72,
     position: 'relative',
   },
   valueLabel: {
     alignItems: 'center',
-    bottom: 36,
+    bottom: 38,
     left: 0,
     position: 'absolute',
     right: 0,
@@ -274,22 +269,22 @@ const styles = StyleSheet.create({
   valueRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    height: 46,
+    height: 72,
     justifyContent: 'center',
   },
   hoursValue: {
-    height: 46,
-    width: 28,
-  },
-  minutesValue: {
-    height: 46,
-    marginLeft: 7,
+    height: 72,
     width: 48,
   },
+  minutesValue: {
+    height: 72,
+    marginLeft: 9,
+    width: 82,
+  },
   valueUnit: {
-    fontSize: 34,
+    fontSize: 58,
     fontWeight: '900',
-    lineHeight: 42,
+    lineHeight: 68,
   },
   nativeSlider: {
     width: '100%',

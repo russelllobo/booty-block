@@ -8,6 +8,7 @@ import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const finishBackground = '#07070A';
@@ -24,10 +25,10 @@ export default function FinishSetup() {
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/finish',
-    'finish_setup_intro',
-    'Finish setting up Booty Block',
-    27,
-    30,
+    ONBOARDING_STEPS.finishSetupIntro.key,
+    ONBOARDING_STEPS.finishSetupIntro.title,
+    ONBOARDING_STEPS.finishSetupIntro.index,
+    ONBOARDING_STEP_TOTAL,
   );
 
   return (
