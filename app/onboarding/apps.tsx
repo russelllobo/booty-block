@@ -1,15 +1,13 @@
 import { DeviceActivitySelectionViewPersisted } from 'react-native-device-activity';
 import { router } from 'expo-router';
-import { AppWindow, Check, RotateCcw } from 'lucide-react-native';
+import { AppWindow, Check } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
-import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
-import { SectionPanel } from '../../components/SectionPanel';
 import { SlidePanel } from '../../components/SlidePanel';
 import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
@@ -36,7 +34,6 @@ export default function Apps() {
     subscriptionHydrated,
     subscriptionConfigured,
     subscriptionError,
-    selectedAppsConfigured,
     screenTimeStatus,
   } = useBootyblock();
   const posthog = usePostHog();
@@ -109,7 +106,7 @@ export default function Apps() {
     }
     captureAnalytics(posthog, 'blocked_apps_selected', selectionAnalyticsProperties(selectionSummary));
     if (onboardingComplete && isSubscribed) {
-      router.back();
+      router.replace('/(tabs)');
       return;
     }
 
@@ -122,8 +119,6 @@ export default function Apps() {
   if (!subscriptionGateReady) {
     return (
       <Screen>
-        <OnboardingProgress step={29} onBack={() => router.back()} />
-
         <SlidePanel>
           <View className="flex-1 justify-center gap-6">
             <Header title="Bootyblock Pro" subtitle="Subscribe before choosing the apps Bootyblock should protect." />
@@ -163,13 +158,11 @@ export default function Apps() {
 
   return (
     <Screen>
-      <OnboardingProgress step={29} onBack={() => router.back()} />
-
       <SlidePanel>
         <View className="flex-1">
           <Header title="Blocked apps" subtitle="Pick the apps that should make you squat before scrolling." />
 
-          <View className="min-h-[360px] overflow-hidden rounded-[28px] bg-white/75">
+          <View className="min-h-[520px] flex-1 overflow-hidden rounded-[28px] bg-white/75">
             {nativePickerReady ? (
               <DeviceActivitySelectionViewPersisted
                 familyActivitySelectionId={SELECTION_ID}
@@ -191,7 +184,7 @@ export default function Apps() {
                     0;
                   setSelectionSummary(hasItems ? nextSummary : null);
                 }}
-                style={{ flex: 1, width: '100%', minHeight: 360 }}
+                style={{ flex: 1, width: '100%', minHeight: 520 }}
               />
             ) : webPreview ? (
               <View className="flex-1 justify-center gap-4 p-6">
@@ -223,25 +216,10 @@ export default function Apps() {
             )}
           </View>
 
-          <SectionPanel title="Shield behavior" subtitle="Selected apps stay blocked until you earn minutes. The shield button attempts to open Bootyblock; if iOS does not allow it, the shield copy tells users to open Bootyblock manually.">
-            <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-mint">
-                {hasSelection ? <Check size={20} stroke={colors.cocoa} /> : <RotateCcw size={20} stroke={colors.cocoa} />}
-              </View>
-              <Text className="flex-1 text-base font-bold text-cocoa">
-                {hasSelection
-                  ? screenTimeService.formatSelectionSummary(selectionSummary)
-                  : selectedAppsConfigured
-                    ? 'Update your selection, then save'
-                    : 'Choose at least one app or category'}
-              </Text>
-            </View>
-          </SectionPanel>
-
           <View className="mt-auto pt-6">
             {nativePickerReady || webPreview ? (
               <Button
-                label={hasSelection ? (onboardingComplete && isSubscribed ? 'Save blocked apps' : 'Finish setup') : 'Choose apps above'}
+                label={hasSelection ? (onboardingComplete && isSubscribed ? 'Save blocked apps' : 'Finish setup') : 'Choose at least one app'}
                 icon={Check}
                 disabled={!hasSelection}
                 onPress={save}

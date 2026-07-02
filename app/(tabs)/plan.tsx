@@ -1,7 +1,8 @@
 import Slider from '@react-native-community/slider';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock3, Dumbbell } from 'lucide-react-native';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
@@ -101,6 +102,8 @@ export default function Plan() {
   const [mode, setMode] = useState<'spend' | 'earn'>(hasBank && params.mode !== 'earn' ? 'spend' : 'earn');
   const [spendMinutes, setSpendMinutes] = useState(Math.min(10, maxSpendMinutes));
   const [spending, setSpending] = useState(false);
+  const lastSliderHapticValue = useRef<number | null>(null);
+  const lastSliderHapticAt = useRef(0);
   const earningTarget = requestedMinutes * MINUTES_TO_SQUATS;
   const spendTarget = Math.min(spendMinutes, maxSpendMinutes);
   const sliderMinutes = mode === 'spend' ? spendTarget : requestedMinutes;
@@ -129,12 +132,24 @@ export default function Plan() {
   }, [maxSpendMinutes]);
 
   function updateSliderMinutes(minutes: number) {
+    const nextMinutes = Math.min(sliderMax, Math.max(1, Math.round(minutes)));
+
+    if (nextMinutes !== lastSliderHapticValue.current) {
+      lastSliderHapticValue.current = nextMinutes;
+
+      const now = Date.now();
+      if (now - lastSliderHapticAt.current > 90) {
+        lastSliderHapticAt.current = now;
+        void Haptics.selectionAsync().catch(() => {});
+      }
+    }
+
     if (mode === 'spend') {
-      setSpendMinutes(Math.min(maxSpendMinutes, Math.max(1, minutes)));
+      setSpendMinutes(nextMinutes);
       return;
     }
 
-    setRequestedMinutes(minutes);
+    setRequestedMinutes(nextMinutes);
   }
 
   async function handlePrimaryPress() {

@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import {
   ArrowRight,
   CheckCircle2,
@@ -7,8 +8,8 @@ import {
   Smartphone,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useState } from 'react';
-import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ComponentType, ReactNode, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -52,6 +53,9 @@ const slides: SetupSlide[] = [
   },
 ];
 
+const setupBackground = '#07070A';
+const setupGradient = ['#3A0F26', '#07070A'] as const;
+
 const setupMedia = {
   phone: require('../../assets/onboarding/position-phone-floor.gif'),
   squat: require('../../assets/onboarding/position-step-back-squat.gif'),
@@ -66,7 +70,7 @@ const tips: Tip[] = [
 function SetupMedia({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
   return (
     <View
-      className="overflow-hidden rounded-[34px] border border-white/80"
+      className="overflow-hidden rounded-[34px] border border-white/15 bg-black"
       style={[{ height }, shadow]}
     >
       <Image
@@ -87,14 +91,70 @@ function TipsPanel({ height }: { height: number }) {
       style={{ minHeight: height }}
     >
       {tips.map(({ icon: Icon, text }) => (
-        <View key={text} className="flex-row items-center gap-4 rounded-[24px] bg-petal/70 p-4">
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-white">
+        <View key={text} className="flex-row items-center gap-4 rounded-[24px] border border-white/10 bg-white/10 p-4">
+          <View className="h-12 w-12 items-center justify-center rounded-full bg-white/12">
             <Icon size={25} stroke={colors.raspberry} strokeWidth={2.4} />
           </View>
-          <Text className="flex-1 text-base font-bold leading-5 text-cocoa">{text}</Text>
+          <Text className="flex-1 text-base font-bold leading-5 text-white">{text}</Text>
         </View>
       ))}
     </View>
+  );
+}
+
+function DemoStage({
+  children,
+  direction,
+  stepKey,
+}: {
+  children: ReactNode;
+  direction: 'forward' | 'back';
+  stepKey: number;
+}) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const firstStep = useRef(true);
+
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+
+    opacity.setValue(0);
+    translateY.setValue(direction === 'back' ? -18 : 18);
+    scale.setValue(0.97);
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 240,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        useNativeDriver: true,
+        stiffness: 280,
+        damping: 26,
+        mass: 0.85,
+      }),
+    ]).start();
+  }, [direction, opacity, scale, stepKey, translateY]);
+
+  return (
+    <Animated.View
+      style={{ opacity, transform: [{ translateY }, { scale }] }}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -134,34 +194,37 @@ export default function Setup() {
   }
 
   return (
-    <Screen scroll={false}>
-      <OnboardingProgress step={19 + step} onBack={back} />
+    <Screen scroll={false} backgroundColor={setupBackground} backgroundGradient={setupGradient}>
+      <StatusBar style="light" animated />
+      <OnboardingProgress step={19 + step} onBack={back} dark />
 
       <SlidePanel stepKey={step} direction={direction}>
         <View className="flex-1">
           <View className="mb-4">
             {slide.eyebrow ? (
-              <Text className="text-center text-sm font-black uppercase tracking-[2px] text-raspberry">
+              <Text className="text-center text-sm font-black uppercase tracking-[2px] text-white/50">
                 {slide.eyebrow}
               </Text>
             ) : null}
-            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-cocoa">
+            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-white">
               {slide.title}
             </Text>
           </View>
 
           <View className="flex-1 justify-center">
-            {slide.media === 'phone' ? (
-              <SetupMedia type="phone" height={mediaHeight} />
-            ) : slide.media === 'squat' ? (
-              <SetupMedia type="squat" height={mediaHeight} />
-            ) : (
-              <TipsPanel height={mediaHeight} />
-            )}
+            <DemoStage stepKey={step} direction={direction}>
+              {slide.media === 'phone' ? (
+                <SetupMedia type="phone" height={mediaHeight} />
+              ) : slide.media === 'squat' ? (
+                <SetupMedia type="squat" height={mediaHeight} />
+              ) : (
+                <TipsPanel height={mediaHeight} />
+              )}
+            </DemoStage>
           </View>
 
           <View className="pt-5">
-            <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-mink">
+            <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-white/60">
               {slide.body}
             </Text>
             <Button

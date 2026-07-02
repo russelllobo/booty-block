@@ -1,7 +1,6 @@
 import { X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
-import type { DimensionValue } from 'react-native';
 
 import { colors } from '../constants/theme';
 import type { UnlockHistoryEntry } from '../lib/store/BootyblockProvider';
@@ -20,6 +19,8 @@ const periodLabels: Record<StatsPeriod, string> = {
   weekly: 'Weekly',
   monthly: 'Monthly',
 };
+const chartTrackHeight = 190;
+const minBarHeight = 10;
 
 function startOfDay(timestamp: number) {
   const date = new Date(timestamp);
@@ -172,14 +173,22 @@ export function StatisticsContent({
       </View>
 
       <View className="mt-5 flex-1 rounded-[28px] bg-white/80 p-5">
-        <View className="h-64 flex-row items-end gap-2">
+        <View className="flex-row items-end justify-between" style={{ height: chartTrackHeight + 28 }}>
           {buckets.map((bucket) => {
-            const height = `${Math.max(bucket.squats ? 8 : 2, (bucket.squats / maxSquats) * 100)}%` as DimensionValue;
+            const barHeight = bucket.squats > 0
+              ? Math.max(minBarHeight, (bucket.squats / maxSquats) * chartTrackHeight)
+              : 0;
             return (
-              <View key={bucket.key} className="flex-1 items-center justify-end">
+              <View key={bucket.key} className="flex-1 items-center justify-end px-1">
                 <Text className="mb-2 text-xs font-black text-cocoa">{bucket.squats}</Text>
-                <View className="h-full w-full justify-end rounded-full bg-petal/60">
-                  <View className="w-full rounded-full bg-raspberry" style={{ height }} />
+                <View
+                  className="w-full justify-end overflow-hidden rounded-full"
+                  style={{ height: chartTrackHeight, backgroundColor: colors.petal }}
+                >
+                  <View
+                    className="w-full rounded-full"
+                    style={{ height: barHeight, backgroundColor: colors.raspberry }}
+                  />
                 </View>
               </View>
             );
