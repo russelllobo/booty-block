@@ -113,7 +113,7 @@ function TimeSlider({
               value={timeParts.hours}
               color={accent}
               countsDown={rollDirection === 'down'}
-              fontSize={58}
+              fontSize={76}
               fontWeight="900"
               letterSpacing={0}
               style={styles.hoursValue}
@@ -123,7 +123,7 @@ function TimeSlider({
               value={timeParts.minutes}
               color={accent}
               countsDown={rollDirection === 'down'}
-              fontSize={58}
+              fontSize={76}
               fontWeight="900"
               letterSpacing={0}
               style={styles.minutesValue}
@@ -256,7 +256,7 @@ export default function Usage() {
 
 const styles = StyleSheet.create({
   sliderFrame: {
-    paddingTop: 72,
+    paddingTop: 92,
     position: 'relative',
   },
   valueLabel: {
@@ -269,22 +269,22 @@ const styles = StyleSheet.create({
   valueRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    height: 72,
+    height: 92,
     justifyContent: 'center',
   },
   hoursValue: {
-    height: 72,
-    width: 48,
+    height: 92,
+    width: 76,
   },
   minutesValue: {
-    height: 72,
-    marginLeft: 9,
-    width: 82,
+    height: 92,
+    marginLeft: 10,
+    width: 122,
   },
   valueUnit: {
-    fontSize: 58,
+    fontSize: 76,
     fontWeight: '900',
-    lineHeight: 68,
+    lineHeight: 86,
   },
   nativeSlider: {
     width: '100%',
