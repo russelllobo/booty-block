@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
@@ -630,13 +630,29 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
             return true;
           }
 
+          if (offerOutcome.cancelled) {
+            const fullPriceOutcome = await revenueCatService.presentPaywallWithResult();
+            if (fullPriceOutcome.active) {
+              subscriptionResetLockedRef.current = false;
+              await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
+              await refreshSubscription();
+              setIsSubscribed(true);
+              setSubscriptionError(null);
+              return true;
+            }
+
+            return false;
+          }
+
           return false;
         }
 
         setSubscriptionError('Subscription was not completed. Please try again.');
         return false;
       } catch (error) {
-        setSubscriptionError(error instanceof Error ? error.message : 'Could not show the subscription paywall.');
+        const message = error instanceof Error ? error.message : 'Could not show the subscription paywall.';
+        setSubscriptionError(message);
+        Alert.alert('Subscription unavailable', message);
         return false;
       }
     })();

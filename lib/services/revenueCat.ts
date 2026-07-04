@@ -4,6 +4,7 @@ import Purchases, {
   CustomerInfo,
   CustomerInfoUpdateListener,
   LOG_LEVEL,
+  PurchasesOffering,
 } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
@@ -61,15 +62,50 @@ function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
   );
 }
 
+function hasAvailablePackages(offering: PurchasesOffering | null | undefined) {
+  return (offering?.availablePackages?.length ?? 0) > 0;
+}
+
 async function getOfferingByIdentifier(identifier: string, missingMessage: string) {
   const offerings = await Purchases.getOfferings();
   const offering = offerings.all[identifier];
 
-  if (!offering) {
+  if (!hasAvailablePackages(offering)) {
     throw new Error(missingMessage);
   }
 
   return offering;
+}
+
+async function getNormalPaywallOffering(): Promise<PurchasesOffering> {
+  const offerings = await Purchases.getOfferings();
+  const preferred = offerings.all[REVENUECAT_NORMAL_OFFERING_ID];
+  const current = offerings.current;
+
+  if (hasAvailablePackages(preferred)) {
+    return preferred;
+  }
+
+  if (
+    current
+    && current.identifier !== REVENUECAT_ONE_TIME_OFFERING_ID
+    && hasAvailablePackages(current)
+  ) {
+    return current;
+  }
+
+  const fallback = Object.values(offerings.all).find((offering) => (
+    offering.identifier !== REVENUECAT_ONE_TIME_OFFERING_ID
+    && hasAvailablePackages(offering)
+  ));
+
+  if (fallback) {
+    return fallback;
+  }
+
+  throw new Error(
+    `No normal RevenueCat Offering with packages is available. Checked "${REVENUECAT_NORMAL_OFFERING_ID}".`,
+  );
 }
 
 export const revenueCatService = {
@@ -144,17 +180,11 @@ export const revenueCatService = {
 
   async presentPaywallWithResult(): Promise<PaywallAccessResult> {
     assertConfigured();
-    const offering = REVENUECAT_NORMAL_OFFERING_ID
-      ? await getOfferingByIdentifier(
-        REVENUECAT_NORMAL_OFFERING_ID,
-        `The normal subscription offer "${REVENUECAT_NORMAL_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
-      )
-      : null;
-    const result = await RevenueCatUI.presentPaywall(
-      offering
-        ? { offering, displayCloseButton: true }
-        : { displayCloseButton: true },
-    );
+    const offering = await getNormalPaywallOffering();
+    const result = await RevenueCatUI.presentPaywall({
+      offering,
+      displayCloseButton: true,
+    });
 
     if (shouldRefreshAccessAfterPaywall(result)) {
       const customerInfo = await Purchases.getCustomerInfo();
@@ -181,7 +211,7 @@ export const revenueCatService = {
 
     const result = await RevenueCatUI.presentPaywall({
       offering,
-      displayCloseButton: true,
+      displayCloseButton: false,
     });
 
     if (shouldRefreshAccessAfterPaywall(result)) {
