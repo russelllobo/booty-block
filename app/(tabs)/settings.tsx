@@ -1,15 +1,106 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
+import { ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';
-import { SectionPanel } from '../../components/SectionPanel';
 import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
+
+type SettingsGroupProps = {
+  title?: string;
+  children: ReactNode;
+};
+
+type SettingsRowProps = {
+  title: string;
+  subtitle?: string;
+  icon: LucideIcon;
+  iconColor?: string;
+  iconBackground?: string;
+  destructive?: boolean;
+  last?: boolean;
+  loading?: boolean;
+  showChevron?: boolean;
+  onPress: () => void;
+};
+
+function SettingsGroup({ title, children }: SettingsGroupProps) {
+  return (
+    <View>
+      {title ? (
+        <Text className="mb-2 ml-4 text-[13px] font-semibold uppercase text-[#6D6D72]">
+          {title}
+        </Text>
+      ) : null}
+      <View className="overflow-hidden rounded-[14px] bg-white">
+        {children}
+      </View>
+    </View>
+  );
+}
+
+function SettingsRow({
+  title,
+  subtitle,
+  icon: Icon,
+  iconColor = colors.white,
+  iconBackground = colors.raspberry,
+  destructive,
+  last,
+  loading,
+  showChevron = true,
+  onPress,
+}: SettingsRowProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={loading}
+      onPress={onPress}
+      className="min-h-[58px] flex-row items-center bg-white pl-4 active:bg-[#E5E5EA]"
+    >
+      <View
+        className="h-8 w-8 items-center justify-center rounded-[7px]"
+        style={{ backgroundColor: iconBackground }}
+      >
+        <Icon size={19} stroke={iconColor} strokeWidth={2.3} />
+      </View>
+      <View
+        className={[
+          'ml-3 flex-1 py-3 pr-3',
+          last ? '' : 'border-b border-[#C6C6C8]/70',
+        ].join(' ')}
+      >
+        <View className="flex-row items-center">
+          <View className="flex-1">
+            <Text
+              className={[
+                'text-[17px] font-normal leading-6',
+                destructive ? 'text-[#FF3B30]' : 'text-[#1C1C1E]',
+              ].join(' ')}
+            >
+              {title}
+            </Text>
+            {subtitle ? (
+              <Text className="mt-0.5 text-[13px] font-normal leading-4 text-[#6D6D72]">
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {loading ? (
+            <ActivityIndicator color={colors.raspberry} />
+          ) : showChevron ? (
+            <ChevronRight size={19} stroke="#C7C7CC" strokeWidth={2.2} />
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function Settings() {
   const {
@@ -76,67 +167,61 @@ export default function Settings() {
   }
 
   return (
-    <Screen>
+    <Screen backgroundColor="#F2F2F7">
       <Header title="Settings" />
 
-      <View className="gap-4">
-        <SectionPanel
-          title="Subscription"
-          subtitle={isSubscribed ? 'Bootyblock Pro is active.' : 'Subscribe to keep app blocking and squat-to-unlock sessions active.'}
-        >
-          <View className="gap-3">
-            <View className="flex-row items-center gap-3">
-              <View className="h-12 w-12 items-center justify-center rounded-full bg-petal">
-                <Sparkles size={23} stroke={colors.raspberry} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-black text-cocoa">
-                  {isSubscribed ? 'Active' : subscriptionConfigured ? 'Not subscribed' : 'Setup needed'}
-                </Text>
-                <Text className="text-sm font-semibold text-mink">
-                  {subscriptionConfigured
-                    ? 'Managed by RevenueCat and the App Store.'
-                    : 'Add a RevenueCat API key to enable purchases.'}
-                </Text>
-              </View>
-            </View>
-            <Button
-              label={isSubscribed ? 'Manage subscription' : 'Subscribe'}
-              icon={Sparkles}
-              variant="secondary"
-              loading={subscriptionBusy}
-              onPress={subscribeOrManage}
-            />
-            <Button
-              label="Restore purchases"
-              icon={RefreshCcw}
-              variant="ghost"
-              loading={subscriptionBusy}
-              onPress={restore}
-            />
-          </View>
-        </SectionPanel>
+      <View className="gap-7">
+        <SettingsGroup title="Subscription">
+          <SettingsRow
+            title={isSubscribed ? 'Bootyblock Pro' : subscriptionConfigured ? 'Not Subscribed' : 'Setup Needed'}
+            subtitle={
+              subscriptionConfigured
+                ? isSubscribed
+                  ? 'Manage your subscription.'
+                  : 'Subscribe to keep blocking active.'
+                : 'Add a RevenueCat API key to enable purchases.'
+            }
+            icon={Sparkles}
+            iconBackground={colors.raspberry}
+            loading={subscriptionBusy}
+            onPress={subscribeOrManage}
+          />
+          <SettingsRow
+            title="Restore Purchases"
+            icon={RefreshCcw}
+            iconBackground="#34C759"
+            loading={subscriptionBusy}
+            last
+            onPress={restore}
+          />
+        </SettingsGroup>
 
-        <SectionPanel title="Privacy & support">
-          <View className="gap-3">
-            <Button
-              label="Privacy Policy"
-              icon={FileText}
-              variant="secondary"
-              onPress={() => void Linking.openURL('https://bootyblock.app/privacy')}
-            />
-            <Button
-              label="Support"
-              icon={LifeBuoy}
-              variant="secondary"
-              onPress={() => void Linking.openURL('https://bootyblock.app/support')}
-            />
-          </View>
-        </SectionPanel>
+        <SettingsGroup title="Privacy & Support">
+          <SettingsRow
+            title="Privacy Policy"
+            icon={FileText}
+            iconBackground="#007AFF"
+            onPress={() => void Linking.openURL('https://bootyblock.app/privacy')}
+          />
+          <SettingsRow
+            title="Support"
+            icon={LifeBuoy}
+            iconBackground="#5856D6"
+            last
+            onPress={() => void Linking.openURL('https://bootyblock.app/support')}
+          />
+        </SettingsGroup>
 
-        <SectionPanel title="Reset app data">
-          <Button label="Reset app data" icon={RotateCcw} variant="ghost" onPress={reset} />
-        </SectionPanel>
+        <SettingsGroup>
+          <SettingsRow
+            title="Reset App Data"
+            icon={RotateCcw}
+            iconBackground="#FF3B30"
+            destructive
+            last
+            onPress={reset}
+          />
+        </SettingsGroup>
       </View>
 
     </Screen>

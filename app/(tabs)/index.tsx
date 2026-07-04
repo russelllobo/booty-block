@@ -1,11 +1,14 @@
+import Slider from '@react-native-community/slider';
+import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, Flame, Lock, LockKeyhole, Unlock } from 'lucide-react-native';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';
+import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
@@ -17,6 +20,10 @@ type HomeTip = {
   title: string;
   body: string;
 };
+
+const HOLD_TO_UNLOCK_MS = 920;
+
+type UnlockAction = 'spend' | 'earn';
 
 const homeTips: HomeTip[] = [
   {
@@ -151,8 +158,9 @@ export default function Home() {
   const {
     timeBankSeconds,
     usageWindowSeconds,
-    selectedAppsConfigured,
-    selectionSummary,
+    requestedMinutes,
+    setRequestedMinutes,
+    useBankedTime,
     currentStreak,
     syncTimeBank,
     hasAppAccess,
@@ -162,6 +170,15 @@ export default function Home() {
   } = useBootyblock();
   const [, setTick] = useState(Date.now);
   const [tourStep, setTourStep] = useState(params.tourStep === 'streak' ? 2 : 0);
+  const [unlockPromptVisible, setUnlockPromptVisible] = useState(false);
+  const [unlockAction, setUnlockAction] = useState<UnlockAction | null>(null);
+  const [selectedMinutes, setSelectedMinutes] = useState(1);
+  const [unlocking, setUnlocking] = useState(false);
+  const holdFill = useRef(new Animated.Value(0)).current;
+  const unlockPromptProgress = useRef(new Animated.Value(0)).current;
+  const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
+  const holdAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const holdCompleteRef = useRef(false);
   const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
 
@@ -187,54 +204,94 @@ export default function Home() {
   const hasBank = timeBankSeconds > 0;
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
+  const bankMinutes = Math.ceil(timeBankSeconds / 60);
+  const spendMaxMinutes = Math.max(1, bankMinutes);
+  const earnMaxMinutes = 60;
+  const sliderMaxMinutes = unlockAction === 'spend' ? spendMaxMinutes : earnMaxMinutes;
+  const selectorTitle = unlockAction === 'spend' ? 'Use banked minutes' : 'Earn more minutes';
+  const selectorButtonLabel = unlockAction === 'spend'
+    ? `Use ${selectedMinutes} min`
+    : `Start ${selectedMinutes * MINUTES_TO_SQUATS} squats`;
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
     return 'Locked';
   }, [hasUsageWindow]);
-  const blockedAppCount = selectionSummary
-    ? selectionSummary.applicationCount + selectionSummary.categoryCount + selectionSummary.webDomainCount
-    : 0;
-  const blockedAppLabel = `${blockedAppCount} ${blockedAppCount === 1 ? 'app' : 'apps'} blocked`;
-
-  async function openBlockedApps() {
-    setTourStep(0);
-
-    if (hasAppAccess) {
-      router.replace('/onboarding/apps');
-      return;
-    }
-
-    const subscribed = await requestSubscriptionAccess();
-    if (subscribed) {
-      router.replace('/onboarding/apps');
-      return;
-    }
-
-    if (!subscriptionConfigured) {
-      Alert.alert(
-        'RevenueCat setup needed',
-        subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
-      );
-    }
-  }
+  const lockedCardSubcopy = 'hold to unlock';
+  const holdFillHeight = holdFill.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+  const promptBackdropScale = unlockPromptProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.18, 1.7],
+  });
+  const promptContentStyle = {
+    opacity: unlockPromptProgress,
+    transform: [
+      {
+        translateY: unlockPromptProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [18, 0],
+        }),
+      },
+      {
+        scale: unlockPromptProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.94, 1],
+        }),
+      },
+    ],
+  };
+  const selectorStyle = {
+    opacity: unlockSelectorProgress,
+    transform: [
+      {
+        translateY: unlockSelectorProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [18, 0],
+        }),
+      },
+    ],
+  };
 
   function finishTour() {
     setTourStep(0);
     router.replace('/(tabs)');
   }
 
-  async function openEarnPlan(mode: 'default' | 'earn' = 'default') {
-    if (hasAppAccess) {
-      router.push(mode === 'earn' ? { pathname: '/(tabs)/plan', params: { mode: 'earn' } } : '/(tabs)/plan');
-      return;
-    }
+  function showUnlockPrompt() {
+    setUnlockAction(null);
+    setSelectedMinutes(hasBank ? Math.min(10, spendMaxMinutes) : Math.min(10, requestedMinutes));
+    unlockSelectorProgress.setValue(0);
+    setUnlockPromptVisible(true);
+    unlockPromptProgress.setValue(0);
+    Animated.spring(unlockPromptProgress, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 86,
+    }).start();
+  }
+
+  function hideUnlockPrompt() {
+    setUnlockAction(null);
+    unlockSelectorProgress.setValue(0);
+    Animated.timing(unlockPromptProgress, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setUnlockPromptVisible(false);
+    });
+  }
+
+  async function ensureUnlockAccess() {
+    if (hasAppAccess) return true;
 
     const subscribed = await requestSubscriptionAccess();
-    if (subscribed) {
-      router.push(mode === 'earn' ? { pathname: '/(tabs)/plan', params: { mode: 'earn' } } : '/(tabs)/plan');
-      return;
-    }
+    if (subscribed) return true;
 
     if (!subscriptionConfigured) {
       Alert.alert(
@@ -242,6 +299,109 @@ export default function Home() {
         subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
       );
     }
+    return false;
+  }
+
+  function chooseUnlockAction(action: UnlockAction) {
+    const nextMinutes = action === 'spend'
+      ? Math.min(Math.max(1, selectedMinutes), spendMaxMinutes)
+      : Math.min(Math.max(1, requestedMinutes), earnMaxMinutes);
+
+    setUnlockAction(action);
+    setSelectedMinutes(nextMinutes);
+    unlockSelectorProgress.setValue(0);
+    void Haptics.selectionAsync().catch(() => {});
+    Animated.timing(unlockSelectorProgress, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function updateSelectedMinutes(minutes: number) {
+    const nextMinutes = Math.min(sliderMaxMinutes, Math.max(1, Math.round(minutes)));
+    if (nextMinutes === selectedMinutes) return;
+
+    setSelectedMinutes(nextMinutes);
+    void Haptics.selectionAsync().catch(() => {});
+  }
+
+  async function confirmUnlockAction() {
+    if (!unlockAction) return;
+
+    const canContinue = await ensureUnlockAccess();
+    if (!canContinue) return;
+
+    if (unlockAction === 'earn') {
+      setRequestedMinutes(selectedMinutes);
+      setUnlockPromptVisible(false);
+      setUnlockAction(null);
+      unlockSelectorProgress.setValue(0);
+      router.push('/session');
+      return;
+    }
+
+    if (!hasBank) return;
+
+    setUnlocking(true);
+    try {
+      const started = await useBankedTime(selectedMinutes);
+      if (started) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Animated.timing(unlockPromptProgress, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (!finished) return;
+          setUnlockPromptVisible(false);
+          setUnlockAction(null);
+          unlockSelectorProgress.setValue(0);
+        });
+      }
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
+  function startUnlockHold() {
+    if (showUnlockedState || tourActive) return;
+
+    holdAnimationRef.current?.stop();
+    holdCompleteRef.current = false;
+    holdFill.setValue(0);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+    holdAnimationRef.current = Animated.timing(holdFill, {
+      toValue: 1,
+      duration: HOLD_TO_UNLOCK_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    holdAnimationRef.current.start(({ finished }) => {
+      if (!finished) return;
+      holdCompleteRef.current = true;
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      showUnlockPrompt();
+    });
+  }
+
+  function cancelUnlockHold() {
+    holdAnimationRef.current?.stop();
+
+    if (holdCompleteRef.current) {
+      holdFill.setValue(0);
+      holdCompleteRef.current = false;
+      return;
+    }
+
+    Animated.timing(holdFill, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
   }
 
   function continueTour() {
@@ -285,7 +445,21 @@ export default function Home() {
       />
 
       <TourHighlight id="balance" activeId={activeSpotlight}>
-        <View className={`mt-auto overflow-hidden rounded-[40px] p-7 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Hold to unlock'}
+          accessibilityHint={showUnlockedState ? undefined : 'Hold until the card fills to choose how to unlock'}
+          disabled={showUnlockedState || tourActive}
+          onPressIn={startUnlockHold}
+          onPressOut={cancelUnlockHold}
+          className={`mt-auto overflow-hidden rounded-[40px] p-7 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}
+        >
+          {!showUnlockedState ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.holdFill, { height: holdFillHeight }]}
+            />
+          ) : null}
           {showUnlockedState ? (
             <View className="mb-5 flex-row justify-end">
               <View className="rounded-full bg-white/45 px-4 py-2">
@@ -312,7 +486,7 @@ export default function Home() {
               {status}
             </Text>
             <Text className={`mt-2 text-base font-bold ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
-              {blockedAppLabel}
+              {showUnlockedState ? 'Remaining time' : lockedCardSubcopy}
             </Text>
           </View>
 
@@ -332,31 +506,64 @@ export default function Home() {
               </Text>
             </View>
           ) : null}
-        </View>
+        </Pressable>
       </TourHighlight>
 
       <View className="mt-auto gap-3 pt-6">
-        {hasBank ? (
-          <Button label="Use minutes" icon={Flame} onPress={() => void openEarnPlan()} />
+        {unlockAction ? (
+          <Animated.View style={selectorStyle}>
+            <View className="rounded-[28px] bg-white/70 p-5">
+              <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-mink">
+                {selectorTitle}
+              </Text>
+              <View className="my-3 flex-row items-end justify-center">
+                <Text className="text-[88px] font-black leading-[94px] text-cocoa">
+                  {selectedMinutes}
+                </Text>
+                <Text className="mb-4 ml-2 text-2xl font-black text-raspberry">
+                  min
+                </Text>
+              </View>
+              <Slider
+                accessibilityLabel={selectorTitle}
+                accessibilityValue={{ min: 1, max: sliderMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes` }}
+                minimumValue={1}
+                maximumValue={sliderMaxMinutes}
+                step={1}
+                value={selectedMinutes}
+                onValueChange={updateSelectedMinutes}
+                minimumTrackTintColor={colors.raspberry}
+                maximumTrackTintColor={colors.petal}
+                thumbTintColor={colors.raspberry}
+              />
+            </View>
+            <View className="mt-3">
+              <Button
+                label={selectorButtonLabel}
+                icon={unlockAction === 'spend' ? Flame : Dumbbell}
+                onPress={() => void confirmUnlockAction()}
+                loading={unlocking}
+                disabled={unlockAction === 'spend' && !hasBank}
+              />
+            </View>
+          </Animated.View>
         ) : (
-          <Button label="Earn minutes" icon={Dumbbell} onPress={() => void openEarnPlan()} />
+          <>
+            <Button
+              label="Use banked minutes"
+              icon={Flame}
+              onPress={() => chooseUnlockAction('spend')}
+              disabled={!hasBank}
+            />
+            <Button
+              label="Earn more minutes"
+              icon={Dumbbell}
+              variant="secondary"
+              noOutline
+              onPress={() => chooseUnlockAction('earn')}
+            />
+          </>
         )}
-        {hasBank ? (
-          <Button
-            label="Earn more"
-            icon={Dumbbell}
-            variant="secondary"
-            noOutline
-            onPress={() => void openEarnPlan('earn')}
-          />
-        ) : null}
-        <Button
-          label={selectedAppsConfigured ? 'Change blocked apps' : 'Choose blocked apps'}
-          icon={LockKeyhole}
-          variant="secondary"
-          noOutline
-          onPress={() => void openBlockedApps()}
-        />
       </View>
 
       {tourActive ? (
@@ -364,6 +571,96 @@ export default function Home() {
           step={tourStep}
           onNext={continueTour}
         />
+      ) : null}
+
+      {unlockPromptVisible ? (
+        <View style={styles.unlockPromptWrap}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.unlockPromptBloom,
+              {
+                transform: [{ scale: promptBackdropScale }],
+              },
+            ]}
+          />
+          <Animated.View style={[styles.unlockPromptContent, promptContentStyle]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close unlock options"
+              onPress={hideUnlockPrompt}
+              style={styles.unlockPromptClose}
+            >
+              <X size={22} stroke={colors.white} strokeWidth={3} />
+            </Pressable>
+
+            <Text className="text-center text-xs font-black uppercase tracking-[1.5px] text-white/75">
+              Bank
+            </Text>
+            <View className="mt-2 flex-row items-end justify-center">
+              <Text className="text-[118px] font-black leading-[122px] text-white">
+                {bankMinutes}
+              </Text>
+              <Text className="mb-5 ml-2 text-3xl font-black text-white/80">
+                min
+              </Text>
+            </View>
+            <View className="mt-8 w-full max-w-[320px] self-center">
+              {unlockAction ? (
+                <Animated.View style={selectorStyle}>
+                  <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
+                    {selectorTitle}
+                  </Text>
+                  <View className="my-3 flex-row items-end justify-center">
+                    <Text className="text-[92px] font-black leading-[98px] text-white">
+                      {selectedMinutes}
+                    </Text>
+                    <Text className="mb-4 ml-2 text-2xl font-black text-white/80">
+                      min
+                    </Text>
+                  </View>
+                  <Slider
+                    accessibilityLabel={selectorTitle}
+                    accessibilityValue={{ min: 1, max: sliderMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes` }}
+                    minimumValue={1}
+                    maximumValue={sliderMaxMinutes}
+                    step={1}
+                    value={selectedMinutes}
+                    onValueChange={updateSelectedMinutes}
+                    minimumTrackTintColor={colors.white}
+                    maximumTrackTintColor="rgba(255, 255, 255, 0.32)"
+                    thumbTintColor={colors.white}
+                  />
+                  <View className="mt-5">
+                    <Button
+                      label={selectorButtonLabel}
+                      icon={unlockAction === 'spend' ? Flame : Dumbbell}
+                      onPress={() => void confirmUnlockAction()}
+                      loading={unlocking}
+                      disabled={unlockAction === 'spend' && !hasBank}
+                    />
+                  </View>
+                </Animated.View>
+              ) : (
+                <View className="gap-3">
+                  <Button
+                    label="Use banked minutes"
+                    icon={Flame}
+                    onPress={() => chooseUnlockAction('spend')}
+                    disabled={!hasBank}
+                  />
+                  <Button
+                    label="Earn more minutes"
+                    icon={Dumbbell}
+                    variant="secondary"
+                    noOutline
+                    onPress={() => chooseUnlockAction('earn')}
+                  />
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        </View>
       ) : null}
     </Screen>
   );
@@ -378,6 +675,13 @@ const styles = StyleSheet.create({
   touchBlocker: {
     ...StyleSheet.absoluteFill,
     zIndex: 25,
+  },
+  holdFill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
   },
   highlightWrap: {
     position: 'relative',
@@ -413,5 +717,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 30,
     elevation: 16,
+  },
+  unlockPromptWrap: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    backgroundColor: 'rgba(208, 27, 101, 0.96)',
+    justifyContent: 'center',
+    marginHorizontal: -24,
+    marginVertical: -24,
+    paddingHorizontal: 24,
+    zIndex: 40,
+  },
+  unlockPromptBloom: {
+    backgroundColor: colors.raspberry,
+    borderRadius: 999,
+    height: 460,
+    position: 'absolute',
+    width: 460,
+  },
+  unlockPromptContent: {
+    width: '100%',
+  },
+  unlockPromptClose: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 999,
+    height: 44,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 0,
+    top: -72,
+    width: 44,
   },
 });

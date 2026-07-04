@@ -60,7 +60,7 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
 
   function handlePressIn() {
     press.value = withSpring(1, { stiffness: 500, damping: 30, reduceMotion: ReduceMotion.System });
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }
 
   function handlePressOut() {

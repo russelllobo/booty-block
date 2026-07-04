@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { DefaultTheme, ThemeProvider } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
@@ -12,8 +13,16 @@ export default function TabsLayout() {
   return (
     <ThemeProvider value={DefaultTheme}>
       <NativeTabs
+        hidden
         iconColor={{ default: colors.mink, selected: colors.raspberry }}
         labelStyle={labelStyle}
+        screenListeners={{
+          tabPress: (event) => {
+            if (event.data.isPrevented) return;
+
+            void Haptics.selectionAsync().catch(() => {});
+          },
+        }}
       >
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Icon
