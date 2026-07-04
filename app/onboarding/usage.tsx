@@ -118,7 +118,15 @@ function TimeSlider({
               letterSpacing={0}
               style={styles.hoursValue}
             />
-            <Text style={[styles.valueUnit, { color: accent }]}>h</Text>
+            <NativeRollingNumber
+              value="h"
+              color={accent}
+              countsDown={false}
+              fontSize={76}
+              fontWeight="900"
+              letterSpacing={0}
+              style={styles.valueUnit}
+            />
             <NativeRollingNumber
               value={timeParts.minutes}
               color={accent}
@@ -128,7 +136,15 @@ function TimeSlider({
               letterSpacing={0}
               style={styles.minutesValue}
             />
-            <Text style={[styles.valueUnit, { color: accent }]}>m</Text>
+            <NativeRollingNumber
+              value="m"
+              color={accent}
+              countsDown={false}
+              fontSize={76}
+              fontWeight="900"
+              letterSpacing={0}
+              style={styles.minuteUnit}
+            />
           </View>
         </View>
 
@@ -282,9 +298,12 @@ const styles = StyleSheet.create({
     width: 122,
   },
   valueUnit: {
-    fontSize: 76,
-    fontWeight: '900',
-    lineHeight: 86,
+    height: 92,
+    width: 48,
+  },
+  minuteUnit: {
+    height: 92,
+    width: 68,
   },
   nativeSlider: {
     width: '100%',

@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -174,6 +174,7 @@ export default function Home() {
   const [unlockAction, setUnlockAction] = useState<UnlockAction | null>(null);
   const [selectedMinutes, setSelectedMinutes] = useState(1);
   const [unlocking, setUnlocking] = useState(false);
+  const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const holdFill = useRef(new Animated.Value(0)).current;
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
@@ -201,9 +202,16 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [syncTimeBank]);
 
+  useEffect(() => {
+    return () => {
+      router.setParams({ hideTabs: undefined });
+    };
+  }, []);
+
   const hasBank = timeBankSeconds > 0;
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
+  const showEmptyBank = !hasBank && !hasUsageWindow;
   const bankMinutes = Math.ceil(timeBankSeconds / 60);
   const spendMaxMinutes = Math.max(1, bankMinutes);
   const earnMaxMinutes = 60;
@@ -254,6 +262,28 @@ export default function Home() {
       },
     ],
   };
+  const promptBankStyle = unlockAction
+    ? {
+        opacity: unlockSelectorProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0],
+        }),
+        transform: [
+          {
+            translateY: unlockSelectorProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, -18],
+            }),
+          },
+          {
+            scale: unlockSelectorProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [1, 0.96],
+            }),
+          },
+        ],
+      }
+    : null;
 
   function finishTour() {
     setTourStep(0);
@@ -265,6 +295,7 @@ export default function Home() {
     setSelectedMinutes(hasBank ? Math.min(10, spendMaxMinutes) : Math.min(10, requestedMinutes));
     unlockSelectorProgress.setValue(0);
     setUnlockPromptVisible(true);
+    router.setParams({ hideTabs: '1' });
     unlockPromptProgress.setValue(0);
     Animated.spring(unlockPromptProgress, {
       toValue: 1,
@@ -277,6 +308,7 @@ export default function Home() {
   function hideUnlockPrompt() {
     setUnlockAction(null);
     unlockSelectorProgress.setValue(0);
+    router.setParams({ hideTabs: undefined });
     Animated.timing(unlockPromptProgress, {
       toValue: 0,
       duration: 180,
@@ -287,19 +319,26 @@ export default function Home() {
     });
   }
 
+  async function openSubscriptionFlow() {
+    if (hasAppAccess || subscriptionBusy) return hasAppAccess;
+    setSubscriptionBusy(true);
+    try {
+      const subscribed = await requestSubscriptionAccess();
+      if (!subscribed && !subscriptionConfigured) {
+        Alert.alert(
+          'RevenueCat setup needed',
+          subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+        );
+      }
+      return subscribed;
+    } finally {
+      setSubscriptionBusy(false);
+    }
+  }
+
   async function ensureUnlockAccess() {
     if (hasAppAccess) return true;
-
-    const subscribed = await requestSubscriptionAccess();
-    if (subscribed) return true;
-
-    if (!subscriptionConfigured) {
-      Alert.alert(
-        'RevenueCat setup needed',
-        subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
-      );
-    }
-    return false;
+    return openSubscriptionFlow();
   }
 
   function chooseUnlockAction(action: UnlockAction) {
@@ -338,6 +377,7 @@ export default function Home() {
       setUnlockPromptVisible(false);
       setUnlockAction(null);
       unlockSelectorProgress.setValue(0);
+      router.setParams({ hideTabs: undefined });
       router.push('/session');
       return;
     }
@@ -359,6 +399,7 @@ export default function Home() {
           setUnlockPromptVisible(false);
           setUnlockAction(null);
           unlockSelectorProgress.setValue(0);
+          router.setParams({ hideTabs: undefined });
         });
       }
     } finally {
@@ -368,6 +409,10 @@ export default function Home() {
 
   function startUnlockHold() {
     if (showUnlockedState || tourActive) return;
+    if (!hasAppAccess) {
+      void openSubscriptionFlow();
+      return;
+    }
 
     holdAnimationRef.current?.stop();
     holdCompleteRef.current = false;
@@ -406,7 +451,7 @@ export default function Home() {
 
   function continueTour() {
     if (tourStep === 0) {
-      router.replace({ pathname: '/(tabs)/plan', params: { planTour: 'onboarding' } });
+      router.replace({ pathname: '/plan', params: { planTour: 'onboarding' } });
       return;
     }
 
@@ -509,62 +554,17 @@ export default function Home() {
         </Pressable>
       </TourHighlight>
 
-      <View className="mt-auto gap-3 pt-6">
-        {unlockAction ? (
-          <Animated.View style={selectorStyle}>
-            <View className="rounded-[28px] bg-white/70 p-5">
-              <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-mink">
-                {selectorTitle}
-              </Text>
-              <View className="my-3 flex-row items-end justify-center">
-                <Text className="text-[88px] font-black leading-[94px] text-cocoa">
-                  {selectedMinutes}
-                </Text>
-                <Text className="mb-4 ml-2 text-2xl font-black text-raspberry">
-                  min
-                </Text>
-              </View>
-              <Slider
-                accessibilityLabel={selectorTitle}
-                accessibilityValue={{ min: 1, max: sliderMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes` }}
-                minimumValue={1}
-                maximumValue={sliderMaxMinutes}
-                step={1}
-                value={selectedMinutes}
-                onValueChange={updateSelectedMinutes}
-                minimumTrackTintColor={colors.raspberry}
-                maximumTrackTintColor={colors.petal}
-                thumbTintColor={colors.raspberry}
-              />
-            </View>
-            <View className="mt-3">
-              <Button
-                label={selectorButtonLabel}
-                icon={unlockAction === 'spend' ? Flame : Dumbbell}
-                onPress={() => void confirmUnlockAction()}
-                loading={unlocking}
-                disabled={unlockAction === 'spend' && !hasBank}
-              />
-            </View>
-          </Animated.View>
-        ) : (
-          <>
-            <Button
-              label="Use banked minutes"
-              icon={Flame}
-              onPress={() => chooseUnlockAction('spend')}
-              disabled={!hasBank}
-            />
-            <Button
-              label="Earn more minutes"
-              icon={Dumbbell}
-              variant="secondary"
-              noOutline
-              onPress={() => chooseUnlockAction('earn')}
-            />
-          </>
-        )}
-      </View>
+      {!hasAppAccess ? (
+        <View className="mt-4">
+          <Button
+            label="Choose blocked apps"
+            icon={Lock}
+            loading={subscriptionBusy}
+            disabled={subscriptionBusy}
+            onPress={() => void openSubscriptionFlow()}
+          />
+        </View>
+      ) : null}
 
       {tourActive ? (
         <HomeTourOverlay
@@ -573,12 +573,20 @@ export default function Home() {
         />
       ) : null}
 
-      {unlockPromptVisible ? (
-        <View style={styles.unlockPromptWrap}>
+      <Modal
+        animationType="none"
+        onRequestClose={hideUnlockPrompt}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        transparent
+        visible={unlockPromptVisible}
+      >
+        <View style={[styles.unlockPromptWrap, showEmptyBank ? styles.emptyBankPromptWrap : null]}>
           <Animated.View
             pointerEvents="none"
             style={[
               styles.unlockPromptBloom,
+              showEmptyBank ? styles.emptyBankPromptBloom : null,
               {
                 transform: [{ scale: promptBackdropScale }],
               },
@@ -594,18 +602,61 @@ export default function Home() {
               <X size={22} stroke={colors.white} strokeWidth={3} />
             </Pressable>
 
-            <Text className="text-center text-xs font-black uppercase tracking-[1.5px] text-white/75">
-              Bank
-            </Text>
-            <View className="mt-2 flex-row items-end justify-center">
-              <Text className="text-[118px] font-black leading-[122px] text-white">
-                {bankMinutes}
-              </Text>
-              <Text className="mb-5 ml-2 text-3xl font-black text-white/80">
-                min
-              </Text>
-            </View>
-            <View className="mt-8 w-full max-w-[320px] self-center">
+            <View style={styles.unlockPromptStage}>
+              {unlockAction ? (
+                <Animated.View pointerEvents="none" style={[styles.unlockPromptBankExit, promptBankStyle]}>
+                  <Text
+                    className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
+                      showEmptyBank ? 'text-petal' : 'text-white/75'
+                    }`}
+                  >
+                    {showEmptyBank ? 'Bank empty' : 'Bank'}
+                  </Text>
+                  <View className="mt-2 flex-row items-end justify-center">
+                    <Text
+                      className={`text-[118px] font-black leading-[122px] ${
+                        showEmptyBank ? 'text-petal' : 'text-white'
+                      }`}
+                    >
+                      {bankMinutes}
+                    </Text>
+                    <Text
+                      className={`mb-5 ml-2 text-3xl font-black ${
+                        showEmptyBank ? 'text-petal/80' : 'text-white/80'
+                      }`}
+                    >
+                      min
+                    </Text>
+                  </View>
+                </Animated.View>
+              ) : (
+                <>
+                  <Text
+                    className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
+                      showEmptyBank ? 'text-petal' : 'text-white/75'
+                    }`}
+                  >
+                    {showEmptyBank ? 'Bank empty' : 'Bank'}
+                  </Text>
+                  <View className="mt-2 flex-row items-end justify-center">
+                    <Text
+                      className={`text-[118px] font-black leading-[122px] ${
+                        showEmptyBank ? 'text-petal' : 'text-white'
+                      }`}
+                    >
+                      {bankMinutes}
+                    </Text>
+                    <Text
+                      className={`mb-5 ml-2 text-3xl font-black ${
+                        showEmptyBank ? 'text-petal/80' : 'text-white/80'
+                      }`}
+                    >
+                      min
+                    </Text>
+                  </View>
+                </>
+              )}
+
               {unlockAction ? (
                 <Animated.View style={selectorStyle}>
                   <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
@@ -643,17 +694,18 @@ export default function Home() {
                 </Animated.View>
               ) : (
                 <View className="gap-3">
-                  <Button
-                    label="Use banked minutes"
-                    icon={Flame}
-                    onPress={() => chooseUnlockAction('spend')}
-                    disabled={!hasBank}
-                  />
+                  {hasBank ? (
+                    <Button
+                      label="Use banked minutes"
+                      icon={Flame}
+                      onPress={() => chooseUnlockAction('spend')}
+                    />
+                  ) : null}
                   <Button
                     label="Earn more minutes"
                     icon={Dumbbell}
-                    variant="secondary"
-                    noOutline
+                    variant={hasBank ? 'secondary' : 'primary'}
+                    noOutline={hasBank}
                     onPress={() => chooseUnlockAction('earn')}
                   />
                 </View>
@@ -661,7 +713,7 @@ export default function Home() {
             </View>
           </Animated.View>
         </View>
-      ) : null}
+      </Modal>
     </Screen>
   );
 }
@@ -719,14 +771,15 @@ const styles = StyleSheet.create({
     elevation: 16,
   },
   unlockPromptWrap: {
-    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: 'rgba(208, 27, 101, 0.96)',
+    flex: 1,
     justifyContent: 'center',
-    marginHorizontal: -24,
-    marginVertical: -24,
     paddingHorizontal: 24,
     zIndex: 40,
+  },
+  emptyBankPromptWrap: {
+    backgroundColor: colors.cocoa,
   },
   unlockPromptBloom: {
     backgroundColor: colors.raspberry,
@@ -735,8 +788,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 460,
   },
+  emptyBankPromptBloom: {
+    backgroundColor: colors.cherry,
+  },
   unlockPromptContent: {
+    flex: 1,
+    justifyContent: 'center',
     width: '100%',
+  },
+  unlockPromptStage: {
+    alignSelf: 'center',
+    minHeight: 292,
+    width: '100%',
+    maxWidth: 320,
+  },
+  unlockPromptBankExit: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   unlockPromptClose: {
     alignItems: 'center',
@@ -745,8 +815,8 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     position: 'absolute',
-    right: 0,
-    top: -72,
+    right: 24,
+    top: 58,
     width: 44,
   },
 });

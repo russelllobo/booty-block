@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { DefaultTheme, ThemeProvider } from 'expo-router';
+import { DefaultTheme, ThemeProvider, useLocalSearchParams } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { colors } from '../../constants/theme';
@@ -10,10 +10,13 @@ const labelStyle = {
 };
 
 export default function TabsLayout() {
+  const params = useLocalSearchParams<{ hideTabs?: string }>();
+  const tabsHidden = params.hideTabs === '1';
+
   return (
     <ThemeProvider value={DefaultTheme}>
       <NativeTabs
-        hidden
+        {...(tabsHidden ? { hidden: true } : {})}
         iconColor={{ default: colors.mink, selected: colors.raspberry }}
         labelStyle={labelStyle}
         screenListeners={{
@@ -30,13 +33,6 @@ export default function TabsLayout() {
             md={{ default: 'home', selected: 'home_filled' }}
           />
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="plan">
-          <NativeTabs.Trigger.Icon
-            sf={{ default: 'dumbbell', selected: 'dumbbell.fill' }}
-            md="fitness_center"
-          />
-          <NativeTabs.Trigger.Label>Earn</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="settings">
           <NativeTabs.Trigger.Icon

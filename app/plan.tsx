@@ -5,13 +5,13 @@ import { Clock3, Dumbbell } from 'lucide-react-native';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button } from '../../components/Button';
-import { Header } from '../../components/Header';
-import { NativeRollingNumber } from '../../components/NativeRollingNumber';
-import { Screen } from '../../components/Screen';
-import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
-import { colors } from '../../constants/theme';
-import { useBootyblock } from '../../lib/store/BootyblockProvider';
+import { Button } from '../components/Button';
+import { Header } from '../components/Header';
+import { NativeRollingNumber } from '../components/NativeRollingNumber';
+import { Screen } from '../components/Screen';
+import { MINUTES_TO_SQUATS } from '../constants/bootyblock';
+import { colors } from '../constants/theme';
+import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 type PlanTourTip = {
   eyebrow: string;
@@ -21,7 +21,7 @@ type PlanTourTip = {
 
 const planTourTip: PlanTourTip = {
   eyebrow: 'Move first',
-  title: 'Earn minutes on this tab',
+  title: 'Earn minutes here',
   body: 'Choose how much time you want back, then start the squat session that banks those minutes.',
 };
 

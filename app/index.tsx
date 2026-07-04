@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 import { BrandLockup } from '../components/BrandLockup';
@@ -9,25 +9,55 @@ import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Index() {
-  const { hydrated, onboardingComplete, timeBankSeconds, subscriptionHydrated } = useBootyblock();
+  const {
+    hydrated,
+    onboardingComplete,
+    timeBankSeconds,
+    subscriptionHydrated,
+    hasAppAccess,
+    requestSubscriptionAccess,
+  } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
+  const initialPaywallRequestedRef = useRef(false);
 
   useEffect(() => {
     if (!hydrated || !subscriptionHydrated) return;
+
+    if (!onboardingComplete) {
+      router.replace('/onboarding');
+      return;
+    }
+
+    if (!hasAppAccess && !initialPaywallRequestedRef.current) {
+      initialPaywallRequestedRef.current = true;
+      void requestSubscriptionAccess().finally(() => router.replace('/(tabs)'));
+      return;
+    }
+
+    if (initialPaywallRequestedRef.current) {
+      router.replace('/(tabs)');
+      return;
+    }
+
     const openedFromShield = Boolean(
       linkingUrl?.startsWith('device-activity://')
       || linkingUrl?.startsWith('bootyblock://unlock')
       || screenTimeService.consumeShieldOpenRequest(),
     );
     router.replace(
-      onboardingComplete
-        ? openedFromShield
-          || timeBankSeconds > 0
-          ? '/(tabs)/plan'
-          : '/(tabs)'
-        : '/onboarding',
+      openedFromShield || timeBankSeconds > 0
+        ? '/plan'
+        : '/(tabs)',
     );
-  }, [hydrated, linkingUrl, onboardingComplete, subscriptionHydrated, timeBankSeconds]);
+  }, [
+    hasAppAccess,
+    hydrated,
+    linkingUrl,
+    onboardingComplete,
+    requestSubscriptionAccess,
+    subscriptionHydrated,
+    timeBankSeconds,
+  ]);
 
   if (!hydrated || !subscriptionHydrated) {
     return <LoadingLockup />;

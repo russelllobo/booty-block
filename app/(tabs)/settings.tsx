@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
+import { AppWindow, ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -111,6 +111,7 @@ export default function Settings() {
     requestSubscriptionAccess,
     openSubscriptionManagement,
     resetAppData,
+    selectedAppsLabel,
   } = useBootyblock();
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
 
@@ -151,6 +152,31 @@ export default function Settings() {
     }
   }
 
+  async function chooseBlockedApps() {
+    if (isSubscribed) {
+      router.push('/onboarding/apps');
+      return;
+    }
+
+    setSubscriptionBusy(true);
+    try {
+      const subscribed = await requestSubscriptionAccess();
+      if (subscribed) {
+        router.push('/onboarding/apps');
+        return;
+      }
+
+      if (!subscriptionConfigured) {
+        Alert.alert(
+          'RevenueCat setup needed',
+          subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
+        );
+      }
+    } finally {
+      setSubscriptionBusy(false);
+    }
+  }
+
   async function restore() {
     setSubscriptionBusy(true);
     try {
@@ -171,6 +197,18 @@ export default function Settings() {
       <Header title="Settings" />
 
       <View className="gap-7">
+        <SettingsGroup title="Blocking">
+          <SettingsRow
+            title="Choose blocked apps"
+            subtitle={selectedAppsLabel}
+            icon={AppWindow}
+            iconBackground={colors.cocoa}
+            loading={subscriptionBusy && !isSubscribed}
+            last
+            onPress={chooseBlockedApps}
+          />
+        </SettingsGroup>
+
         <SettingsGroup title="Subscription">
           <SettingsRow
             title={isSubscribed ? 'Bootyblock Pro' : subscriptionConfigured ? 'Not Subscribed' : 'Setup Needed'}

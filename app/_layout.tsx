@@ -2,15 +2,18 @@ import '../global.css';
 
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import * as Updates from 'expo-updates';
 import { Stack, usePathname } from 'expo-router';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
-import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { BrandLockup } from '../components/BrandLockup';
+import { colors } from '../constants/theme';
 import {
   POSTHOG_API_KEY,
   POSTHOG_ENABLED,
@@ -25,6 +28,67 @@ const onboardingScreenOptions = {
   gestureEnabled: false,
 } as const;
 
+const UPDATE_CHECK_TIMEOUT_MS = 8000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
+}
+
+function UpdateGate({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(() => __DEV__ || Platform.OS === 'web' || !Updates.isEnabled);
+
+  useEffect(() => {
+    if (ready) return;
+
+    let cancelled = false;
+
+    async function loadFreshUpdate() {
+      try {
+        const update = await withTimeout(Updates.checkForUpdateAsync(), UPDATE_CHECK_TIMEOUT_MS);
+        if (!update?.isAvailable || cancelled) {
+          setReady(true);
+          return;
+        }
+
+        const result = await withTimeout(Updates.fetchUpdateAsync(), UPDATE_CHECK_TIMEOUT_MS);
+        if (cancelled) return;
+
+        if (result?.isNew) {
+          await Updates.reloadAsync();
+          return;
+        }
+      } catch (error) {
+        console.warn('Unable to apply startup update', error);
+      }
+
+      if (!cancelled) {
+        setReady(true);
+      }
+    }
+
+    void loadFreshUpdate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
+        <BrandLockup height={42} label="BootyBlock logo" />
+      </View>
+    );
+  }
+
+  return children;
+}
+
 function NotificationObserver() {
   const { onboardingComplete } = useBootyblock();
 
@@ -38,7 +102,7 @@ function NotificationObserver() {
         || screenTimeService.consumeShieldOpenRequest(),
       );
       if (openedFromShield) {
-        router.push(onboardingComplete ? '/(tabs)/plan' : '/onboarding');
+        router.push(onboardingComplete ? '/plan' : '/onboarding');
       }
     }
 
@@ -53,7 +117,7 @@ function NotificationObserver() {
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && screenTimeService.consumeShieldOpenRequest()) {
-        router.push(onboardingComplete ? '/(tabs)/plan' : '/onboarding');
+        router.push(onboardingComplete ? '/plan' : '/onboarding');
       }
     });
 
@@ -65,8 +129,8 @@ function NotificationObserver() {
 
     function openNotification(notification: Notifications.Notification) {
       const url = notification.request.content.data?.url;
-      if (url === '/(tabs)/plan') {
-        router.push('/(tabs)/plan');
+      if (url === '/plan' || url === '/(tabs)/plan') {
+        router.push('/plan');
       }
     }
 
@@ -114,30 +178,33 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
           <BootyblockProvider>
-            <AnalyticsScreenTracker />
-            <NotificationObserver />
-            <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/permissions" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="statistics" />
-              <Stack.Screen name="session" />
-              <Stack.Screen name="success" />
-            </Stack>
+            <UpdateGate>
+              <AnalyticsScreenTracker />
+              <NotificationObserver />
+              <StatusBar style="dark" />
+              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/permissions" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
+                <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="plan" />
+                <Stack.Screen name="statistics" />
+                <Stack.Screen name="session" />
+                <Stack.Screen name="success" />
+              </Stack>
+            </UpdateGate>
           </BootyblockProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

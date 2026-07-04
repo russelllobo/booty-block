@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Dumbbell, Home, Settings } from 'lucide-react-native';
+import { Home, Settings } from 'lucide-react-native';
 
 import { colors } from '../../constants/theme';
 
@@ -24,7 +24,6 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <Home size={22} stroke={String(color)} /> }} />
-      <Tabs.Screen name="plan" options={{ title: 'Earn', tabBarIcon: ({ color }) => <Dumbbell size={22} stroke={String(color)} /> }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color }) => <Settings size={22} stroke={String(color)} /> }} />
     </Tabs>
   );

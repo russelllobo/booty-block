@@ -41,7 +41,7 @@ export default function Success() {
 
       <View className="gap-3">
         <Button label="Go to home" icon={Sparkles} onPress={() => router.replace('/(tabs)')} />
-        <Button label="Earn more" variant="secondary" onPress={() => router.replace('/(tabs)/plan')} />
+        <Button label="Earn more" variant="secondary" onPress={() => router.replace('/plan')} />
       </View>
     </Screen>
   );
