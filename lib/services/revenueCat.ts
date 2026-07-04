@@ -9,6 +9,8 @@ import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
 export const REVENUECAT_ENTITLEMENT_ID =
   process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'pro';
+export const REVENUECAT_NORMAL_OFFERING_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_NORMAL_OFFERING_ID ?? 'default';
 export const REVENUECAT_ONE_TIME_OFFERING_ID =
   process.env.EXPO_PUBLIC_REVENUECAT_ONE_TIME_OFFERING_ID ?? 'one_time_offer';
 
@@ -57,6 +59,17 @@ function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
     result === PAYWALL_RESULT.PURCHASED ||
     result === PAYWALL_RESULT.RESTORED
   );
+}
+
+async function getOfferingByIdentifier(identifier: string, missingMessage: string) {
+  const offerings = await Purchases.getOfferings();
+  const offering = offerings.all[identifier];
+
+  if (!offering) {
+    throw new Error(missingMessage);
+  }
+
+  return offering;
 }
 
 export const revenueCatService = {
@@ -131,9 +144,17 @@ export const revenueCatService = {
 
   async presentPaywallWithResult(): Promise<PaywallAccessResult> {
     assertConfigured();
-    const result = await RevenueCatUI.presentPaywall({
-      displayCloseButton: true,
-    });
+    const offering = REVENUECAT_NORMAL_OFFERING_ID
+      ? await getOfferingByIdentifier(
+        REVENUECAT_NORMAL_OFFERING_ID,
+        `The normal subscription offer "${REVENUECAT_NORMAL_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
+      )
+      : null;
+    const result = await RevenueCatUI.presentPaywall(
+      offering
+        ? { offering, displayCloseButton: true }
+        : { displayCloseButton: true },
+    );
 
     if (shouldRefreshAccessAfterPaywall(result)) {
       const customerInfo = await Purchases.getCustomerInfo();
@@ -153,12 +174,10 @@ export const revenueCatService = {
 
   async presentOneTimeOfferPaywallWithResult(): Promise<PaywallAccessResult> {
     assertConfigured();
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings.all[REVENUECAT_ONE_TIME_OFFERING_ID];
-
-    if (!offering) {
-      throw new Error('The one-time offer is not available right now. Please try again in a moment.');
-    }
+    const offering = await getOfferingByIdentifier(
+      REVENUECAT_ONE_TIME_OFFERING_ID,
+      `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
+    );
 
     const result = await RevenueCatUI.presentPaywall({
       offering,

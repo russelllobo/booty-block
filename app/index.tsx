@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { BrandLockup } from '../components/BrandLockup';
@@ -14,28 +14,14 @@ export default function Index() {
     onboardingComplete,
     timeBankSeconds,
     subscriptionHydrated,
-    hasAppAccess,
-    requestSubscriptionAccess,
   } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
-  const initialPaywallRequestedRef = useRef(false);
 
   useEffect(() => {
     if (!hydrated || !subscriptionHydrated) return;
 
     if (!onboardingComplete) {
       router.replace('/onboarding');
-      return;
-    }
-
-    if (!hasAppAccess && !initialPaywallRequestedRef.current) {
-      initialPaywallRequestedRef.current = true;
-      void requestSubscriptionAccess().finally(() => router.replace('/(tabs)'));
-      return;
-    }
-
-    if (initialPaywallRequestedRef.current) {
-      router.replace('/(tabs)');
       return;
     }
 
@@ -50,11 +36,9 @@ export default function Index() {
         : '/(tabs)',
     );
   }, [
-    hasAppAccess,
     hydrated,
     linkingUrl,
     onboardingComplete,
-    requestSubscriptionAccess,
     subscriptionHydrated,
     timeBankSeconds,
   ]);
