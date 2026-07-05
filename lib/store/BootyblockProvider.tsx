@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { Alert, AppState, Modal, Platform, Pressable, StyleSheet } from 'react-native';
+import RevenueCatUI from 'react-native-purchases-ui';
 
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
@@ -141,6 +142,11 @@ type StoredPayload = ReturnType<typeof defaultPayload> & {
   usageWindow?: UsageWindow | null;
 };
 
+type OneTimeOfferModalState = {
+  offering: Awaited<ReturnType<typeof revenueCatService.getOneTimeOfferPaywallOffering>>;
+  resolve: (active: boolean) => void;
+};
+
 export function BootyblockProvider({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false);
   const [payload, setPayload] = useState(defaultPayload);
@@ -148,6 +154,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionConfigured, setSubscriptionConfigured] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(Platform.OS === 'web');
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [oneTimeOfferModal, setOneTimeOfferModal] = useState<OneTimeOfferModalState | null>(null);
   const accessRequestRef = useRef<Promise<boolean> | null>(null);
   const payloadRef = useRef(payload);
   const subscriptionResetLockedRef = useRef(false);
@@ -594,6 +601,14 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, [isSubscribed]);
 
+  const presentOneTimeOfferModal = useCallback(async () => {
+    const offering = await revenueCatService.getOneTimeOfferPaywallOffering();
+
+    return new Promise<boolean>((resolve) => {
+      setOneTimeOfferModal({ offering, resolve });
+    });
+  }, []);
+
   const requestSubscriptionAccess = useCallback(async () => {
     if (hasSubscriptionAccess(isSubscribed)) return true;
     if (accessRequestRef.current) return accessRequestRef.current;
@@ -620,28 +635,14 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         }
 
         if (outcome.cancelled) {
-          const offerOutcome = await revenueCatService.presentOneTimeOfferPaywallWithResult();
-          if (offerOutcome.active) {
+          const offerActive = await presentOneTimeOfferModal();
+          if (offerActive) {
             subscriptionResetLockedRef.current = false;
             await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
             await refreshSubscription();
             setIsSubscribed(true);
             setSubscriptionError(null);
             return true;
-          }
-
-          if (offerOutcome.cancelled) {
-            const fullPriceOutcome = await revenueCatService.presentPaywallWithResult();
-            if (fullPriceOutcome.active) {
-              subscriptionResetLockedRef.current = false;
-              await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
-              await refreshSubscription();
-              setIsSubscribed(true);
-              setSubscriptionError(null);
-              return true;
-            }
-
-            return false;
           }
 
           return false;
@@ -661,12 +662,19 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     const active = await request;
     accessRequestRef.current = null;
     return active;
-  }, [isSubscribed, refreshSubscription]);
+  }, [isSubscribed, presentOneTimeOfferModal, refreshSubscription]);
 
   const openSubscriptionManagement = useCallback(async () => {
     await revenueCatService.presentCustomerCenter();
     await refreshSubscription();
   }, [refreshSubscription]);
+
+  const resolveOneTimeOfferModal = useCallback((active: boolean) => {
+    setOneTimeOfferModal((current) => {
+      current?.resolve(active);
+      return null;
+    });
+  }, []);
 
   const resetAppData = useCallback(async () => {
     screenTimeService.resetNativeSetup();
@@ -745,6 +753,30 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   return (
     <BootyblockContext.Provider value={value}>
       {children}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => resolveOneTimeOfferModal(false)}
+        presentationStyle="fullScreen"
+        visible={Boolean(oneTimeOfferModal)}
+      >
+        {oneTimeOfferModal ? (
+          <>
+            <RevenueCatUI.Paywall
+              onDismiss={() => resolveOneTimeOfferModal(false)}
+              onPurchaseCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
+              onRestoreCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
+              options={{ offering: oneTimeOfferModal.offering, displayCloseButton: false }}
+              style={styles.oneTimeOfferPaywall}
+            />
+            <Pressable
+              accessibilityLabel="I'd rather pay full price"
+              accessibilityRole="button"
+              onPress={() => resolveOneTimeOfferModal(false)}
+              style={styles.fullPricePaywallTapTarget}
+            />
+          </>
+        ) : null}
+      </Modal>
     </BootyblockContext.Provider>
   );
 }
@@ -756,3 +788,17 @@ export function useBootyblock() {
   }
   return context;
 }
+
+const styles = StyleSheet.create({
+  oneTimeOfferPaywall: {
+    flex: 1,
+  },
+  fullPricePaywallTapTarget: {
+    bottom: 54,
+    height: 78,
+    left: 32,
+    position: 'absolute',
+    right: 32,
+    zIndex: 10,
+  },
+});

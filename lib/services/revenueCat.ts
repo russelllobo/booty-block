@@ -230,6 +230,14 @@ export const revenueCatService = {
     };
   },
 
+  async getOneTimeOfferPaywallOffering() {
+    assertConfigured();
+    return getOfferingByIdentifier(
+      REVENUECAT_ONE_TIME_OFFERING_ID,
+      `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
+    );
+  },
+
   async presentPaywallIfNeeded(options?: { force?: boolean }) {
     const outcome = options?.force
       ? await this.presentPaywallWithResult()
