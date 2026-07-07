@@ -2,12 +2,13 @@ import { router } from 'expo-router';
 import { CalendarDays, Dumbbell, Footprints, Flame, LucideIcon } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import {
   AnimatedOnboardingOption,
   AnimatedOnboardingOptionIcon,
 } from '../../components/AnimatedOnboardingOption';
+import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';

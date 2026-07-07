@@ -3,7 +3,8 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock3, Dumbbell } from 'lucide-react-native';
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/AppText';
 
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';

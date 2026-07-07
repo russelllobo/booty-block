@@ -2,7 +2,8 @@ import * as Haptics from 'expo-haptics';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +17,7 @@ type ButtonProps = {
   label: string;
   onPress: () => void;
   icon?: LucideIcon;
+  iconPosition?: 'left' | 'right';
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   disabled?: boolean;
   loading?: boolean;
@@ -34,7 +36,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, variant = 'primary', disabled, loading, foregroundColor, noOutline }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -82,7 +84,7 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
   const buttonContent = (
     <>
       {loading ? <ActivityIndicator color={contentColor} /> : null}
-      {!loading && Icon ? (
+      {!loading && Icon && iconPosition === 'left' ? (
         <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
       ) : null}
       <Text
@@ -93,6 +95,9 @@ export function Button({ label, onPress, icon: Icon, variant = 'primary', disabl
       >
         {label}
       </Text>
+      {!loading && Icon && iconPosition === 'right' ? (
+        <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
+      ) : null}
     </>
   );
 

@@ -4,10 +4,8 @@ import Slider from '@react-native-community/slider';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+  StyleSheet, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
@@ -174,10 +172,6 @@ function TimeSlider({
           style={styles.nativeSlider}
         />
       </View>
-      <View className="mt-1 flex-row justify-between px-1">
-        <Text className="text-xs font-black text-mink">{formatHours(minimumValue)}</Text>
-        <Text className="text-xs font-black text-mink">{formatHours(maximumValue)}</Text>
-      </View>
     </View>
   );
 }
@@ -239,7 +233,7 @@ export default function Usage() {
             <Text className="text-[15px] font-bold leading-[19px] text-mink">
               {isGoal
                 ? `No guilt, ${name}. Small changes stick.`
-                : 'A quick reality check — no judgement.'}
+                : 'A quick reality check, no judgement.'}
             </Text>
             <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
               {isGoal

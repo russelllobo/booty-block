@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Home, Settings } from 'lucide-react-native';
 
+import { appFontFamilyForWeight } from '../../components/AppText';
 import { colors } from '../../constants/theme';
 
 export default function TabsLayout() {
@@ -18,6 +19,7 @@ export default function TabsLayout() {
           paddingTop: 10,
         },
         tabBarLabelStyle: {
+          fontFamily: appFontFamilyForWeight('600'),
           fontWeight: '600',
           fontSize: 12,
         },

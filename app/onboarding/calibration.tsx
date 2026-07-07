@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, Camera, CheckCircle2, ChevronLeft } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { PoseOverlay } from '../../components/PoseOverlay';

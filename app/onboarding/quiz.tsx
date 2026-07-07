@@ -19,10 +19,9 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
+import { AppTextInputRef, Text, TextInput } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import {
@@ -100,7 +99,7 @@ export default function Quiz() {
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const nameInputRef = useRef<TextInput>(null);
+  const nameInputRef = useRef<AppTextInputRef>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -165,8 +164,13 @@ export default function Quiz() {
                   <Text className="text-[15px] font-bold leading-[19px] text-mink">
                     First things first,
                   </Text>
-                  <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
-                    What should we{'\n'}call you?
+                  <Text
+                    className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    What should we call you?
                   </Text>
                 </View>
 
@@ -220,8 +224,13 @@ export default function Quiz() {
         ) : (
           <View className="flex-1">
             <Text className="text-lg font-bold text-mink">So, tell us, {name.trim()},</Text>
-            <Text className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa">
-              What goals do you want to achieve using Bootyblock?
+            <Text
+              className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa"
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.88}
+            >
+              What goals do you want to{'\n'}achieve using BootyBlock?
             </Text>
             <Text className="mt-2 text-base font-bold text-mink">Choose up to 3</Text>
 

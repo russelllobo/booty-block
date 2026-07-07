@@ -1,5 +1,7 @@
 import { PropsWithChildren } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+
+import { Text } from './AppText';
 
 type SectionPanelProps = PropsWithChildren<{
   title?: string;

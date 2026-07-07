@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowUp, LockKeyhole } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/AppText';
 import { usePostHog } from 'posthog-react-native';
 
 import { OnboardingProgress } from '../../components/OnboardingProgress';

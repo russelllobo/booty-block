@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ChevronLeft, Settings } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
 import { BrandLockup } from './BrandLockup';

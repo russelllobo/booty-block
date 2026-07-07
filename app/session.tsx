@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { Camera, ChevronLeft } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '../components/AppText';
 
 import { Button } from '../components/Button';
 import { BrandLockup } from '../components/BrandLockup';
@@ -18,6 +19,8 @@ import { captureAnalytics } from '../lib/analytics';
 import { usePoseSession } from '../lib/services/pose';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../modules/booty-pose/src/BootyPoseCameraView';
+
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 export default function Session() {
   const {
@@ -185,7 +188,7 @@ export default function Session() {
                         <PlusOnePop />
                       </View>
                     ) : null}
-                    <Animated.Text
+                    <AnimatedText
                       accessibilityLabel={`${remainingSquats} squats remaining`}
                       className="text-center font-black text-white"
                       numberOfLines={1}
@@ -193,8 +196,8 @@ export default function Session() {
                       style={[styles.remainingCount, { transform: [{ scale: countScale }] }]}
                     >
                       {remainingSquats}
-                    </Animated.Text>
-                    <Animated.Text
+                    </AnimatedText>
+                    <AnimatedText
                       pointerEvents="none"
                       numberOfLines={1}
                       adjustsFontSizeToFit
@@ -205,7 +208,7 @@ export default function Session() {
                       ]}
                     >
                       {remainingSquats}
-                    </Animated.Text>
+                    </AnimatedText>
                   </View>
                 </View>
                 <CelebrationOverlay visible={celebrating} />
@@ -326,7 +329,7 @@ function PlusOnePop() {
   }, [opacity, translateY, scale]);
 
   return (
-    <Animated.Text
+    <AnimatedText
       style={{
         fontSize: 28,
         fontWeight: '900',
@@ -339,6 +342,6 @@ function PlusOnePop() {
       }}
     >
       −1
-    </Animated.Text>
+    </AnimatedText>
   );
 }

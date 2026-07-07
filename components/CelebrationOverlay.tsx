@@ -1,6 +1,7 @@
 import { CheckCircle2 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
 

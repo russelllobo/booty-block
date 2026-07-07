@@ -1,15 +1,11 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowRight,
-  CheckCircle2,
-  Lightbulb,
-  Shirt,
-  Smartphone,
-} from 'lucide-react-native';
+  ArrowRight, CheckCircle2, Lightbulb, Shirt, Smartphone, } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';

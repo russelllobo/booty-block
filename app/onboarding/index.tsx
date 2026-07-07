@@ -1,22 +1,17 @@
 import { router } from 'expo-router';
 import { Asset } from 'expo-asset';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, Star } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+  Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { shadow } from '../../constants/theme';
+import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -131,6 +126,12 @@ export default function Onboarding() {
           </View>
 
           <View className="flex-1 justify-end pt-5">
+            <View className="mb-4 flex-row items-center justify-center gap-1.5">
+              {[0, 1, 2, 3, 4].map((star) => (
+                <Star key={star} size={19} stroke={colors.raspberry} fill={colors.raspberry} strokeWidth={2.4} />
+              ))}
+            </View>
+
             <Text className="px-10 text-center text-[28px] font-bold leading-[33px] text-cocoa">
               Block your apps until you{' '}
               <Text className="text-raspberry">grow your booty</Text>
@@ -138,8 +139,9 @@ export default function Onboarding() {
 
             <View className="pt-5">
               <Button
-                label="Get started"
+                label="End my scroll habit"
                 icon={ArrowRight}
+                iconPosition="right"
                 onPress={handleGetStarted}
               />
             </View>

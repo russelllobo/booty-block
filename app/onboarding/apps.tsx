@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { AppWindow, Check } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';

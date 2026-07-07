@@ -1,6 +1,7 @@
 import { X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
+import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
 import type { UnlockHistoryEntry } from '../lib/store/BootyblockProvider';

@@ -4,7 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { ArrowUp, Bell } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';

@@ -3,7 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Activity, Brain, Dumbbell, Sparkles } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/AppText';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 import { OnboardingProgress } from '../../components/OnboardingProgress';

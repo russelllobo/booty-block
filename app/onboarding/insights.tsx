@@ -50,9 +50,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { BrandLockup } from '../../components/BrandLockup';
 import { Button } from '../../components/Button';
@@ -95,6 +95,7 @@ const routineGradient = ['#4A1232', '#1B0B16', '#050509'] as const;
 const routineGlass = 'rgba(255, 255, 255, 0.12)';
 const routineGlassBorder = 'rgba(255, 255, 255, 0.28)';
 const DEFAULT_ROUTINE_REMINDER = { hour: 12, minute: 55 };
+const AnimatedText = Animated.createAnimatedComponent(Text);
 const insightStepMetadata = {
   1: ONBOARDING_STEPS.timeSinkApps,
   2: ONBOARDING_STEPS.habitFriction,
@@ -1282,7 +1283,7 @@ function PlusOnePop() {
   }, [opacity, translateY, scale]);
 
   return (
-    <Animated.Text
+    <AnimatedText
       style={{
         fontSize: 20,
         fontWeight: '900',
@@ -1292,7 +1293,7 @@ function PlusOnePop() {
       }}
     >
       +1 min
-    </Animated.Text>
+    </AnimatedText>
   );
 }
 

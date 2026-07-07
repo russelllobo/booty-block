@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { CheckCircle2, Sparkles } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { Text } from '../components/AppText';
 import { Screen } from '../components/Screen';
 import { colors } from '../constants/theme';
 import { useBootyblock } from '../lib/store/BootyblockProvider';

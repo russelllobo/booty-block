@@ -2,11 +2,12 @@ import * as Haptics from 'expo-haptics';
 import { DefaultTheme, ThemeProvider, useLocalSearchParams } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
+import { appFontFamilyForWeight } from '../../components/AppText';
 import { colors } from '../../constants/theme';
 
 const labelStyle = {
-  default: { fontWeight: '600' as const, fontSize: 12, color: colors.mink },
-  selected: { fontWeight: '600' as const, fontSize: 12, color: colors.raspberry },
+  default: { fontFamily: appFontFamilyForWeight('600'), fontWeight: '600' as const, fontSize: 12, color: colors.mink },
+  selected: { fontFamily: appFontFamilyForWeight('600'), fontWeight: '600' as const, fontSize: 12, color: colors.raspberry },
 };
 
 export default function TabsLayout() {

@@ -1,20 +1,11 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowRight,
-  Brain,
-  Dumbbell,
-  Heart,
-  Moon,
-  Quote,
-  Sparkles,
-  Star,
-  TimerReset,
-  Trophy,
-} from 'lucide-react-native';
+  ArrowRight, Brain, Dumbbell, Heart, Moon, Quote, Sparkles, Star, TimerReset, Trophy, } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, ReactNode, useEffect, useRef } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';

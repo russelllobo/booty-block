@@ -6,8 +6,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from './AppText';
 import {
   digitForPosition,
   nextRollingDigitPosition,

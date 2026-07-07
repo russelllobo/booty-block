@@ -18,7 +18,7 @@ export const ONBOARDING_STEPS = {
   },
   goals: {
     key: 'goals',
-    title: 'What goals do you want to achieve using Bootyblock?',
+    title: 'What goals do you want to achieve using BootyBlock?',
     index: 4,
   },
   currentDailyScreenTime: {

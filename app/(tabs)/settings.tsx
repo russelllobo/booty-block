@@ -4,7 +4,8 @@ import { AppWindow, ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Spa
 import type { LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';

@@ -3,7 +3,8 @@ import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
@@ -154,6 +155,7 @@ function HomeTourOverlay({
 }
 
 export default function Home() {
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ appTour?: string; tourStep?: string }>();
   const {
     timeBankSeconds,
@@ -232,8 +234,9 @@ export default function Home() {
   });
   const promptBackdropScale = unlockPromptProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.18, 1.7],
+    outputRange: [0.04, 1],
   });
+  const promptBloomSize = Math.ceil(Math.hypot(windowWidth, windowHeight)) + 160;
   const promptContentStyle = {
     opacity: unlockPromptProgress,
     transform: [
@@ -588,7 +591,10 @@ export default function Home() {
               styles.unlockPromptBloom,
               showEmptyBank ? styles.emptyBankPromptBloom : null,
               {
+                borderRadius: promptBloomSize / 2,
+                height: promptBloomSize,
                 transform: [{ scale: promptBackdropScale }],
+                width: promptBloomSize,
               },
             ]}
           />
@@ -783,10 +789,7 @@ const styles = StyleSheet.create({
   },
   unlockPromptBloom: {
     backgroundColor: colors.raspberry,
-    borderRadius: 999,
-    height: 460,
     position: 'absolute',
-    width: 460,
   },
   emptyBankPromptBloom: {
     backgroundColor: colors.cherry,

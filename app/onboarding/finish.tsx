@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
