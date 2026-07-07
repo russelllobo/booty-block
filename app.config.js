@@ -1,20 +1,20 @@
-const appConfig = require("./app.json");
+const { expo: appConfig } = require("./app.json");
 
 const iosBuildNumber = process.env.BOOTYBLOCK_IOS_BUILD_NUMBER;
 
 module.exports = ({ config }) => {
-  const expo = {
+  const expoConfig = {
     ...config,
-    ...appConfig.expo,
+    ...appConfig,
     ios: {
       ...config.ios,
-      ...appConfig.expo.ios,
+      ...appConfig.ios,
     },
   };
 
   if (iosBuildNumber) {
-    expo.ios.buildNumber = iosBuildNumber;
+    expoConfig.ios.buildNumber = iosBuildNumber;
   }
 
-  return { expo };
+  return expoConfig;
 };
