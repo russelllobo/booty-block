@@ -31,6 +31,11 @@ func buildLabel(text: String?, with color: UIColor?, placeholders: [String: Stri
   return nil
 }
 
+func resolveTextVariant(config: [String: Any], variantKey: String, fallback: String?) -> String? {
+  let variants = config[variantKey] as? [String]
+  return variants?.randomElement() ?? fallback
+}
+
 func loadImageFromAppGroupDirectory(relativeFilePath: String) -> UIImage? {
   let appGroupDirectory = getAppGroupDirectory()
 
@@ -82,6 +87,11 @@ func buildShield(placeholders: [String: String?], config: [String: Any]?)
     let backgroundColor = getColor(color: config["backgroundColor"] as? [String: Double])
 
     let title = config["title"] as? String
+    let resolvedTitle = resolveTextVariant(
+      config: config,
+      variantKey: "titleVariants",
+      fallback: title
+    )
     let titleColor = getColor(color: config["titleColor"] as? [String: Double])
 
     let subtitle = config["subtitle"] as? String
@@ -103,7 +113,7 @@ func buildShield(placeholders: [String: String?], config: [String: Any]?)
         ? (config["backgroundBlurStyle"] as? Int).flatMap(UIBlurEffect.Style.init) : nil,
       backgroundColor: backgroundColor,
       icon: resolveIcon(dict: config),
-      title: buildLabel(text: title, with: titleColor, placeholders: placeholders),
+      title: buildLabel(text: resolvedTitle, with: titleColor, placeholders: placeholders),
       subtitle: buildLabel(text: subtitle, with: subtitleColor, placeholders: placeholders),
       primaryButtonLabel: buildLabel(
         text: primaryButtonLabel, with: primaryButtonLabelColor, placeholders: placeholders),

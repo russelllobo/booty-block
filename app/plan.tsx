@@ -1,8 +1,8 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
-import { Clock3, Dumbbell } from 'lucide-react-native';
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { type Href, router, useLocalSearchParams } from 'expo-router';
+import { Clock3, Dumbbell, Trophy } from 'lucide-react-native';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/AppText';
 
@@ -12,6 +12,7 @@ import { NativeRollingNumber } from '../components/NativeRollingNumber';
 import { Screen } from '../components/Screen';
 import { MINUTES_TO_SQUATS } from '../constants/bootyblock';
 import { colors } from '../constants/theme';
+import { getPeachProgress } from '../lib/progression';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 type PlanTourTip = {
@@ -95,6 +96,8 @@ export default function Plan() {
     subscriptionConfigured,
     subscriptionError,
     requestSubscriptionAccess,
+    currentStreak,
+    unlockHistory,
   } = useBootyblock();
   const params = useLocalSearchParams<{ mode?: string; planTour?: string }>();
   const tourActive = params.planTour === 'onboarding';
@@ -115,6 +118,11 @@ export default function Plan() {
     : 'Choose how much time to earn, then pay in squats.';
   const primaryLabel = mode === 'spend' ? `Use ${spendTarget} min` : `Start ${earningTarget} squats`;
   const primaryIcon = mode === 'spend' ? Clock3 : Dumbbell;
+  const peachProgress = useMemo(
+    () => getPeachProgress(unlockHistory, currentStreak),
+    [unlockHistory, currentStreak],
+  );
+  const peachProgressPercent = `${Math.round(peachProgress.progressRatio * 100)}%` as `${number}%`;
 
   useEffect(() => {
     if (!hasBank && mode === 'spend') {
@@ -187,6 +195,35 @@ export default function Plan() {
   return (
     <Screen>
       <Header title={title} subtitle={subtitle} />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Level ${peachProgress.currentLevel.level}, ${peachProgress.currentLevel.title}, ${peachProgress.xp} Peach XP`}
+        accessibilityHint="Opens statistics"
+        onPress={() => router.push('/statistics' as Href)}
+        className="mb-3 rounded-[24px] bg-white/70 p-4"
+      >
+        <View className="flex-row items-center gap-3">
+          <View className="h-11 w-11 items-center justify-center rounded-[16px] bg-petal">
+            <Trophy size={22} stroke={colors.raspberry} strokeWidth={3} />
+          </View>
+          <View className="flex-1">
+            <Text className="text-[11px] font-black uppercase tracking-[1.2px] text-mink">
+              Level {peachProgress.currentLevel.level}
+            </Text>
+            <Text className="mt-0.5 text-lg font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+              {peachProgress.currentLevel.title}
+            </Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Peach XP</Text>
+            <Text className="text-base font-black text-raspberry">{peachProgress.xp}</Text>
+          </View>
+        </View>
+        <View style={styles.peachProgressTrack}>
+          <View style={[styles.peachProgressFill, { width: peachProgressPercent }]} />
+        </View>
+      </Pressable>
 
       {hasBank ? (
         <View className="mb-3 flex-row rounded-full bg-white/70 p-1">
@@ -328,5 +365,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 30,
     elevation: 16,
+  },
+  peachProgressTrack: {
+    backgroundColor: colors.petal,
+    borderRadius: 999,
+    height: 10,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  peachProgressFill: {
+    backgroundColor: colors.raspberry,
+    borderRadius: 999,
+    height: '100%',
   },
 });

@@ -1,7 +1,7 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { Dumbbell, Flame, Lock, Trophy, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../../components/AppText';
@@ -11,6 +11,7 @@ import { Header } from '../../components/Header';
 import { Screen } from '../../components/Screen';
 import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
+import { getPeachProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type SpotlightKey = 'balance' | 'earn' | 'streak';
@@ -164,6 +165,7 @@ export default function Home() {
     setRequestedMinutes,
     useBankedTime,
     currentStreak,
+    unlockHistory,
     syncTimeBank,
     hasAppAccess,
     requestSubscriptionAccess,
@@ -184,6 +186,11 @@ export default function Home() {
   const holdCompleteRef = useRef(false);
   const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
+  const peachProgress = useMemo(
+    () => getPeachProgress(unlockHistory, currentStreak),
+    [unlockHistory, currentStreak],
+  );
+  const peachProgressPercent = `${Math.round(peachProgress.progressRatio * 100)}%` as `${number}%`;
 
   useEffect(() => {
     if (!tourActive) return;
@@ -491,6 +498,40 @@ export default function Home() {
           </TourHighlight>
         }
       />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Level ${peachProgress.currentLevel.level}, ${peachProgress.currentLevel.title}, ${peachProgress.xp} Peach XP`}
+        accessibilityHint="Opens statistics"
+        onPress={() => router.push('/statistics' as Href)}
+        className="mt-4 rounded-[28px] bg-white/75 p-4"
+      >
+        <View className="flex-row items-center gap-3">
+          <View className="h-12 w-12 items-center justify-center rounded-[18px] bg-petal">
+            <Trophy size={24} stroke={colors.raspberry} strokeWidth={3} />
+          </View>
+          <View className="flex-1">
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
+              Level {peachProgress.currentLevel.level}
+            </Text>
+            <Text className="mt-0.5 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+              {peachProgress.currentLevel.title}
+            </Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-[11px] font-black uppercase tracking-[1.2px] text-mink">Peach XP</Text>
+            <Text className="mt-0.5 text-lg font-black text-raspberry">{peachProgress.xp}</Text>
+          </View>
+        </View>
+        <View style={styles.peachProgressTrack}>
+          <View style={[styles.peachProgressFill, { width: peachProgressPercent }]} />
+        </View>
+        <Text className="mt-2 text-xs font-bold text-mink">
+          {peachProgress.nextLevel
+            ? `${peachProgress.xpToNext} XP to ${peachProgress.nextLevel.title}`
+            : 'Max level unlocked'}
+        </Text>
+      </Pressable>
 
       <TourHighlight id="balance" activeId={activeSpotlight}>
         <Pressable
@@ -821,5 +862,17 @@ const styles = StyleSheet.create({
     right: 24,
     top: 58,
     width: 44,
+  },
+  peachProgressTrack: {
+    backgroundColor: colors.petal,
+    borderRadius: 999,
+    height: 12,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  peachProgressFill: {
+    backgroundColor: colors.raspberry,
+    borderRadius: 999,
+    height: '100%',
   },
 });

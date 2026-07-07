@@ -1,10 +1,12 @@
-import { X } from 'lucide-react-native';
+import { Trophy, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
+import { getPeachProgress } from '../lib/progression';
 import type { UnlockHistoryEntry } from '../lib/store/BootyblockProvider';
+import { calculateCurrentStreak } from '../lib/streak';
 
 type StatsPeriod = 'daily' | 'weekly' | 'monthly';
 
@@ -115,6 +117,12 @@ export function StatisticsContent({
   onClose: () => void;
 }) {
   const [period, setPeriod] = useState<StatsPeriod>('daily');
+  const currentStreak = useMemo(() => calculateCurrentStreak(history, now), [history, now]);
+  const peachProgress = useMemo(
+    () => getPeachProgress(history, currentStreak),
+    [history, currentStreak],
+  );
+  const peachProgressPercent = `${Math.round(peachProgress.progressRatio * 100)}%` as `${number}%`;
   const buckets = useMemo(() => buildStatsBuckets(history, period, now), [history, now, period]);
   const maxSquats = Math.max(1, ...buckets.map((bucket) => bucket.squats));
   const totalSquats = buckets.reduce((sum, bucket) => sum + bucket.squats, 0);
@@ -136,6 +144,53 @@ export function StatisticsContent({
         >
           <X size={22} stroke={colors.cocoa} />
         </Pressable>
+      </View>
+
+      <View className="mt-6 rounded-[28px] bg-white/80 p-5">
+        <View className="flex-row items-center gap-3">
+          <View className="h-14 w-14 items-center justify-center rounded-[20px] bg-petal">
+            <Trophy size={28} stroke={colors.raspberry} strokeWidth={3} />
+          </View>
+          <View className="flex-1">
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
+              Level {peachProgress.currentLevel.level}
+            </Text>
+            <Text className="mt-1 text-[26px] font-black leading-[30px] text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+              {peachProgress.currentLevel.title}
+            </Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Peach XP</Text>
+            <Text className="mt-1 text-3xl font-black text-raspberry">{peachProgress.xp}</Text>
+          </View>
+        </View>
+
+        <View style={styles.peachProgressTrack}>
+          <View style={[styles.peachProgressFill, { width: peachProgressPercent }]} />
+        </View>
+        <Text className="mt-2 text-sm font-bold text-mink">
+          {peachProgress.nextLevel
+            ? `${peachProgress.xpToNext} XP to ${peachProgress.nextLevel.title}`
+            : 'Max level unlocked'}
+        </Text>
+
+        <View className="mt-4 flex-row gap-3 border-t border-petal pt-4">
+          <View className="flex-1">
+            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Squats</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.squats}</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Avoided</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.minutesAvoided}m</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Streak</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.streakDays}d</Text>
+          </View>
+        </View>
+        <Text className="mt-3 text-xs font-bold leading-4 text-mink">
+          Game progress only: squats, streaks, and minutes avoided become Peach XP.
+        </Text>
       </View>
 
       <View className="mt-6 flex-row rounded-full bg-white/80 p-1">
@@ -211,6 +266,21 @@ export function StatisticsContent({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  peachProgressTrack: {
+    backgroundColor: colors.petal,
+    borderRadius: 999,
+    height: 16,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  peachProgressFill: {
+    backgroundColor: colors.raspberry,
+    borderRadius: 999,
+    height: '100%',
+  },
+});
 
 export function StatisticsPanel({
   visible,

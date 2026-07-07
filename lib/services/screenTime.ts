@@ -38,12 +38,22 @@ type ShieldActionsWithUrl = Omit<DeviceActivity.ShieldActions, 'primary'> & {
   primary: ShieldActionWithUrl;
 };
 
+type ShieldConfigurationWithVariants = DeviceActivity.ShieldConfiguration & {
+  titleVariants: string[];
+};
+
 const approved = 2;
 const denied = 1;
 const notDetermined = 0;
 const PROGRESS_INTERVAL_SECONDS = 60;
 const SHIELD_OPEN_REQUEST_TTL_MS = 120_000;
 const SHIELD_LOGO_FILE_NAME = 'bootyblock-shield-logo.png';
+const SHIELD_TITLE_VARIANTS = [
+  '{applicationOrDomainDisplayName} can wait. Glutes first.',
+  '{applicationOrDomainDisplayName} is expensive today: 12 squats.',
+  'Your thumb has done enough. Legs now.',
+  'Doomscrolling tax: paid in squats.',
+];
 const shieldLogo = require('../../assets/logo.png');
 const shieldPalette = {
   blush: { red: 255, green: 241, blue: 246 },
@@ -177,8 +187,9 @@ async function copyShieldLogoToAppGroup() {
 }
 
 function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfiguration {
-  return {
+  const configuration: ShieldConfigurationWithVariants = {
     title: 'Blocked for your booty',
+    titleVariants: SHIELD_TITLE_VARIANTS,
     subtitle: 'Open BootyBlock, knock out your squats, and earn this app back.',
     primaryButtonLabel: 'Open BootyBlock',
     iconSystemName: useLogo ? undefined : 'figure.strengthtraining.traditional',
@@ -191,6 +202,7 @@ function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfig
     primaryButtonBackgroundColor: shieldPalette.raspberry,
     primaryButtonLabelColor: shieldPalette.white,
   };
+  return configuration;
 }
 
 export const screenTimeService = {
