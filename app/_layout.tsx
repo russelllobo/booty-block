@@ -2,6 +2,8 @@ import '../global.css';
 
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import * as QuickActions from 'expo-quick-actions';
+import { useQuickActionCallback } from 'expo-quick-actions/hooks';
 import * as Updates from 'expo-updates';
 import { Stack, usePathname } from 'expo-router';
 import { router } from 'expo-router';
@@ -29,6 +31,23 @@ const onboardingScreenOptions = {
 } as const;
 
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
+const QUICK_ACTIONS: QuickActions.Action[] = [
+  {
+    id: 'deleting-feedback',
+    title: 'Deleting? Tell us why.',
+    subtitle: 'Send us feedback before you delete',
+    icon: 'symbol:square.and.pencil',
+    params: { action: 'deleting-feedback' },
+  },
+  {
+    id: 'discount-offer',
+    title: '🎁 Get Bootyblock for a fraction of the price',
+    subtitle: '80% off with this limited time offer',
+    icon: 'symbol:gift',
+    params: { action: 'discount-offer' },
+  },
+];
+const FEEDBACK_DELETE_URL = 'mailto:russell@russell.systems?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
   return Promise.race([
@@ -149,6 +168,35 @@ function NotificationObserver() {
   return null;
 }
 
+function QuickActionObserver() {
+  const { presentOneTimeOffer } = useBootyblock();
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    void QuickActions.setItems(QUICK_ACTIONS).catch((error) => {
+      if (__DEV__) {
+        console.warn('Unable to register quick actions', error);
+      }
+    });
+  }, []);
+
+  useQuickActionCallback((action) => {
+    if (Platform.OS === 'web') return;
+
+    if (action.id === 'deleting-feedback' || action.params?.action === 'deleting-feedback') {
+      void Linking.openURL(FEEDBACK_DELETE_URL);
+      return;
+    }
+
+    if (action.id === 'discount-offer' || action.params?.action === 'discount-offer') {
+      void presentOneTimeOffer();
+    }
+  });
+
+  return null;
+}
+
 function AnalyticsScreenTracker() {
   const pathname = usePathname();
   const posthog = usePostHog();
@@ -181,6 +229,7 @@ export default function RootLayout() {
             <UpdateGate>
               <AnalyticsScreenTracker />
               <NotificationObserver />
+              <QuickActionObserver />
               <StatusBar style="dark" />
               <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
                 <Stack.Screen name="index" />

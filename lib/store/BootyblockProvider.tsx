@@ -79,6 +79,7 @@ type BootyblockState = {
   refreshSubscription: () => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   presentSubscriptionPaywall: (options?: { force?: boolean }) => Promise<boolean>;
+  presentOneTimeOffer: () => Promise<boolean>;
   requestSubscriptionAccess: () => Promise<boolean>;
   openSubscriptionManagement: () => Promise<void>;
   resetAppData: () => Promise<void>;
@@ -609,6 +610,36 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     });
   }, []);
 
+  const presentOneTimeOffer = useCallback(async () => {
+    if (hasSubscriptionAccess(isSubscribed)) return true;
+    if (Platform.OS === 'web') return true;
+
+    if (!revenueCatService.configured) {
+      setSubscriptionConfigured(false);
+      setSubscriptionError('RevenueCat is not configured yet.');
+      return false;
+    }
+
+    try {
+      const active = await presentOneTimeOfferModal();
+      if (active) {
+        subscriptionResetLockedRef.current = false;
+        await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
+        await refreshSubscription();
+        setIsSubscribed(true);
+        setSubscriptionError(null);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not show the subscription paywall.';
+      setSubscriptionError(message);
+      Alert.alert('Subscription unavailable', message);
+      return false;
+    }
+  }, [isSubscribed, presentOneTimeOfferModal, refreshSubscription]);
+
   const requestSubscriptionAccess = useCallback(async () => {
     if (hasSubscriptionAccess(isSubscribed)) return true;
     if (accessRequestRef.current) return accessRequestRef.current;
@@ -718,6 +749,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,
+      presentOneTimeOffer,
       requestSubscriptionAccess,
       openSubscriptionManagement,
       resetAppData,
@@ -744,6 +776,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,
+      presentOneTimeOffer,
       requestSubscriptionAccess,
       openSubscriptionManagement,
       resetAppData,

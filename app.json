@@ -73,6 +73,31 @@
         }
       ],
       [
+        "expo-quick-actions",
+        {
+          "iosActions": [
+            {
+              "id": "deleting-feedback",
+              "title": "Deleting? Tell us why.",
+              "subtitle": "Send us feedback before you delete",
+              "icon": "symbol:square.and.pencil",
+              "params": {
+                "action": "deleting-feedback"
+              }
+            },
+            {
+              "id": "discount-offer",
+              "title": "🎁 Get Bootyblock for a fraction of the price",
+              "subtitle": "80% off with this limited time offer",
+              "icon": "symbol:gift",
+              "params": {
+                "action": "discount-offer"
+              }
+            }
+          ]
+        }
+      ],
+      [
         "react-native-device-activity",
         {
           "appleTeamId": "SZ78KGUF6B",
