@@ -31,22 +31,6 @@ const onboardingScreenOptions = {
 } as const;
 
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
-const QUICK_ACTIONS: QuickActions.Action[] = [
-  {
-    id: 'deleting-feedback',
-    title: 'Deleting? Tell us why.',
-    subtitle: 'Send us feedback before you delete',
-    icon: 'symbol:square.and.pencil',
-    params: { action: 'deleting-feedback' },
-  },
-  {
-    id: 'discount-offer',
-    title: '🎁 Get Bootyblock for a fraction of the price',
-    subtitle: '80% off with this limited time offer',
-    icon: 'symbol:gift',
-    params: { action: 'discount-offer' },
-  },
-];
 const FEEDBACK_DELETE_URL = 'mailto:russell@russell.systems?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
@@ -174,9 +158,9 @@ function QuickActionObserver() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    void QuickActions.setItems(QUICK_ACTIONS).catch((error) => {
+    void QuickActions.setItems([]).catch((error) => {
       if (__DEV__) {
-        console.warn('Unable to register quick actions', error);
+        console.warn('Unable to clear dynamic quick actions', error);
       }
     });
   }, []);
