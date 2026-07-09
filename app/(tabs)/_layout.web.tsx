@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Settings } from 'lucide-react-native';
+import { Gamepad2, Home, Settings } from 'lucide-react-native';
 
 import { appFontFamilyForWeight } from '../../components/AppText';
 import { colors } from '../../constants/theme';
@@ -26,6 +26,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color }) => <Home size={22} stroke={String(color)} /> }} />
+      <Tabs.Screen name="games" options={{ title: 'Games', tabBarIcon: ({ color }) => <Gamepad2 size={22} stroke={String(color)} /> }} />
       <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color }) => <Settings size={22} stroke={String(color)} /> }} />
     </Tabs>
   );

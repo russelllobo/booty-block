@@ -10,6 +10,7 @@ import {
   ScreenTimeSelectionSummary,
   ScreenTimeStatus,
 } from '../services/screenTime';
+import { tiktokService } from '../services/tiktok';
 import { calculateCurrentStreak } from '../streak';
 
 type BankEarnedSession = {
@@ -17,6 +18,13 @@ type BankEarnedSession = {
   squats: number;
   bankedMinutes: number;
   completedAt: number;
+};
+
+type GameBankSession = BankEarnedSession & {
+  source: 'game';
+  gameId: string;
+  score: number;
+  durationSeconds: number;
 };
 
 type UsageWindow = {
@@ -35,6 +43,10 @@ export type UnlockHistoryEntry = {
   minutes: number;
   squats: number;
   completedAt: number;
+  source?: 'squat_session' | 'game';
+  gameId?: string;
+  score?: number;
+  durationSeconds?: number;
 };
 
 type BootyblockState = {
@@ -74,6 +86,7 @@ type BootyblockState = {
   markSelectionConfigured: () => Promise<boolean>;
   setRequestedMinutes: (minutes: number) => void;
   bankTime: (minutes: number) => Promise<BankEarnedSession>;
+  bankGameTime: (input: { minutes: number; gameId: string; score: number; durationSeconds: number }) => Promise<GameBankSession>;
   useBankedTime: (minutes: number) => Promise<boolean>;
   syncTimeBank: () => void;
   refreshSubscription: () => Promise<boolean>;
@@ -299,6 +312,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   const completeOnboarding = useCallback(async () => {
+    if (!payloadRef.current.onboardingComplete) {
+      tiktokService.trackOnboardingComplete({
+        selected_apps_configured: payloadRef.current.selectedAppsConfigured,
+        screen_time_status: payloadRef.current.screenTimeStatus,
+      });
+    }
+
     setPayload((current) => ({ ...current, onboardingComplete: true }));
   }, []);
 
@@ -379,6 +399,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       minutes,
       squats,
       completedAt,
+      source: 'squat_session' as const,
     };
     setPayload((current) => {
       return {
@@ -394,6 +415,60 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       squats,
       bankedMinutes: nextBankMinutes,
       completedAt,
+    };
+  }, [isSubscribed]);
+
+  const bankGameTime = useCallback(async ({
+    minutes,
+    gameId,
+    score,
+    durationSeconds,
+  }: {
+    minutes: number;
+    gameId: string;
+    score: number;
+    durationSeconds: number;
+  }) => {
+    if (!hasSubscriptionAccess(isSubscribed)) {
+      throw new Error('Bootyblock Pro is required to bank app time.');
+    }
+
+    const safeMinutes = Math.max(0, Math.floor(minutes));
+    if (safeMinutes <= 0) {
+      throw new Error('No game minutes were earned.');
+    }
+
+    const completedAt = Date.now();
+    const nextBankSeconds = (payloadRef.current.timeBankSeconds ?? (payloadRef.current.timeBankMinutes ?? 0) * 60) + (safeMinutes * 60);
+    const nextBankMinutes = Math.ceil(nextBankSeconds / 60);
+    const historyEntry = {
+      id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
+      minutes: safeMinutes,
+      squats: 0,
+      completedAt,
+      source: 'game' as const,
+      gameId,
+      score,
+      durationSeconds,
+    };
+
+    setPayload((current) => ({
+      ...current,
+      timeBankMinutes: nextBankMinutes,
+      timeBankSeconds: nextBankSeconds,
+      unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
+    }));
+    screenTimeService.applyDefaultBlock();
+
+    return {
+      minutes: safeMinutes,
+      squats: 0,
+      bankedMinutes: nextBankMinutes,
+      completedAt,
+      source: 'game' as const,
+      gameId,
+      score,
+      durationSeconds,
     };
   }, [isSubscribed]);
 
@@ -592,9 +667,15 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
 
     try {
+      tiktokService.trackPaywallViewed({
+        placement: options?.force ? 'forced_subscription_paywall' : 'subscription_paywall_if_needed',
+      });
       const active = await revenueCatService.presentPaywallIfNeeded(options);
       setIsSubscribed(active);
       setSubscriptionError(null);
+      if (active) {
+        tiktokService.trackSubscribe({ placement: 'subscription_paywall_if_needed' });
+      }
       return active;
     } catch (error) {
       setSubscriptionError(error instanceof Error ? error.message : 'Could not show the subscription paywall.');
@@ -604,6 +685,12 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
   const presentOneTimeOfferModal = useCallback(async () => {
     const offering = await revenueCatService.getOneTimeOfferPaywallOffering();
+    tiktokService.trackPaywallViewed({
+      content_id: 'bootyblock_one_time_offer_yearly',
+      content_name: 'Bootyblock Pro One-Time Offer',
+      placement: 'one_time_offer',
+      value: 29.99,
+    });
 
     return new Promise<boolean>((resolve) => {
       setOneTimeOfferModal({ offering, resolve });
@@ -662,6 +749,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           await refreshSubscription();
           setIsSubscribed(true);
           setSubscriptionError(null);
+          tiktokService.trackSubscribe({ placement: 'normal_paywall' });
           return true;
         }
 
@@ -744,6 +832,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       markSelectionConfigured,
       setRequestedMinutes,
       bankTime,
+      bankGameTime,
       useBankedTime,
       syncTimeBank,
       refreshSubscription,
@@ -771,6 +860,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       markSelectionConfigured,
       setRequestedMinutes,
       bankTime,
+      bankGameTime,
       useBankedTime,
       syncTimeBank,
       refreshSubscription,
@@ -796,7 +886,21 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           <>
             <RevenueCatUI.Paywall
               onDismiss={() => resolveOneTimeOfferModal(false)}
-              onPurchaseCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
+              onPurchaseCompleted={({ customerInfo }) => {
+                const active = hasActiveEntitlement(customerInfo);
+                if (active) {
+                  tiktokService.trackSubscribe({ placement: 'one_time_offer_modal' });
+                  tiktokService.trackPurchase({
+                    content_id: 'bootyblock_one_time_offer_yearly',
+                    content_name: 'Bootyblock Pro One-Time Offer',
+                    description: 'Discounted yearly app blocking access',
+                    event_id: 'bootyblock_one_time_offer_yearly_modal',
+                    placement: 'one_time_offer_modal',
+                    value: 29.99,
+                  });
+                }
+                resolveOneTimeOfferModal(active);
+              }}
               onRestoreCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
               options={{ offering: oneTimeOfferModal.offering, displayCloseButton: false }}
               style={styles.oneTimeOfferPaywall}

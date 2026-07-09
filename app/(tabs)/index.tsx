@@ -1,7 +1,7 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { Dumbbell, Flame, Lock, Trophy, Unlock, X } from 'lucide-react-native';
+import { AppWindow, Dumbbell, Flame, Lock, Trophy, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../../components/AppText';
@@ -168,6 +168,7 @@ export default function Home() {
     unlockHistory,
     syncTimeBank,
     hasAppAccess,
+    selectedAppsConfigured,
     requestSubscriptionAccess,
     subscriptionConfigured,
     subscriptionError,
@@ -221,6 +222,7 @@ export default function Home() {
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
   const showEmptyBank = !hasBank && !hasUsageWindow;
+  const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
   const bankMinutes = Math.ceil(timeBankSeconds / 60);
   const spendMaxMinutes = Math.max(1, bankMinutes);
   const earnMaxMinutes = 60;
@@ -470,6 +472,28 @@ export default function Home() {
       return;
     }
     setTourStep((current) => Math.min(current + 1, homeTips.length - 1));
+  }
+
+  if (needsBlockedApps) {
+    return (
+      <Screen>
+        <View className="flex-1 justify-center">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Choose blocked apps"
+            onPress={() => router.push('/onboarding/apps')}
+            className="items-center justify-center rounded-[40px] bg-raspberry px-8 py-16"
+          >
+            <View className="h-24 w-24 items-center justify-center rounded-[32px] bg-white/15">
+              <AppWindow size={44} stroke={colors.white} strokeWidth={3} />
+            </View>
+            <Text className="mt-6 text-center text-[34px] font-black leading-[38px] text-white">
+              Choose blocked apps
+            </Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
   }
 
   return (

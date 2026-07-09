@@ -1,5 +1,11 @@
 const { expo: appConfig } = require("./app.json");
 
+try {
+  require("dotenv/config");
+} catch {
+  // Expo loads env files in normal CLI paths; this keeps direct config evals from failing.
+}
+
 const iosBuildNumber = process.env.BOOTYBLOCK_IOS_BUILD_NUMBER;
 
 module.exports = ({ config }) => {

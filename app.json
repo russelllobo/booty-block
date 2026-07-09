@@ -65,6 +65,14 @@
       ],
       "./plugins/with-production-info-plist-cleanup",
       [
+        "./plugins/with-tiktok-business-sdk",
+        {
+          "appId": "6782345701",
+          "tiktokAppId": "7660524915308757010",
+          "appSecretEnvVar": "TIKTOK_APP_SECRET"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {

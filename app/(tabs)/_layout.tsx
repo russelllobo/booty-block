@@ -35,6 +35,13 @@ export default function TabsLayout() {
           />
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="games">
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'gamecontroller', selected: 'gamecontroller.fill' }}
+            md={{ default: 'stadia_controller', selected: 'stadia_controller' }}
+          />
+          <NativeTabs.Trigger.Label>Games</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="settings">
           <NativeTabs.Trigger.Icon
             sf={{ default: 'gearshape', selected: 'gearshape.fill' }}

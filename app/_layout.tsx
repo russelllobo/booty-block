@@ -23,6 +23,7 @@ import {
   screenAnalytics,
 } from '../lib/analytics';
 import { screenTimeService } from '../lib/services/screenTime';
+import { tiktokService } from '../lib/services/tiktok';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
 
 const onboardingScreenOptions = {
@@ -193,6 +194,14 @@ function AnalyticsScreenTracker() {
   return null;
 }
 
+function TrackingAuthorizationRequester() {
+  useEffect(() => {
+    tiktokService.requestTrackingAuthorization();
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <PostHogProvider
@@ -211,6 +220,7 @@ export default function RootLayout() {
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
           <BootyblockProvider>
             <UpdateGate>
+              <TrackingAuthorizationRequester />
               <AnalyticsScreenTracker />
               <NotificationObserver />
               <QuickActionObserver />

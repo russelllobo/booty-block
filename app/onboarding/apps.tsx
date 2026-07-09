@@ -22,6 +22,7 @@ import {
   screenTimeService,
   ScreenTimeSelectionSummary,
 } from '../../lib/services/screenTime';
+import { tiktokService } from '../../lib/services/tiktok';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Apps() {
@@ -105,7 +106,9 @@ export default function Apps() {
       );
       return;
     }
-    captureAnalytics(posthog, 'blocked_apps_selected', selectionAnalyticsProperties(selectionSummary));
+    const analyticsProperties = selectionAnalyticsProperties(selectionSummary);
+    captureAnalytics(posthog, 'blocked_apps_selected', analyticsProperties);
+    tiktokService.trackBlockedAppsSelected(analyticsProperties);
     if (onboardingComplete && isSubscribed) {
       router.replace('/(tabs)');
       return;
