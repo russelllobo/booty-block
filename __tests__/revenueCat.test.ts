@@ -1,0 +1,57 @@
+jest.mock('react-native-purchases', () => ({
+  __esModule: true,
+  default: {
+    addCustomerInfoUpdateListener: jest.fn(),
+    configure: jest.fn(),
+    getCustomerInfo: jest.fn(),
+    getOfferings: jest.fn(),
+    removeCustomerInfoUpdateListener: jest.fn(),
+    restorePurchases: jest.fn(),
+    setLogLevel: jest.fn(),
+  },
+  LOG_LEVEL: {
+    DEBUG: 'DEBUG',
+  },
+}));
+
+jest.mock('react-native-purchases-ui', () => ({
+  __esModule: true,
+  default: {
+    presentCustomerCenter: jest.fn(),
+    presentPaywall: jest.fn(),
+    presentPaywallIfNeeded: jest.fn(),
+  },
+  PAYWALL_RESULT: {
+    CANCELLED: 'CANCELLED',
+    NOT_PRESENTED: 'NOT_PRESENTED',
+    PURCHASED: 'PURCHASED',
+    RESTORED: 'RESTORED',
+  },
+}));
+
+import { hasActiveEntitlement, REVENUECAT_ENTITLEMENT_ID } from '../lib/services/revenueCat';
+
+function customerInfoWithActiveEntitlement(entitlement: Record<string, unknown>) {
+  return {
+    entitlements: {
+      active: {
+        [REVENUECAT_ENTITLEMENT_ID]: entitlement,
+      },
+    },
+  } as never;
+}
+
+describe('hasActiveEntitlement', () => {
+  it('keeps access for a cancelled subscription until RevenueCat removes the active entitlement', () => {
+    const customerInfo = customerInfoWithActiveEntitlement({
+      expirationDate: '2026-08-08T12:00:00Z',
+      unsubscribeDetectedAt: '2026-07-08T12:00:00Z',
+    });
+
+    expect(hasActiveEntitlement(customerInfo)).toBe(true);
+  });
+
+  it('returns false when RevenueCat has no active entitlement for Bootyblock Pro', () => {
+    expect(hasActiveEntitlement({ entitlements: { active: {} } } as never)).toBe(false);
+  });
+});

@@ -39,13 +39,7 @@ function assertConfigured() {
 
 export function hasActiveEntitlement(customerInfo: CustomerInfo | null | undefined) {
   const entitlement = customerInfo?.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
-  if (!entitlement) return false;
-
-  if (entitlement.expirationDate && entitlement.unsubscribeDetectedAt) {
-    return false;
-  }
-
-  return true;
+  return Boolean(entitlement);
 }
 
 export type PaywallAccessResult = {
