@@ -31,7 +31,7 @@ const onboardingScreenOptions = {
 } as const;
 
 const UPDATE_CHECK_TIMEOUT_MS = 8000;
-const FEEDBACK_DELETE_URL = 'mailto:russell@russell.systems?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
+const FEEDBACK_DELETE_URL = 'mailto:r.lobo2003@gmail.com?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
   return Promise.race([
