@@ -32,7 +32,7 @@ type Pipe = {
   passed: boolean;
 };
 
-type GameStatus = 'idle' | 'playing' | 'ended';
+type GameStatus = 'idle' | 'countdown' | 'playing' | 'ended';
 
 const BEST_SCORE_KEY = 'bootyblock:flappy-squat-best';
 const GAME_TICK_MS = 40;
@@ -42,6 +42,7 @@ const PIPE_GAP = 152;
 const PIPE_SPACING = 210;
 const PIPE_SPEED = 4.2;
 const START_SECONDS = 45;
+const COUNTDOWN_START = 3;
 
 function formatBankDuration(totalSeconds: number) {
   const roundedSeconds = Math.max(0, Math.round(totalSeconds));
@@ -152,11 +153,13 @@ export default function Games() {
   const [banking, setBanking] = useState(false);
   const [lastAward, setLastAward] = useState(0);
   const [simulatedDepth, setSimulatedDepth] = useState(0.5);
+  const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const depthRef = useRef(0.5);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
   const endedRef = useRef(false);
-  const nativePoseActive = status === 'playing' && Boolean(permission?.granted);
+  const gameActive = status === 'countdown' || status === 'playing';
+  const nativePoseActive = gameActive && Boolean(permission?.granted);
   const pose = usePoseSession({ target: 999, active: nativePoseActive });
   const todayGameMinutes = useMemo(() => {
     const now = Date.now();
@@ -168,6 +171,7 @@ export default function Games() {
   const depth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
+  const bodyVisible = Platform.OS === 'web' || pose.visible;
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -197,14 +201,14 @@ export default function Games() {
   }, []);
 
   useEffect(() => {
-    if (status !== 'playing') {
+    if (!gameActive) {
       router.setParams({ hideTabs: undefined });
       return;
     }
 
     router.setParams({ hideTabs: '1' });
     return () => router.setParams({ hideTabs: undefined });
-  }, [status]);
+  }, [gameActive]);
 
   const finishGame = useCallback((crashed: boolean) => {
     if (endedRef.current) return;
@@ -216,6 +220,36 @@ export default function Games() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   }, []);
+
+  const beginPlaying = useCallback(() => {
+    if (endedRef.current) return;
+    gameStartedAtRef.current = Date.now();
+    setElapsedMs(0);
+    setSecondsLeft(START_SECONDS);
+    setVisibleTicks(0);
+    setTotalTicks(0);
+    setStatus('playing');
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'countdown') return;
+
+    if (!bodyVisible) {
+      setCountdown(COUNTDOWN_START);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      if (countdown <= 1) {
+        beginPlaying();
+        return;
+      }
+      setCountdown((current) => Math.max(1, current - 1));
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [beginPlaying, bodyVisible, countdown, status]);
 
   useEffect(() => {
     if (status !== 'playing' || size.width <= 0 || size.height <= 0) return;
@@ -290,7 +324,7 @@ export default function Games() {
 
     endedRef.current = false;
     depthRef.current = 0.5;
-    gameStartedAtRef.current = Date.now();
+    gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
     setPipes(makeInitialPipes(Math.max(size.width, 320), Math.max(size.height, 420)));
     setScore(0);
@@ -298,10 +332,10 @@ export default function Games() {
     setSecondsLeft(START_SECONDS);
     setVisibleTicks(0);
     setTotalTicks(0);
+    setCountdown(COUNTDOWN_START);
     setLastAward(0);
     setBanking(false);
-    setStatus('playing');
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setStatus('countdown');
   }, [canPlay, permission?.granted, requestPermission, requestSubscriptionAccess, size.height, size.width]);
 
   const bankReward = useCallback(async () => {
@@ -339,9 +373,18 @@ export default function Games() {
     }
   }
 
+  function exitGame() {
+    if (status === 'playing') {
+      finishGame(false);
+      return;
+    }
+    endedRef.current = true;
+    setStatus('idle');
+  }
+
   return (
-    <Screen scroll={status !== 'playing'} flush={status === 'playing'}>
-      {status === 'playing' ? (
+    <Screen scroll={!gameActive} flush={gameActive}>
+      {gameActive ? (
         <View className="flex-1 bg-cocoa" onLayout={handleGameLayout} {...panResponder.panHandlers}>
           <View style={StyleSheet.absoluteFill}>
             <FlappyScene
@@ -380,15 +423,36 @@ export default function Games() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="End game"
-              onPress={() => finishGame(false)}
+              onPress={exitGame}
               className="h-11 w-11 items-center justify-center rounded-full bg-cocoa/55"
             >
               <X size={22} stroke={colors.white} strokeWidth={2.5} />
             </Pressable>
           </View>
+          {status === 'countdown' ? (
+            <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-8">
+              <View className="items-center rounded-[30px] bg-cocoa/50 px-8 py-7">
+                <Text className="text-center text-sm font-black uppercase tracking-wide text-white/90">
+                  {bodyVisible ? 'Get ready' : 'Step into frame'}
+                </Text>
+                <Text className="mt-2 text-[116px] font-black leading-[122px] text-white">
+                  {bodyVisible ? countdown : '3'}
+                </Text>
+                <Text className="max-w-[280px] text-center text-base font-black leading-5 text-white/90">
+                  {bodyVisible
+                    ? 'Hold your whole body in shot.'
+                    : 'The countdown restarts when your body leaves the camera.'}
+                </Text>
+              </View>
+            </View>
+          ) : null}
           <View pointerEvents="none" className="absolute bottom-12 left-6 right-6 rounded-[24px] bg-cocoa/35 px-5 py-4">
             <Text className="text-center text-sm font-black uppercase tracking-wide text-white">
-              {Platform.OS === 'web' ? 'Drag up and down to preview squat control' : pose.visible ? 'Squat lower to drop. Stand taller to rise.' : 'Step back until your whole body is visible.'}
+              {Platform.OS === 'web'
+                ? 'Drag up and down to preview squat control'
+                : status === 'countdown'
+                  ? bodyVisible ? 'Stay in frame. Game starts after the countdown.' : 'Step back until your whole body is visible.'
+                  : pose.visible ? 'Squat lower to drop. Stand taller to rise.' : 'Step back until your whole body is visible.'}
             </Text>
           </View>
         </View>

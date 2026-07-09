@@ -70,7 +70,7 @@ private func eventId(from properties: [String: Any]?) -> String {
 }
 
 private func applyCommerceProperties(to event: TikTokContentsEvent, properties: [String: Any]) {
-  event.setCurrency(TTCurrencyUSD)
+  event.setCurrency(TTCurrency.USD)
   event.setContentType((properties["content_type"] as? String) ?? "subscription")
   event.setContentId((properties["content_id"] as? String) ?? "bootyblock_pro")
   event.setDescription((properties["description"] as? String) ?? "Bootyblock Pro subscription")
