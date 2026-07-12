@@ -434,6 +434,19 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
       return
     }
 
+    // A counted rep moves to `rising` with no pending bottom timestamp. Vision
+    // can see the user as clearly upright without satisfying every stricter
+    // `isStanding` signal. Recover here so the following descent is accepted
+    // instead of leaving the session permanently stuck after the first rep.
+    if phase == "rising" && sawBottomAt == nil && isClearlyRising {
+      phase = "standing"
+      repStartedAt = nil
+      bottomFrames = 0
+      standFrames = 0
+      emit(hint: "Drop again.", confidence: confidence, visible: true)
+      return
+    }
+
     if phase == "rising" && isStanding && sawBottomAt == nil {
       phase = "standing"
       repStartedAt = nil

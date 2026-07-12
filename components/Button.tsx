@@ -23,6 +23,7 @@ type ButtonProps = {
   loading?: boolean;
   foregroundColor?: string;
   noOutline?: boolean;
+  pressDelayMs?: number;
 };
 
 const DEPTH = 6;
@@ -36,7 +37,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -71,10 +72,15 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
 
   function handlePress() {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (pressDelayMs <= 0) {
+      onPress();
+      return;
+    }
+
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
       onPress();
-    }, RELEASE_DELAY);
+    }, pressDelayMs);
   }
 
   const contentColor = foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry);

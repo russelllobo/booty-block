@@ -302,10 +302,16 @@ export default function Home() {
     router.replace('/(tabs)');
   }
 
-  function showUnlockPrompt() {
-    setUnlockAction(null);
-    setSelectedMinutes(hasBank ? Math.min(10, spendMaxMinutes) : Math.min(10, requestedMinutes));
-    unlockSelectorProgress.setValue(0);
+  function showUnlockPrompt(initialAction: UnlockAction | null = null) {
+    setUnlockAction(initialAction);
+    setSelectedMinutes(
+      initialAction === 'earn'
+        ? Math.min(10, requestedMinutes)
+        : hasBank
+          ? Math.min(10, spendMaxMinutes)
+          : Math.min(10, requestedMinutes),
+    );
+    unlockSelectorProgress.setValue(initialAction ? 1 : 0);
     setUnlockPromptVisible(true);
     router.setParams({ hideTabs: '1' });
     unlockPromptProgress.setValue(0);
@@ -362,6 +368,11 @@ export default function Home() {
     setSelectedMinutes(nextMinutes);
     unlockSelectorProgress.setValue(0);
     void Haptics.selectionAsync().catch(() => {});
+    if (action === 'earn') {
+      unlockSelectorProgress.setValue(1);
+      return;
+    }
+
     Animated.timing(unlockSelectorProgress, {
       toValue: 1,
       duration: 240,
@@ -622,6 +633,16 @@ export default function Home() {
         </Pressable>
       </TourHighlight>
 
+      {hasBank && !showUnlockedState && !tourActive ? (
+        <View className="mt-4">
+          <Button
+            label="Use minutes"
+            icon={Flame}
+            onPress={() => showUnlockPrompt('spend')}
+          />
+        </View>
+      ) : null}
+
       {!hasAppAccess ? (
         <View className="mt-4">
           <Button
@@ -760,6 +781,7 @@ export default function Home() {
                       onPress={() => void confirmUnlockAction()}
                       loading={unlocking}
                       disabled={unlockAction === 'spend' && !hasBank}
+                      pressDelayMs={unlockAction === 'earn' ? 0 : undefined}
                     />
                   </View>
                 </Animated.View>
@@ -778,6 +800,7 @@ export default function Home() {
                     variant={hasBank ? 'secondary' : 'primary'}
                     noOutline={hasBank}
                     onPress={() => chooseUnlockAction('earn')}
+                    pressDelayMs={0}
                   />
                 </View>
               )}

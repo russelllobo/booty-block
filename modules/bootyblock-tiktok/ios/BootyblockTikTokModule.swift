@@ -11,25 +11,17 @@ public class BootyblockTikTokModule: Module {
     ])
 
     AsyncFunction("trackEventAsync") { (eventName: String, properties: [String: Any]?) in
-      guard TikTokBusiness.isInitialized() else {
-        return
-      }
-
       let event = TikTokBaseEvent(eventName: eventName)
       for (key, value) in sanitizedProperties(properties ?? [:]) {
         event.addProperty(withKey: key, value: value)
       }
-      TikTokBusiness.trackTTEvent(event)
+      trackWhenTikTokIsReady(event)
     }
 
     AsyncFunction("trackPurchaseAsync") { (properties: [String: Any]?) in
-      guard TikTokBusiness.isInitialized() else {
-        return
-      }
-
       let event = TikTokPurchaseEvent(eventId: eventId(from: properties))
       applyCommerceProperties(to: event, properties: properties ?? [:])
-      TikTokBusiness.trackTTEvent(event)
+      trackWhenTikTokIsReady(event)
     }
 
     AsyncFunction("requestTrackingAuthorizationAsync") { () -> Int in
@@ -39,6 +31,26 @@ public class BootyblockTikTokModule: Module {
         }
       }
     }
+  }
+}
+
+private let initializationRetryDelay: TimeInterval = 0.25
+private let initializationRetryLimit = 80
+
+private func trackWhenTikTokIsReady(_ event: TikTokBaseEvent, attempt: Int = 0) {
+  if TikTokBusiness.isInitialized() {
+    TikTokBusiness.trackTTEvent(event)
+    TikTokBusiness.explicitlyFlush()
+    return
+  }
+
+  guard attempt < initializationRetryLimit else {
+    NSLog("BootyblockTikTok: SDK did not initialize; dropped event %@", event.eventName)
+    return
+  }
+
+  DispatchQueue.main.asyncAfter(deadline: .now() + initializationRetryDelay) {
+    trackWhenTikTokIsReady(event, attempt: attempt + 1)
   }
 }
 

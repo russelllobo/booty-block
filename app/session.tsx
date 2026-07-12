@@ -180,6 +180,7 @@ export default function Session() {
                   visible={pose.visible}
                   frameWidth={pose.frameWidth}
                   frameHeight={pose.frameHeight}
+                  successFlashMs={300}
                 />
                 <View style={styles.remainingCountContainer} pointerEvents="none">
                   <View style={styles.countWrap}>

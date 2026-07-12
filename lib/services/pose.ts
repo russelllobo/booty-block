@@ -43,11 +43,15 @@ function initialPoseState(target: number): PoseSessionState {
 
 export function usePoseSession({ target, active }: PoseSessionOptions) {
   const machineRef = useRef(createSquatMachine(target));
+  const completedNativeCountRef = useRef(0);
+  const restartingNativeSessionRef = useRef(false);
   const [state, setState] = useState<PoseSessionState>(() => initialPoseState(target));
   const nativeAvailable = Platform.OS === 'ios' && BootyPoseModule.isAvailable === true;
 
   useEffect(() => {
     machineRef.current = createSquatMachine(target);
+    completedNativeCountRef.current = 0;
+    restartingNativeSessionRef.current = false;
     setState(initialPoseState(target));
   }, [target]);
 
@@ -56,12 +60,15 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
 
     if (nativeAvailable) {
       const updateSub = BootyPoseModule.addListener('poseUpdate', (event) => {
+        const nativeCount = finiteNumber(event.count, 0);
+        const totalCount = Math.min(target, completedNativeCountRef.current + nativeCount);
+
         setState((previous) => {
           const metrics = event.metrics ?? previous.metrics ?? emptyMetrics;
 
           return {
-            count: finiteNumber(event.count, previous.count),
-            target: finiteNumber(event.target, previous.target),
+            count: totalCount,
+            target,
             phase: event.phase ?? previous.phase,
             confidence: finiteNumber(event.confidence, previous.confidence),
             visible: event.visible ?? previous.visible,
@@ -77,6 +84,26 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
             frameHeight: finiteNumber(event.frameHeight, previous.frameHeight),
           };
         });
+
+        // Older installed binaries can remain in `rising` after a counted rep,
+        // which prevents the next descent from being considered. Preserve the
+        // total in JS and quietly start a fresh native tracking cycle for the
+        // remaining reps. This is intentionally JS-side so EAS Update can fix
+        // existing installs without waiting for a new native build.
+        if (
+          event.phase === 'rising' &&
+          nativeCount > 0 &&
+          totalCount < target &&
+          !restartingNativeSessionRef.current
+        ) {
+          completedNativeCountRef.current = totalCount;
+          restartingNativeSessionRef.current = true;
+          void BootyPoseModule.startSessionAsync(target - totalCount)
+            .catch((error) => console.error('Failed to continue pose session:', error))
+            .finally(() => {
+              restartingNativeSessionRef.current = false;
+            });
+        }
       });
       void BootyPoseModule.startSessionAsync(target);
 

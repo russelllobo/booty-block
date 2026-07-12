@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Activity, Camera, Gamepad2, Play, Timer, Trophy, X } from 'lucide-react-native';
+import { Activity, Camera, ChevronRight, Play, Sparkles, Timer, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
@@ -100,10 +101,10 @@ function FlappyScene({
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
       <Defs>
-        <LinearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+        <SvgLinearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
           <Stop offset="0" stopColor="#7AD7FF" />
           <Stop offset="1" stopColor="#FFF1F6" />
-        </LinearGradient>
+        </SvgLinearGradient>
       </Defs>
       <Rect width={width} height={height} fill="url(#sky)" />
       <Circle cx={width - 54} cy={58} r={26} fill="#FFE56F" />
@@ -460,64 +461,66 @@ export default function Games() {
         <View className="flex-1">
           <Header
             title="Games"
-            subtitle="Play squat-controlled classics to bank minutes."
+            subtitle="Move your body. Beat your best. Earn screen time."
             rightAccessory={(
-              <View className="rounded-full bg-white/75 px-3 py-2">
-                <Text className="text-sm font-black text-cocoa">{formatBankDuration(timeBankSeconds)}</Text>
+              <View style={styles.balancePill}>
+                <Timer size={15} stroke={colors.cocoa} strokeWidth={2.7} />
+                <Text style={styles.balancePillText}>{formatBankDuration(timeBankSeconds)}</Text>
               </View>
             )}
           />
 
-          <View className="mb-4 rounded-[28px] border border-white/80 bg-white/75 p-5" style={shadow}>
-            <View className="flex-row items-center justify-between gap-4">
-              <View>
-                <Text className="text-xs font-black uppercase tracking-wide text-mink">Banked minutes</Text>
-                <Text className="mt-1 text-[44px] font-black leading-[50px] text-cocoa">
-                  {Math.floor(timeBankSeconds / 60)}
-                </Text>
-              </View>
-              <View className="h-16 w-16 items-center justify-center rounded-full bg-mint">
-                <Timer size={30} stroke={colors.cocoa} strokeWidth={2.6} />
-              </View>
-            </View>
-          </View>
-
-          <View className="overflow-hidden rounded-[30px] border border-white/80 bg-white" style={shadow}>
-            <View className="h-[260px] overflow-hidden bg-cocoa" onLayout={handleGameLayout}>
+          <View style={[styles.gameCard, shadow]}>
+            <View style={styles.gameHero} onLayout={handleGameLayout}>
               <FlappyScene
                 width={Math.max(size.width, 1)}
-                height={260}
-                birdY={mapDepthToBirdY(0.48, 260, BIRD_SIZE)}
+                height={286}
+                birdY={mapDepthToBirdY(0.48, 286, BIRD_SIZE)}
                 pipes={pipes}
                 score={status === 'ended' ? score : bestScore}
                 secondsLeft={secondsLeft}
               />
-              <View className="absolute bottom-4 left-4 rounded-full bg-white/90 px-4 py-2">
-                <Text className="text-sm font-black text-cocoa">Flappy Squat</Text>
+              <LinearGradient
+                colors={['rgba(58,31,44,0.02)', 'rgba(58,31,44,0.08)', 'rgba(58,31,44,0.76)']}
+                locations={[0, 0.52, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.heroTopRow}>
+                <View style={styles.featuredLabel}>
+                  <Sparkles size={14} stroke={colors.cocoa} strokeWidth={2.6} />
+                  <Text style={styles.featuredLabelText}>Featured game</Text>
+                </View>
+                <View style={styles.bestBadge}>
+                  <Trophy size={15} stroke={colors.white} strokeWidth={2.5} />
+                  <Text style={styles.bestBadgeText}>Best {bestScore}</Text>
+                </View>
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroEyebrow}>45 second challenge</Text>
+                <Text style={styles.heroTitle}>Flappy Squat</Text>
+                <Text style={styles.heroSubtitle}>Stand tall to rise. Squat low to dive.</Text>
               </View>
             </View>
 
-            <View className="p-5">
-              <View className="flex-row items-center gap-3">
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-petal">
-                  <Gamepad2 size={25} stroke={colors.raspberry} strokeWidth={2.5} />
+            <View style={styles.gameBody}>
+              <View style={styles.rewardStrip}>
+                <View style={styles.rewardIcon}>
+                  <Timer size={22} stroke={colors.cocoa} strokeWidth={2.7} />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-[22px] font-black leading-[27px] text-cocoa">Flappy Squat</Text>
-                  <Text className="mt-1 text-sm font-bold leading-5 text-mink">
-                    Your squat depth controls the bird. Stay in frame, dodge pipes, bank minutes.
-                  </Text>
+                <View style={styles.rewardCopy}>
+                  <Text style={styles.rewardLabel}>Today’s game allowance</Text>
+                  <Text style={styles.rewardValue}>{dailyRemaining} min left to earn</Text>
                 </View>
+                <ChevronRight size={20} stroke={colors.mink} strokeWidth={2.5} />
               </View>
 
-              <View className="mt-5 flex-row gap-3">
-                <View className="flex-1 rounded-2xl bg-blush px-4 py-3">
-                  <Text className="text-xs font-black uppercase tracking-wide text-mink">Best</Text>
-                  <Text className="mt-1 text-2xl font-black text-cocoa">{bestScore}</Text>
+              <View style={styles.howToRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>1</Text>
                 </View>
-                <View className="flex-1 rounded-2xl bg-mint px-4 py-3">
-                  <Text className="text-xs font-black uppercase tracking-wide text-mink">Today left</Text>
-                  <Text className="mt-1 text-2xl font-black text-cocoa">{dailyRemaining}m</Text>
+                <View style={styles.howToCopy}>
+                  <Text style={styles.howToTitle}>Give the camera a full-body view</Text>
+                  <Text style={styles.howToText}>Your squat depth becomes the controller—no taps needed.</Text>
                 </View>
               </View>
 
@@ -548,7 +551,7 @@ export default function Games() {
                 </View>
               ) : null}
 
-              <View className="mt-5 gap-3">
+              <View style={styles.actions}>
                 <Button
                   label={status === 'ended' ? 'Play again' : 'Play'}
                   icon={Play}
@@ -568,12 +571,138 @@ export default function Games() {
 }
 
 const styles = StyleSheet.create({
+  actions: {
+    gap: 12,
+    marginTop: 22,
+  },
+  balancePill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.76)',
+    borderColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  balancePillText: {
+    color: colors.cocoa,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  bestBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(58,31,44,0.66)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  bestBadgeText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+  },
   cameraFill: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  featuredLabel: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  featuredLabelText: {
+    color: colors.cocoa,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  gameBody: {
+    paddingBottom: 22,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  gameCard: {
+    backgroundColor: colors.white,
+    borderColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 32,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  gameHero: {
+    backgroundColor: colors.cocoa,
+    height: 286,
+    overflow: 'hidden',
+  },
+  heroCopy: {
+    bottom: 20,
+    left: 20,
+    position: 'absolute',
+    right: 20,
+  },
+  heroEyebrow: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -1.3,
+    lineHeight: 39,
+    marginTop: 3,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 16,
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  howToCopy: {
+    flex: 1,
+  },
+  howToRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  howToText: {
+    color: colors.mink,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  howToTitle: {
+    color: colors.cocoa,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 19,
   },
   posePreview: {
     position: 'absolute',
@@ -586,5 +715,50 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.72)',
     backgroundColor: colors.cocoa,
+  },
+  rewardCopy: {
+    flex: 1,
+  },
+  rewardIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.mint,
+    borderRadius: 14,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  rewardLabel: {
+    color: colors.mink,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  rewardStrip: {
+    alignItems: 'center',
+    backgroundColor: colors.cream,
+    borderRadius: 19,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
+  rewardValue: {
+    color: colors.cocoa,
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  stepNumber: {
+    alignItems: 'center',
+    backgroundColor: colors.petal,
+    borderRadius: 12,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  stepNumberText: {
+    color: colors.cherry,
+    fontSize: 13,
+    fontWeight: '900',
   },
 });

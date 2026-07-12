@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
 
@@ -14,6 +14,7 @@ type PoseOverlayProps = {
   visible: boolean;
   frameWidth: number;
   frameHeight: number;
+  successFlashMs?: number;
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
@@ -40,9 +41,42 @@ const connections: [PoseLandmarkName, PoseLandmarkName][] = [
   ['rightKnee', 'rightAnkle'],
 ];
 
-function overlayColor(phase: PosePhase, visible: boolean) {
+function isSuccessPhase(phase: PosePhase) {
+  return phase === 'bottom' || phase === 'rising' || phase === 'complete';
+}
+
+function useSuccessColor(phase: PosePhase, successFlashMs?: number) {
+  const successPhase = isSuccessPhase(phase);
+  const [flashActive, setFlashActive] = useState(successFlashMs === undefined && successPhase);
+  const wasSuccessPhaseRef = useRef(successFlashMs === undefined && successPhase);
+
+  useEffect(() => {
+    if (successFlashMs === undefined) {
+      setFlashActive(successPhase);
+      wasSuccessPhaseRef.current = successPhase;
+      return;
+    }
+
+    if (!successPhase) {
+      wasSuccessPhaseRef.current = false;
+      setFlashActive(false);
+      return;
+    }
+
+    if (wasSuccessPhaseRef.current) return;
+
+    wasSuccessPhaseRef.current = true;
+    setFlashActive(true);
+    const timer = setTimeout(() => setFlashActive(false), successFlashMs);
+    return () => clearTimeout(timer);
+  }, [successFlashMs, successPhase]);
+
+  return successFlashMs === undefined ? successPhase : flashActive;
+}
+
+function overlayColor(successColor: boolean, visible: boolean) {
   if (!visible) return '#FFD166';
-  if (phase === 'bottom' || phase === 'rising' || phase === 'complete') return '#89F38C';
+  if (successColor) return '#89F38C';
   return '#FFFFFF';
 }
 
@@ -115,9 +149,11 @@ function PoseOverlayComponent({
   visible,
   frameWidth,
   frameHeight,
+  successFlashMs,
   onLayout,
 }: PoseOverlayProps) {
-  const color = overlayColor(phase, visible);
+  const successColor = useSuccessColor(phase, successFlashMs);
+  const color = overlayColor(successColor, visible);
   const stableLandmarks = useStableLandmarks(landmarks, visible);
   const points = useMemo(() => Object.entries(stableLandmarks), [stableLandmarks]);
 
