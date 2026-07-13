@@ -7,7 +7,8 @@ import {
 describe('flappy squat game logic', () => {
   it('maps squat depth to the bird track', () => {
     expect(mapDepthToBirdY(0, 300, 40)).toBe(0);
-    expect(mapDepthToBirdY(0.5, 300, 40)).toBe(130);
+    expect(mapDepthToBirdY(0.08, 300, 40)).toBe(0);
+    expect(mapDepthToBirdY(0.54, 300, 40)).toBeCloseTo(130);
     expect(mapDepthToBirdY(1, 300, 40)).toBe(260);
     expect(mapDepthToBirdY(2, 300, 40)).toBe(260);
   });

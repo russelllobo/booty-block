@@ -225,6 +225,9 @@ export default function Games() {
 
   const beginPlaying = useCallback(() => {
     if (endedRef.current) return;
+    // Start from the pose captured during the countdown instead of briefly
+    // drawing the bird in the middle of the track.
+    depthRef.current = latestDepthRef.current;
     gameStartedAtRef.current = Date.now();
     setElapsedMs(0);
     setVisibleTicks(0);
@@ -412,9 +415,11 @@ export default function Games() {
             </View>
           ) : null}
           <View className="absolute left-5 right-5 top-12 flex-row items-center justify-between">
-            <View className="rounded-full bg-cocoa/55 px-4 py-2">
-              <Text className="text-sm font-black text-white">Score {score}</Text>
-            </View>
+            {status === 'playing' ? (
+              <View className="rounded-full bg-cocoa/55 px-4 py-2">
+                <Text className="text-sm font-black text-white">Score {score}</Text>
+              </View>
+            ) : <View />}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="End game"
@@ -426,30 +431,17 @@ export default function Games() {
           </View>
           {status === 'countdown' ? (
             <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-8">
-              <View className="items-center rounded-[30px] bg-cocoa/50 px-8 py-7">
-                <Text className="text-center text-sm font-black uppercase tracking-wide text-white/90">
-                  {bodyVisible ? 'Get ready' : 'Step into frame'}
-                </Text>
-                <Text className="mt-2 text-[116px] font-black leading-[122px] text-white">
-                  {bodyVisible ? countdown : '3'}
-                </Text>
-                <Text className="max-w-[280px] text-center text-base font-black leading-5 text-white/90">
-                  {bodyVisible
-                    ? 'Hold your whole body in shot.'
-                    : 'The countdown restarts when your body leaves the camera.'}
+              <View className="min-w-[280px] items-center rounded-[30px] bg-cocoa/50 px-8 py-8">
+                <Text
+                  className={bodyVisible
+                    ? 'text-[116px] font-black leading-[122px] text-white'
+                    : 'text-center text-[58px] font-black leading-[64px] tracking-tight text-white'}
+                >
+                  {bodyVisible ? countdown : 'STEP BACK'}
                 </Text>
               </View>
             </View>
           ) : null}
-          <View pointerEvents="none" className="absolute bottom-12 left-6 right-6 rounded-[24px] bg-cocoa/35 px-5 py-4">
-            <Text className="text-center text-sm font-black uppercase tracking-wide text-white">
-              {Platform.OS === 'web'
-                ? 'Drag up and down to preview squat control'
-                : status === 'countdown'
-                  ? bodyVisible ? 'Stay in frame. Game starts after the countdown.' : 'Step back until your whole body is visible.'
-                  : pose.visible ? 'Squat lower to drop. Stand taller to rise.' : 'Step back until your whole body is visible.'}
-            </Text>
-          </View>
         </View>
       ) : (
         <View className="flex-1">
@@ -630,9 +622,9 @@ const styles = StyleSheet.create({
   posePreview: {
     position: 'absolute',
     right: 18,
-    bottom: 112,
-    width: 96,
-    height: 144,
+    bottom: 32,
+    width: 144,
+    height: 216,
     overflow: 'hidden',
     borderRadius: 22,
     borderWidth: 2,
