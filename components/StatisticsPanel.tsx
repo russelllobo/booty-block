@@ -109,18 +109,20 @@ function buildStatsBuckets(history: UnlockHistoryEntry[], period: StatsPeriod, n
 
 export function StatisticsContent({
   history,
+  bonusXp,
   now,
   onClose,
 }: {
   history: UnlockHistoryEntry[];
+  bonusXp: number;
   now: number;
   onClose: () => void;
 }) {
   const [period, setPeriod] = useState<StatsPeriod>('daily');
   const currentStreak = useMemo(() => calculateCurrentStreak(history, now), [history, now]);
   const bootyProgress = useMemo(
-    () => getBootyProgress(history, currentStreak),
-    [history, currentStreak],
+    () => getBootyProgress(history, currentStreak, bonusXp),
+    [history, currentStreak, bonusXp],
   );
   const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
   const buckets = useMemo(() => buildStatsBuckets(history, period, now), [history, now, period]);
@@ -189,7 +191,7 @@ export function StatisticsContent({
           </View>
         </View>
         <Text className="mt-3 text-xs font-bold leading-4 text-mink">
-          Squats, streaks, and Peaches earned become Booty XP.
+          Squats, streaks, Peaches, and milestones become Booty XP.
         </Text>
       </View>
 
@@ -285,17 +287,19 @@ const styles = StyleSheet.create({
 export function StatisticsPanel({
   visible,
   history,
+  bonusXp,
   now,
   onClose,
 }: {
   visible: boolean;
   history: UnlockHistoryEntry[];
+  bonusXp: number;
   now: number;
   onClose: () => void;
 }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <StatisticsContent history={history} now={now} onClose={onClose} />
+      <StatisticsContent history={history} bonusXp={bonusXp} now={now} onClose={onClose} />
     </Modal>
   );
 }

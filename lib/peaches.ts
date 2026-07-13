@@ -14,6 +14,10 @@ export function resolveStoredPeachBalance(peachBalance: unknown, legacySeconds: 
     : legacySecondsToPeaches(legacySeconds);
 }
 
+export function migrateTenToOnePeaches(peaches: number) {
+  return Math.max(0, Math.ceil(peaches / 10));
+}
+
 export function peachesToSpendableMinutes(peaches: number) {
   return Math.max(0, Math.floor(peaches / PEACHES_PER_MINUTE));
 }

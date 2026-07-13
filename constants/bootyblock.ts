@@ -9,8 +9,8 @@ export const USAGE_WINDOW_DEPLETED_EVENT = 'usagewindowdepleted';
 export const USAGE_WINDOW_PROGRESS_EVENT_PREFIX = 'usagewindowprogress';
 export const SHIELD_OPEN_REQUEST_KEY = 'bootyblock_shield_open_requested_at';
 
-export const PEACHES_PER_MINUTE = 10;
-export const PEACHES_PER_SQUAT = 10;
+export const PEACHES_PER_MINUTE = 1;
+export const PEACHES_PER_SQUAT = 1;
 
 export const minuteOptions = [5, 10, 15, 20, 30] as const;
 

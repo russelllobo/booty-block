@@ -33,14 +33,14 @@ describe('flappy squat game logic', () => {
     });
   });
 
-  it('rewards ten Peaches for every point scored', () => {
+  it('rewards one Peach for every point scored', () => {
     expect(calculateFlappySquatReward({ score: 6 })).toEqual({
-      peaches: 60,
+      peaches: 6,
       qualified: true,
       reason: 'earned',
     });
     expect(calculateFlappySquatReward({ score: 20 })).toEqual({
-      peaches: 200,
+      peaches: 20,
       qualified: true,
       reason: 'earned',
     });

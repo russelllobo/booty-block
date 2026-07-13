@@ -5,7 +5,7 @@ const day = (year: number, month: number, date: number, hour = 12) =>
 
 const entry = (completedAt: number) => ({
   id: String(completedAt),
-  peaches: 100,
+  peaches: 10,
   squats: 10,
   completedAt,
 });

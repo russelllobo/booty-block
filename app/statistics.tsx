@@ -5,7 +5,7 @@ import { StatisticsContent } from '../components/StatisticsPanel';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Statistics() {
-  const { unlockHistory } = useBootyblock();
+  const { unlockHistory, bonusXp } = useBootyblock();
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -17,6 +17,7 @@ export default function Statistics() {
   return (
     <StatisticsContent
       history={unlockHistory}
+      bonusXp={bonusXp}
       now={now}
       onClose={() => router.back()}
     />

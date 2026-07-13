@@ -41,6 +41,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFF1F6",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain"
+        }
+      ],
       "expo-router",
       [
         "expo-asset",
@@ -169,6 +178,8 @@
       "policy": "appVersion"
     },
     "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 8000,
       "url": "https://u.expo.dev/80362fc1-47ce-4139-8e2c-fd49f8b5ca49"
     }
   }

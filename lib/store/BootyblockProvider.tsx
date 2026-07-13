@@ -12,7 +12,7 @@ import {
 } from '../services/screenTime';
 import { tiktokService } from '../services/tiktok';
 import { calculateCurrentStreak } from '../streak';
-import { minutesToPeaches, resolveStoredPeachBalance } from '../peaches';
+import { migrateTenToOnePeaches, minutesToPeaches, resolveStoredPeachBalance } from '../peaches';
 
 type PeachEarnedSession = {
   peaches: number;
@@ -26,6 +26,14 @@ type GamePeachSession = PeachEarnedSession & {
   gameId: string;
   score: number;
   durationSeconds: number;
+  xpAwarded: number;
+};
+
+export type XpRewardNotice = {
+  id: string;
+  amount: number;
+  title: string;
+  message: string;
 };
 
 type UsageWindow = {
@@ -70,6 +78,9 @@ type BootyblockState = {
   usageWindow: UsageWindow | null;
   usageWindowSeconds: number;
   unlockHistory: UnlockHistoryEntry[];
+  bonusXp: number;
+  earnedXpMilestones: string[];
+  xpRewardNotice: XpRewardNotice | null;
   currentStreak: number;
   subscriptionHydrated: boolean;
   subscriptionConfigured: boolean;
@@ -95,13 +106,17 @@ type BootyblockState = {
   presentOneTimeOffer: () => Promise<boolean>;
   requestSubscriptionAccess: () => Promise<boolean>;
   openSubscriptionManagement: () => Promise<void>;
+  dismissXpRewardNotice: () => void;
   resetAppData: () => Promise<void>;
 };
 
 const STORAGE_KEY = 'bootyblock:v1';
 const RESET_SUBSCRIPTION_STATE_KEY = 'bootyblock:subscription-reset';
 const USAGE_WINDOW_MONITOR_VERSION = 1;
-const STORAGE_SCHEMA_VERSION = 2;
+const STORAGE_SCHEMA_VERSION = 3;
+const BLOCKED_APPS_XP = 100;
+const GAME_COMPLETION_XP = 50;
+const BLOCKED_APPS_MILESTONE = 'blocked_apps_configured';
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
 
@@ -133,20 +148,22 @@ function defaultPayload() {
       ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 }
       : null as ScreenTimeSelectionSummary | null,
     schemaVersion: STORAGE_SCHEMA_VERSION,
-    requestedPeaches: 100,
-    peachBalance: webUiPreview ? 120 : 0,
+    requestedPeaches: 10,
+    peachBalance: webUiPreview ? 12 : 0,
     usageWindow: null as UsageWindow | null,
     usageWindowSeconds: 0,
     usageWindowMonitorVersion: 0,
     unlockHistory: webUiPreview
       ? ([
-          { id: 'preview-1', peaches: 100, squats: 10, completedAt: now },
-          { id: 'preview-2', peaches: 150, squats: 15, completedAt: now - 86_400_000 },
-          { id: 'preview-3', peaches: 50, squats: 5, completedAt: now - 2 * 86_400_000 },
-          { id: 'preview-4', peaches: 200, squats: 20, completedAt: now - 7 * 86_400_000 },
-          { id: 'preview-5', peaches: 300, squats: 30, completedAt: now - 18 * 86_400_000 },
+          { id: 'preview-1', peaches: 10, squats: 10, completedAt: now },
+          { id: 'preview-2', peaches: 15, squats: 15, completedAt: now - 86_400_000 },
+          { id: 'preview-3', peaches: 5, squats: 5, completedAt: now - 2 * 86_400_000 },
+          { id: 'preview-4', peaches: 20, squats: 20, completedAt: now - 7 * 86_400_000 },
+          { id: 'preview-5', peaches: 30, squats: 30, completedAt: now - 18 * 86_400_000 },
         ] satisfies UnlockHistoryEntry[])
       : ([] as UnlockHistoryEntry[]),
+    bonusXp: 0,
+    earnedXpMilestones: [] as string[],
   };
 }
 
@@ -179,6 +196,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionConfigured, setSubscriptionConfigured] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(Platform.OS === 'web');
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [xpRewardNotice, setXpRewardNotice] = useState<XpRewardNotice | null>(null);
   const [oneTimeOfferModal, setOneTimeOfferModal] = useState<OneTimeOfferModalState | null>(null);
   const accessRequestRef = useRef<Promise<boolean> | null>(null);
   const payloadRef = useRef(payload);
@@ -210,18 +228,29 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           ? 0
           : Math.max(0, storedBankSeconds - bankProgressSeconds);
         const legacyRemainingBankSeconds = Math.min(storedBankSeconds, remainingBankSeconds);
-        const peachBalance = raw
+        const storedUsesTenToOnePeaches = parsedPayload.schemaVersion === 2;
+        const resolvedPeachBalance = raw
           ? resolveStoredPeachBalance(parsedPayload.peachBalance, legacyRemainingBankSeconds)
           : stored.peachBalance;
+        const peachBalance = storedUsesTenToOnePeaches
+          ? migrateTenToOnePeaches(resolvedPeachBalance)
+          : resolvedPeachBalance;
         const requestedPeaches = typeof parsedPayload.requestedPeaches === 'number'
-          ? Math.max(PEACHES_PER_MINUTE, Math.floor(parsedPayload.requestedPeaches))
+          ? Math.max(
+              PEACHES_PER_MINUTE,
+              storedUsesTenToOnePeaches
+                ? migrateTenToOnePeaches(parsedPayload.requestedPeaches)
+                : Math.floor(parsedPayload.requestedPeaches),
+            )
           : typeof parsedPayload.requestedMinutes === 'number'
             ? Math.max(PEACHES_PER_MINUTE, minutesToPeaches(parsedPayload.requestedMinutes))
             : stored.requestedPeaches;
         const unlockHistory = (stored.unlockHistory ?? []).map((entry) => ({
           id: entry.id,
           peaches: typeof entry.peaches === 'number'
-            ? Math.max(0, Math.floor(entry.peaches))
+            ? storedUsesTenToOnePeaches
+              ? migrateTenToOnePeaches(entry.peaches)
+              : Math.max(0, Math.floor(entry.peaches))
             : minutesToPeaches(entry.minutes ?? 0),
           squats: entry.squats,
           completedAt: entry.completedAt,
@@ -403,11 +432,24 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     if (!hasSubscriptionAccess(isSubscribed)) return false;
 
     if (Platform.OS === 'web') {
+      const shouldAwardXp = !payloadRef.current.earnedXpMilestones.includes(BLOCKED_APPS_MILESTONE);
       setPayload((current) => ({
         ...current,
         selectedAppsConfigured: true,
         selectionSummary: current.selectionSummary ?? defaultPayload().selectionSummary,
+        bonusXp: shouldAwardXp ? current.bonusXp + BLOCKED_APPS_XP : current.bonusXp,
+        earnedXpMilestones: shouldAwardXp
+          ? [...current.earnedXpMilestones, BLOCKED_APPS_MILESTONE]
+          : current.earnedXpMilestones,
       }));
+      if (shouldAwardXp) {
+        setXpRewardNotice({
+          id: `${BLOCKED_APPS_MILESTONE}-${Date.now()}`,
+          amount: BLOCKED_APPS_XP,
+          title: 'Setup complete',
+          message: 'Blocked apps added',
+        });
+      }
       return true;
     }
 
@@ -416,11 +458,24 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
     screenTimeService.saveNativeSelectionConfigured();
     await screenTimeService.startAlwaysBlockMonitor();
+    const shouldAwardXp = !payloadRef.current.earnedXpMilestones.includes(BLOCKED_APPS_MILESTONE);
     setPayload((current) => ({
       ...current,
       selectedAppsConfigured: true,
       selectionSummary,
+      bonusXp: shouldAwardXp ? current.bonusXp + BLOCKED_APPS_XP : current.bonusXp,
+      earnedXpMilestones: shouldAwardXp
+        ? [...current.earnedXpMilestones, BLOCKED_APPS_MILESTONE]
+        : current.earnedXpMilestones,
     }));
+    if (shouldAwardXp) {
+      setXpRewardNotice({
+        id: `${BLOCKED_APPS_MILESTONE}-${Date.now()}`,
+        amount: BLOCKED_APPS_XP,
+        title: 'Setup complete',
+        message: 'Blocked apps added',
+      });
+    }
     return true;
   }, [isSubscribed]);
 
@@ -498,6 +553,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       ...current,
       peachBalance: nextPeachBalance,
       unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
+      bonusXp: current.bonusXp + GAME_COMPLETION_XP,
     }));
     screenTimeService.applyDefaultBlock();
 
@@ -510,8 +566,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       gameId,
       score,
       durationSeconds,
+      xpAwarded: GAME_COMPLETION_XP,
     };
   }, [isSubscribed]);
+
+  const dismissXpRewardNotice = useCallback(() => {
+    setXpRewardNotice(null);
+  }, []);
 
   const spendPeachesForMinutes = useCallback(async (minutes: number) => {
     if (!hasSubscriptionAccess(isSubscribed)) return false;
@@ -829,6 +890,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     subscriptionResetLockedRef.current = true;
     setIsSubscribed(Platform.OS === 'web');
     setSubscriptionError(null);
+    setXpRewardNotice(null);
     setPayload(fresh);
     await AsyncStorage.setItem(RESET_SUBSCRIPTION_STATE_KEY, 'true');
     await AsyncStorage.removeItem(STORAGE_KEY);
@@ -849,6 +911,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       subscriptionConfigured,
       isSubscribed,
       subscriptionError,
+      xpRewardNotice,
       completeOnboarding,
       setProfileName,
       setOnboardingGoals,
@@ -869,6 +932,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentOneTimeOffer,
       requestSubscriptionAccess,
       openSubscriptionManagement,
+      dismissXpRewardNotice,
       resetAppData,
     }),
     [
@@ -878,6 +942,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       subscriptionConfigured,
       isSubscribed,
       subscriptionError,
+      xpRewardNotice,
       completeOnboarding,
       setProfileName,
       setAgeRange,
@@ -897,6 +962,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentOneTimeOffer,
       requestSubscriptionAccess,
       openSubscriptionManagement,
+      dismissXpRewardNotice,
       resetAppData,
     ],
   );

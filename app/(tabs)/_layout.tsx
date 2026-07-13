@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { DefaultTheme, ThemeProvider, useLocalSearchParams } from 'expo-router';
+import { DefaultTheme, ThemeProvider, useGlobalSearchParams } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { appFontFamilyForWeight } from '../../components/AppText';
@@ -11,7 +11,7 @@ const labelStyle = {
 };
 
 export default function TabsLayout() {
-  const params = useLocalSearchParams<{ hideTabs?: string }>();
+  const params = useGlobalSearchParams<{ hideTabs?: string }>();
   const tabsHidden = params.hideTabs === '1';
 
   return (

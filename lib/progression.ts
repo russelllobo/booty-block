@@ -23,7 +23,7 @@ const SQUAT_XP = 8;
 const PEACH_BUNDLE_XP = 5;
 const STREAK_DAY_XP = 90;
 
-export function calculateBootyXp(history: ProgressionEntry[], currentStreak: number) {
+export function calculateBootyXp(history: ProgressionEntry[], currentStreak: number, bonusXp = 0) {
   const totals = history.reduce(
     (summary, entry) => ({
       squats: summary.squats + Math.max(0, entry.squats),
@@ -32,20 +32,23 @@ export function calculateBootyXp(history: ProgressionEntry[], currentStreak: num
     { squats: 0, peachesEarned: 0 },
   );
   const streakDays = Math.max(0, currentStreak);
+  const safeBonusXp = Math.max(0, Math.floor(bonusXp));
   const xp = (totals.squats * SQUAT_XP)
     + (Math.floor(totals.peachesEarned / PEACHES_PER_MINUTE) * PEACH_BUNDLE_XP)
-    + (streakDays * STREAK_DAY_XP);
+    + (streakDays * STREAK_DAY_XP)
+    + safeBonusXp;
 
   return {
     xp,
     squats: totals.squats,
     peachesEarned: totals.peachesEarned,
     streakDays,
+    bonusXp: safeBonusXp,
   };
 }
 
-export function getBootyProgress(history: ProgressionEntry[], currentStreak: number) {
-  const totals = calculateBootyXp(history, currentStreak);
+export function getBootyProgress(history: ProgressionEntry[], currentStreak: number, bonusXp = 0) {
+  const totals = calculateBootyXp(history, currentStreak, bonusXp);
   const currentLevel = [...peachLevels].reverse().find((level) => totals.xp >= level.minXp) ?? peachLevels[0];
   const nextLevel = peachLevels.find((level) => level.minXp > totals.xp) ?? null;
   const previousMinXp = currentLevel.minXp;

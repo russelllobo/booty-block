@@ -1,11 +1,11 @@
-import { Tabs, useLocalSearchParams } from 'expo-router';
+import { Tabs, useGlobalSearchParams } from 'expo-router';
 import { Gamepad2, Home, Settings } from 'lucide-react-native';
 
 import { appFontFamilyForWeight } from '../../components/AppText';
 import { colors } from '../../constants/theme';
 
 export default function TabsLayout() {
-  const params = useLocalSearchParams<{ hideTabs?: string }>();
+  const params = useGlobalSearchParams<{ hideTabs?: string }>();
   const tabsHidden = params.hideTabs === '1';
 
   return (

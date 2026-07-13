@@ -4,18 +4,17 @@ import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as QuickActions from 'expo-quick-actions';
 import { useQuickActionCallback } from 'expo-quick-actions/hooks';
-import * as Updates from 'expo-updates';
-import { Stack, usePathname } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { Stack, usePathname, useSegments } from 'expo-router';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
-import { useEffect, useState } from 'react';
-import { AppState, Platform, View } from 'react-native';
+import { useEffect } from 'react';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { BrandLockup } from '../components/BrandLockup';
-import { colors } from '../constants/theme';
+import { XpRewardToast } from '../components/XpRewardToast';
 import {
   POSTHOG_API_KEY,
   POSTHOG_ENABLED,
@@ -31,66 +30,24 @@ const onboardingScreenOptions = {
   gestureEnabled: false,
 } as const;
 
-const UPDATE_CHECK_TIMEOUT_MS = 8000;
 const FEEDBACK_DELETE_URL = 'mailto:r.lobo2003@gmail.com?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), timeoutMs);
-    }),
-  ]);
+if (Platform.OS !== 'web') {
+  void SplashScreen.preventAutoHideAsync();
 }
 
-function UpdateGate({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(() => __DEV__ || Platform.OS === 'web' || !Updates.isEnabled);
+function LaunchSplashController() {
+  const { hydrated, subscriptionHydrated } = useBootyblock();
+  const segments = useSegments();
+  const destinationMounted = (segments as readonly string[]).length > 0;
 
   useEffect(() => {
-    if (ready) return;
+    if (Platform.OS === 'web' || !hydrated || !subscriptionHydrated || !destinationMounted) return;
 
-    let cancelled = false;
+    void SplashScreen.hideAsync();
+  }, [destinationMounted, hydrated, subscriptionHydrated]);
 
-    async function loadFreshUpdate() {
-      try {
-        const update = await withTimeout(Updates.checkForUpdateAsync(), UPDATE_CHECK_TIMEOUT_MS);
-        if (!update?.isAvailable || cancelled) {
-          setReady(true);
-          return;
-        }
-
-        const result = await withTimeout(Updates.fetchUpdateAsync(), UPDATE_CHECK_TIMEOUT_MS);
-        if (cancelled) return;
-
-        if (result?.isNew) {
-          await Updates.reloadAsync();
-          return;
-        }
-      } catch (error) {
-        console.warn('Unable to apply startup update', error);
-      }
-
-      if (!cancelled) {
-        setReady(true);
-      }
-    }
-
-    void loadFreshUpdate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ready]);
-
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
-        <BrandLockup height={42} label="BootyBlock logo" />
-      </View>
-    );
-  }
-
-  return children;
+  return null;
 }
 
 function NotificationObserver() {
@@ -223,35 +180,35 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
           <BootyblockProvider>
-            <UpdateGate>
-              <TrackingAuthorizationRequester />
-              <AnalyticsScreenTracker />
-              <NotificationObserver />
-              <QuickActionObserver />
-              <StatusBar style="dark" />
-              <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/permissions" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
-                <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="plan" />
-                <Stack.Screen name="statistics" />
-                <Stack.Screen name="session" />
-                <Stack.Screen name="success" />
-              </Stack>
-            </UpdateGate>
+            <LaunchSplashController />
+            <TrackingAuthorizationRequester />
+            <AnalyticsScreenTracker />
+            <NotificationObserver />
+            <QuickActionObserver />
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/permissions" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="plan" />
+              <Stack.Screen name="statistics" />
+              <Stack.Screen name="session" />
+              <Stack.Screen name="success" />
+            </Stack>
+            <XpRewardToast />
           </BootyblockProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

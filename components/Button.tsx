@@ -24,6 +24,7 @@ type ButtonProps = {
   foregroundColor?: string;
   noOutline?: boolean;
   pressDelayMs?: number;
+  size?: 'default' | 'large';
 };
 
 const DEPTH = 6;
@@ -37,7 +38,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -94,7 +95,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
         <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
       ) : null}
       <Text
-        className={['text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
+        className={[size === 'large' ? 'text-xl font-black' : 'text-base font-bold', isPrimary || isOutline ? 'text-white' : 'text-raspberry'].join(' ')}
         numberOfLines={1}
         adjustsFontSizeToFit
         style={foregroundColor ? { color: foregroundColor } : undefined}
@@ -114,7 +115,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
           glassEffectStyle={glassStyle}
           tintColor={glassTint}
           isInteractive
-          style={{ borderRadius: 9999, minHeight: 56 }}
+          style={{ borderRadius: 9999, minHeight: size === 'large' ? 72 : 56 }}
         >
           <Pressable
             accessibilityRole="button"
@@ -123,7 +124,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
             style={{
-              minHeight: 56,
+              minHeight: size === 'large' ? 72 : 56,
               paddingHorizontal: 24,
               flexDirection: 'row',
               alignItems: 'center',
@@ -143,7 +144,8 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
           onPressOut={handlePressOut}
           style={isPrimary ? shadow : undefined}
           className={[
-            'min-h-14 flex-row items-center justify-center gap-2 rounded-full px-6',
+            size === 'large' ? 'min-h-[72px] px-8' : 'min-h-14 px-6',
+            'flex-row items-center justify-center gap-2 rounded-full',
             isPrimary && 'bg-raspberry',
             isSecondary && (noOutline ? 'bg-white/80' : 'border border-raspberry/20 bg-white/80'),
             isOutline && 'border border-white/55 bg-transparent',

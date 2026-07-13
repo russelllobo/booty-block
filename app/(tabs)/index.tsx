@@ -1,7 +1,7 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { AppWindow, Dumbbell, Flame, Lock, Trophy, Unlock, X } from 'lucide-react-native';
+import { AppWindow, Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -47,14 +47,6 @@ function RoughUnlockPrompt() {
       style={styles.roughUnlockPrompt}
     >
       <Svg height="52" style={styles.roughUnlockArrow} viewBox="0 0 300 52" width="100%">
-        <Path
-          d="M 211 43 C 226 29, 211 12, 164 9"
-          fill="none"
-          opacity={0.22}
-          stroke={colors.cocoa}
-          strokeLinecap="round"
-          strokeWidth={5.5}
-        />
         <Path
           d="M 213 43 C 226 28, 209 11, 164 8"
           fill="none"
@@ -215,6 +207,7 @@ export default function Home() {
     spendPeachesForMinutes,
     currentStreak,
     unlockHistory,
+    bonusXp,
     syncUsageWindow,
     hasAppAccess,
     selectedAppsConfigured,
@@ -238,8 +231,8 @@ export default function Home() {
   const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
   const bootyProgress = useMemo(
-    () => getBootyProgress(unlockHistory, currentStreak),
-    [unlockHistory, currentStreak],
+    () => getBootyProgress(unlockHistory, currentStreak, bonusXp),
+    [unlockHistory, currentStreak, bonusXp],
   );
   const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
 
@@ -273,7 +266,6 @@ export default function Home() {
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
   const showEmptyWallet = !hasPeaches && !hasUsageWindow;
-  const showLowWallet = hasPeaches && !canSpendPeaches && !hasUsageWindow;
   const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
   const spendMaxMinutes = Math.max(1, Math.floor(peachBalance / PEACHES_PER_MINUTE));
   const earnMaxMinutes = 60;
@@ -583,31 +575,28 @@ export default function Home() {
         accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP`}
         accessibilityHint="Opens statistics"
         onPress={() => router.push('/statistics' as Href)}
-        className="-mt-10 rounded-[28px] bg-white/75 p-4"
+        className="-mt-10 rounded-[24px] bg-white px-5 py-4"
+        style={({ pressed }) => [styles.xpCard, pressed ? styles.xpCardPressed : null]}
       >
-        <View className="flex-row items-center gap-3">
-          <View className="h-12 w-12 items-center justify-center rounded-[18px] bg-petal">
-            <Trophy size={24} stroke={colors.raspberry} strokeWidth={3} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
-              Level {bootyProgress.currentLevel.level}
-            </Text>
-            <Text className="mt-0.5 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+        <View className="flex-row items-center justify-between gap-4">
+          <View className="min-w-0 flex-1 flex-row items-center gap-2.5">
+            <View className="rounded-full bg-petal px-3 py-1.5">
+              <Text className="text-xs font-black text-raspberry">
+                Level {bootyProgress.currentLevel.level}
+              </Text>
+            </View>
+            <Text className="min-w-0 flex-1 text-base font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
               {bootyProgress.currentLevel.title}
             </Text>
           </View>
-          <View className="items-end">
-            <Text className="text-[11px] font-black uppercase tracking-[1.2px] text-mink">Booty XP</Text>
-            <Text className="mt-0.5 text-lg font-black text-raspberry">{bootyProgress.xp}</Text>
-          </View>
+          <Text className="text-lg font-black tabular-nums text-raspberry">{bootyProgress.xp} XP</Text>
         </View>
         <View style={styles.peachProgressTrack}>
           <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
         </View>
-        <Text className="mt-2 text-xs font-bold text-mink">
+        <Text className="mt-2 text-xs font-bold text-mink" numberOfLines={1}>
           {bootyProgress.nextLevel
-            ? `${bootyProgress.xpToNext} XP to ${bootyProgress.nextLevel.title}`
+            ? `${bootyProgress.xpToNext} XP until ${bootyProgress.nextLevel.title}`
             : 'Max level unlocked'}
         </Text>
       </Pressable>
@@ -720,12 +709,12 @@ export default function Home() {
         transparent
         visible={unlockPromptVisible}
       >
-        <View style={[styles.unlockPromptWrap, showEmptyWallet || showLowWallet ? styles.emptyBankPromptWrap : null]}>
+        <View style={[styles.unlockPromptWrap, showEmptyWallet ? styles.emptyBankPromptWrap : null]}>
           <Animated.View
             pointerEvents="none"
             style={[
               styles.unlockPromptBloom,
-              showEmptyWallet || showLowWallet ? styles.emptyBankPromptBloom : null,
+              showEmptyWallet ? styles.emptyBankPromptBloom : null,
               {
                 borderRadius: promptBloomSize / 2,
                 height: promptBloomSize,
@@ -747,17 +736,13 @@ export default function Home() {
             <View style={styles.unlockPromptStage}>
               {unlockAction ? (
                 <Animated.View pointerEvents="none" style={[styles.unlockPromptBankExit, promptBankStyle]}>
-                  <Text
-                    className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
-                      showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white/75'
-                    }`}
-                  >
-                    {showEmptyWallet ? 'No Peaches' : showLowWallet ? 'Not enough Peaches' : 'Peaches'}
-                  </Text>
-                  <View className="mt-2 flex-row items-end justify-center">
+                  <View className="flex-row items-end justify-center">
+                    <Text className={`mb-5 mr-2 text-2xl font-black ${showEmptyWallet ? 'text-petal' : 'text-white/75'}`}>
+                      Peaches:
+                    </Text>
                     <Text
                       className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white'
+                        showEmptyWallet ? 'text-petal' : 'text-white'
                       }`}
                     >
                       {peachBalance}
@@ -769,17 +754,13 @@ export default function Home() {
                 </Animated.View>
               ) : (
                 <>
-                  <Text
-                    className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
-                      showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white/75'
-                    }`}
-                  >
-                    {showEmptyWallet ? 'No Peaches' : showLowWallet ? 'Not enough Peaches' : 'Peaches'}
-                  </Text>
-                  <View className="mt-2 flex-row items-end justify-center">
+                  <View className="flex-row items-end justify-center">
+                    <Text className={`mb-5 mr-2 text-2xl font-black ${showEmptyWallet ? 'text-petal' : 'text-white/75'}`}>
+                      Peaches:
+                    </Text>
                     <Text
                       className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white'
+                        showEmptyWallet ? 'text-petal' : 'text-white'
                       }`}
                     >
                       {peachBalance}
@@ -845,7 +826,7 @@ export default function Home() {
                   ) : null}
                   <Button
                     label="Earn Peaches"
-                    icon={Dumbbell}
+                    size="large"
                     variant={canSpendPeaches ? 'secondary' : 'primary'}
                     noOutline={canSpendPeaches}
                     onPress={() => chooseUnlockAction('earn')}
@@ -959,11 +940,22 @@ const styles = StyleSheet.create({
     top: 58,
     width: 44,
   },
+  xpCard: {
+    shadowColor: colors.cherry,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  xpCardPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.99 }],
+  },
   peachProgressTrack: {
-    backgroundColor: colors.petal,
+    backgroundColor: colors.blush,
     borderRadius: 999,
-    height: 12,
-    marginTop: 12,
+    height: 7,
+    marginTop: 13,
     overflow: 'hidden',
   },
   peachProgressFill: {

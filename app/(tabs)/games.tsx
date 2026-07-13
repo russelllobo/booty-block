@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowDown, Play, Trophy, X } from 'lucide-react-native';
+import { ArrowDown, Play, Sparkles, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -11,7 +11,6 @@ import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Sto
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
-import { PeachIcon } from '../../components/PeachIcon';
 import { PoseOverlay } from '../../components/PoseOverlay';
 import { Screen } from '../../components/Screen';
 import {
@@ -19,7 +18,6 @@ import {
   clamp,
   FLAPPY_SQUAT_GAME_ID,
   mapDepthToBirdY,
-  normalizePoseDepth,
   smoothDepth,
 } from '../../lib/games/flappySquat';
 import { usePoseSession } from '../../lib/services/pose';
@@ -41,6 +39,7 @@ type GameStatus = 'idle' | 'countdown' | 'playing' | 'ended';
 type GameResultNotice = {
   score: number;
   message: string;
+  xp: number;
 };
 
 const BEST_SCORE_KEY = 'bootyblock:flappy-squat-best';
@@ -138,13 +137,12 @@ export default function Games() {
   const [hasMovedLower, setHasMovedLower] = useState(false);
   const depthRef = useRef(0.5);
   const latestDepthRef = useRef(0.5);
-  const rawPoseDepthRef = useRef(0);
-  const standingDepthRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
   const endedRef = useRef(false);
   const launcherEntrance = useRef(new Animated.Value(0)).current;
+  const gameEntrance = useRef(new Animated.Value(0)).current;
   const previewDrift = useRef(new Animated.Value(0)).current;
   const scoreScale = useRef(new Animated.Value(1)).current;
   const scoreFlash = useRef(new Animated.Value(0)).current;
@@ -159,12 +157,10 @@ export default function Games() {
     restartAfterNativeCount: false,
   });
   const rawDepth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
-  rawPoseDepthRef.current = rawDepth;
-  latestDepthRef.current = Platform.OS === 'web'
-    ? rawDepth
-    : standingDepthRef.current === null
-      ? 0
-      : normalizePoseDepth(rawDepth, standingDepthRef.current);
+  // Native pose depth is already calibrated from standing (0) to a full
+  // squat (1). Re-normalizing it against a second standing sample can flatten
+  // the entire input range and leave the bird pinned in place.
+  latestDepthRef.current = rawDepth;
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
   const bodyVisible = Platform.OS === 'web' || pose.visible;
@@ -215,13 +211,26 @@ export default function Games() {
 
   useEffect(() => {
     if (!gameActive) {
+      gameEntrance.setValue(0);
       router.setParams({ hideTabs: undefined });
       return;
     }
 
     router.setParams({ hideTabs: '1' });
-    return () => router.setParams({ hideTabs: undefined });
-  }, [gameActive]);
+    gameEntrance.setValue(0);
+    const entrance = Animated.timing(gameEntrance, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    entrance.start();
+
+    return () => {
+      entrance.stop();
+      router.setParams({ hideTabs: undefined });
+    };
+  }, [gameActive, gameEntrance]);
 
   const finishGame = useCallback((crashed: boolean) => {
     if (endedRef.current) return;
@@ -237,16 +246,17 @@ export default function Games() {
         gameId: FLAPPY_SQUAT_GAME_ID,
         score: finalScore,
         durationSeconds,
-      }).then(() => {
+      }).then((result) => {
         setResultNotice({
           score: finalScore,
           message: `${reward.peaches} Peaches added to your wallet`,
+          xp: result.xpAwarded,
         });
       }).catch(() => {
-        setResultNotice({ score: finalScore, message: 'Peaches could not be added' });
+        setResultNotice({ score: finalScore, message: 'Reward could not be added', xp: 0 });
       });
     } else {
-      setResultNotice({ score: finalScore, message: '0 Peaches earned' });
+      setResultNotice({ score: finalScore, message: 'Score a point to earn rewards', xp: 0 });
     }
 
     if (crashed) {
@@ -258,13 +268,7 @@ export default function Games() {
 
   const beginPlaying = useCallback(() => {
     if (endedRef.current) return;
-    if (Platform.OS !== 'web') {
-      // The user's normal standing pose is the top of the controller range,
-      // regardless of the absolute depth reported by the installed tracker.
-      standingDepthRef.current = rawPoseDepthRef.current;
-      latestDepthRef.current = 0;
-    }
-    depthRef.current = Platform.OS === 'web' ? latestDepthRef.current : 0;
+    depthRef.current = latestDepthRef.current;
     gameStartedAtRef.current = Date.now();
     setStatus('playing');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -418,8 +422,6 @@ export default function Games() {
 
     endedRef.current = false;
     depthRef.current = 0.5;
-    standingDepthRef.current = null;
-    rawPoseDepthRef.current = 0;
     gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
     scoreRef.current = 0;
@@ -448,9 +450,20 @@ export default function Games() {
   }
 
   return (
-    <Screen scroll={!gameActive} flush={gameActive}>
+    <Screen scroll={!gameActive} flush={gameActive} backgroundColor={gameActive ? colors.cocoa : undefined}>
       {gameActive ? (
-        <View className="flex-1 bg-cocoa" onLayout={handleGameLayout} {...panResponder.panHandlers}>
+        <Animated.View
+          className="flex-1 bg-cocoa"
+          onLayout={handleGameLayout}
+          style={{
+            opacity: gameEntrance,
+            transform: [
+              { scale: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.975, 1] }) },
+              { translateY: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) },
+            ],
+          }}
+          {...panResponder.panHandlers}
+        >
           <View style={StyleSheet.absoluteFill}>
             <FlappyScene
               width={Math.max(size.width, 1)}
@@ -503,7 +516,7 @@ export default function Games() {
               {!hasMovedLower ? (
                 <View style={styles.scorePrompt}>
                   <Text style={styles.scorePromptText}>GO LOWER</Text>
-                  <ArrowDown size={25} stroke={colors.white} strokeWidth={3} />
+                  <ArrowDown size={32} stroke={colors.white} strokeWidth={3} />
                 </View>
               ) : null}
             </View>
@@ -529,7 +542,7 @@ export default function Games() {
               </View>
             </View>
           ) : null}
-        </View>
+        </Animated.View>
       ) : (
         <View className="flex-1">
           <Header title="Games" subtitle="Earn Peaches by playing games" />
@@ -575,7 +588,6 @@ export default function Games() {
               </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>Flappy Squat</Text>
-                <Text style={styles.heroSubtitle}>Stand to rise. Squat to dive.</Text>
                 <View style={styles.heroAction}>
                   <Button
                     label={status === 'ended' ? 'Play again' : 'Play'}
@@ -605,10 +617,12 @@ export default function Games() {
               ]}
             >
               <View style={styles.resultNoticeIcon}>
-                <PeachIcon size={24} />
+                <Sparkles size={22} stroke={colors.cocoa} strokeWidth={3} />
               </View>
               <View className="flex-1">
-                <Text style={styles.resultNoticeScore}>Score {resultNotice.score}</Text>
+                <Text style={styles.resultNoticeScore}>
+                  {resultNotice.xp > 0 ? `+${resultNotice.xp} XP` : `Score ${resultNotice.score}`}
+                </Text>
                 <Text style={styles.resultNoticeMessage}>{resultNotice.message}</Text>
               </View>
             </Animated.View>
@@ -722,9 +736,9 @@ const styles = StyleSheet.create({
   },
   scorePromptText: {
     color: colors.white,
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.6,
     textShadowColor: 'rgba(58, 31, 44, 0.72)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
