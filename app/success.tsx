@@ -35,14 +35,20 @@ export default function Success() {
         <View className="h-28 w-28 items-center justify-center rounded-full bg-mint">
           <PeachIcon size={66} />
         </View>
-        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">Peaches earned</Text>
+        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">
+          {`${requestedPeaches} Peaches earned`}
+        </Text>
         <Text className="mt-3 text-center text-lg font-bold leading-7 text-mink">
-          {`${requestedPeaches} Peaches added. You now have ${peachBalance}.`}
+          {`You now have ${peachBalance}.`}
         </Text>
       </View>
 
       <View className="gap-3">
-        <Button label="Go to home" icon={Sparkles} onPress={() => router.replace('/(tabs)')} />
+        <Button
+          label="Unlock apps"
+          icon={Sparkles}
+          onPress={() => router.replace({ pathname: '/(tabs)', params: { openUnlock: 'spend' } })}
+        />
         <Button label="Earn more" variant="secondary" onPress={() => router.replace('/session')} />
       </View>
     </Screen>

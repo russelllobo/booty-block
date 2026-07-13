@@ -1,16 +1,14 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { AppWindow, Dumbbell, Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { AppWindow, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Easing,
-  Modal,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -18,6 +16,7 @@ import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
+import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
 import { Screen } from '../../components/Screen';
 import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootyblock';
@@ -197,8 +196,7 @@ function HomeTourOverlay({
 }
 
 export default function Home() {
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const params = useLocalSearchParams<{ appTour?: string; openUnlock?: string; tourStep?: string }>();
+  const params = useLocalSearchParams<{ appTour?: string; openUnlock?: '1' | 'spend'; tourStep?: string }>();
   const {
     peachBalance,
     usageWindowSeconds,
@@ -255,17 +253,9 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [syncUsageWindow]);
 
-  useEffect(() => {
-    return () => {
-      router.setParams({ hideTabs: undefined });
-    };
-  }, []);
-
-  const hasPeaches = peachBalance > 0;
   const canSpendPeaches = peachBalance >= PEACHES_PER_MINUTE;
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
-  const showEmptyWallet = !hasPeaches && !hasUsageWindow;
   const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
   const spendMaxMinutes = Math.max(1, Math.floor(peachBalance / PEACHES_PER_MINUTE));
   const earnMaxMinutes = 60;
@@ -274,7 +264,7 @@ export default function Home() {
   const selectorTitle = unlockAction === 'spend' ? 'Unlock time' : 'Peaches to earn';
   const selectorButtonLabel = unlockAction === 'spend'
     ? `Spend ${selectedPeaches} Peaches`
-    : `Start ${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`;
+    : `Do ${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`;
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
@@ -284,11 +274,6 @@ export default function Home() {
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
-  const promptBackdropScale = unlockPromptProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.04, 1],
-  });
-  const promptBloomSize = Math.ceil(Math.hypot(windowWidth, windowHeight)) + 160;
   const promptContentStyle = {
     opacity: unlockPromptProgress,
     transform: [
@@ -296,12 +281,6 @@ export default function Home() {
         translateY: unlockPromptProgress.interpolate({
           inputRange: [0, 1],
           outputRange: [18, 0],
-        }),
-      },
-      {
-        scale: unlockPromptProgress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.94, 1],
         }),
       },
     ],
@@ -317,29 +296,6 @@ export default function Home() {
       },
     ],
   };
-  const promptBankStyle = unlockAction
-    ? {
-        opacity: unlockSelectorProgress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 0],
-        }),
-        transform: [
-          {
-            translateY: unlockSelectorProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -18],
-            }),
-          },
-          {
-            scale: unlockSelectorProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, 0.96],
-            }),
-          },
-        ],
-      }
-    : null;
-
   function finishTour() {
     setTourStep(0);
     router.replace('/(tabs)');
@@ -356,7 +312,7 @@ export default function Home() {
     );
     unlockSelectorProgress.setValue(initialAction ? 1 : 0);
     setUnlockPromptVisible(true);
-    router.setParams({ hideTabs: '1', openUnlock: undefined });
+    router.setParams({ openUnlock: undefined });
     unlockPromptProgress.setValue(0);
     Animated.spring(unlockPromptProgress, {
       toValue: 1,
@@ -369,7 +325,6 @@ export default function Home() {
   function hideUnlockPrompt() {
     setUnlockAction(null);
     unlockSelectorProgress.setValue(0);
-    router.setParams({ hideTabs: undefined });
     Animated.timing(unlockPromptProgress, {
       toValue: 0,
       duration: 180,
@@ -381,14 +336,14 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (params.openUnlock !== '1') {
+    if (params.openUnlock !== '1' && params.openUnlock !== 'spend') {
       shieldPromptHandledRef.current = false;
       return;
     }
     if (shieldPromptHandledRef.current || tourActive) return;
 
     shieldPromptHandledRef.current = true;
-    showUnlockPrompt();
+    showUnlockPrompt(params.openUnlock === 'spend' ? 'spend' : null);
   }, [params.openUnlock, tourActive]);
 
   async function openSubscriptionFlow() {
@@ -422,14 +377,9 @@ export default function Home() {
     setSelectedMinutes(nextMinutes);
     unlockSelectorProgress.setValue(0);
     void Haptics.selectionAsync().catch(() => {});
-    if (action === 'earn') {
-      unlockSelectorProgress.setValue(1);
-      return;
-    }
-
     Animated.timing(unlockSelectorProgress, {
       toValue: 1,
-      duration: 240,
+      duration: 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -454,7 +404,6 @@ export default function Home() {
       setUnlockPromptVisible(false);
       setUnlockAction(null);
       unlockSelectorProgress.setValue(0);
-      router.setParams({ hideTabs: undefined });
       router.push('/session');
       return;
     }
@@ -476,7 +425,6 @@ export default function Home() {
           setUnlockPromptVisible(false);
           setUnlockAction(null);
           unlockSelectorProgress.setValue(0);
-          router.setParams({ hideTabs: undefined });
         });
       }
     } finally {
@@ -585,7 +533,7 @@ export default function Home() {
                 Level {bootyProgress.currentLevel.level}
               </Text>
             </View>
-            <Text className="min-w-0 flex-1 text-base font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+            <Text className="min-w-0 flex-1 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
               {bootyProgress.currentLevel.title}
             </Text>
           </View>
@@ -602,85 +550,185 @@ export default function Home() {
       </Pressable>
 
       <TourHighlight id="balance" activeId={activeSpotlight}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Hold to unlock'}
-          accessibilityHint={showUnlockedState ? undefined : 'Hold until the card fills to choose how to unlock'}
-          disabled={showUnlockedState || tourActive}
-          onPressIn={startUnlockHold}
-          onPressOut={cancelUnlockHold}
-          className={`mt-8 overflow-hidden rounded-[40px] p-7 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}
-        >
-          {!showUnlockedState ? (
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.holdFill, { height: holdFillHeight }]}
-            />
-          ) : null}
-          {showUnlockedState ? (
-            <View className="mb-5 flex-row justify-end">
-              <View className="rounded-full bg-white/45 px-4 py-2">
-                <Text className="text-xs font-black uppercase tracking-[1.2px] text-cocoa">
-                  Unlocked window
-                </Text>
+        <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
+          {unlockPromptVisible ? (
+            <Animated.View className="p-7" style={promptContentStyle}>
+              <View className="rounded-[28px] bg-white/15 p-4">
+                <View className="flex-row items-start justify-between gap-4">
+                  <View>
+                    <Text className="text-xs font-black uppercase tracking-[1.4px] text-white/75">
+                      Peaches
+                    </Text>
+                    <View className="mt-1 flex-row items-center gap-2">
+                      <PeachIcon size={38} />
+                      <Text
+                        className="text-4xl font-black tabular-nums text-white"
+                        accessibilityLabel={`${peachBalance} Peaches`}
+                      >
+                        {peachBalance}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Close unlock options"
+                    className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
+                    onPress={hideUnlockPrompt}
+                  >
+                    <X size={21} stroke={colors.white} strokeWidth={3} />
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          ) : null}
 
-          <View className="items-center">
-            <View
-              className={`h-20 w-20 items-center justify-center rounded-[28px] ${
-                showUnlockedState ? 'bg-white/60' : 'bg-white/15'
-              }`}
+              <View className="mt-6">
+                {unlockAction ? (
+                  <Animated.View style={selectorStyle}>
+                    <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
+                      {selectorTitle}
+                    </Text>
+                    <View className="my-3 flex-row items-end justify-center">
+                      <NativeRollingNumber
+                        value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
+                        color={colors.white}
+                        fontSize={76}
+                        fontWeight="900"
+                        style={styles.unlockSelectorValue}
+                      />
+                      <Text className="mb-3 ml-2 text-xl font-black text-white/80">
+                        {unlockAction === 'earn' ? 'Peaches' : 'min'}
+                      </Text>
+                    </View>
+                    <Text className="mb-3 text-center text-sm font-bold text-white/75">
+                      {unlockAction === 'spend'
+                        ? `Costs ${selectedPeaches} Peaches`
+                        : `${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`}
+                    </Text>
+                    <Slider
+                      accessibilityLabel={selectorTitle}
+                      accessibilityValue={unlockAction === 'earn'
+                        ? { min: PEACHES_PER_MINUTE, max: earnMaxMinutes * PEACHES_PER_MINUTE, now: selectedPeaches, text: `${selectedPeaches} Peaches` }
+                        : { min: 1, max: spendMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes, costs ${selectedPeaches} Peaches` }}
+                      minimumValue={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
+                      maximumValue={unlockAction === 'earn' ? earnMaxMinutes * PEACHES_PER_MINUTE : spendMaxMinutes}
+                      step={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
+                      value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
+                      onValueChange={(value) => updateSelectedMinutes(unlockAction === 'earn' ? value / PEACHES_PER_MINUTE : value)}
+                      minimumTrackTintColor={colors.white}
+                      maximumTrackTintColor="rgba(255, 255, 255, 0.32)"
+                      thumbTintColor={colors.white}
+                    />
+                    <View className="mt-5 gap-3">
+                      <Button
+                        label={selectorButtonLabel}
+                        icon={unlockAction === 'spend' ? Flame : undefined}
+                        size={unlockAction === 'earn' ? 'large' : 'default'}
+                        onPress={() => void confirmUnlockAction()}
+                        loading={unlocking}
+                        disabled={unlockAction === 'spend' && !canSpendPeaches}
+                        pressDelayMs={unlockAction === 'earn' ? 0 : undefined}
+                      />
+                      {unlockAction === 'spend' ? (
+                        <Button
+                          label="Earn More"
+                          size="large"
+                          variant="outline"
+                          onPress={() => chooseUnlockAction('earn')}
+                          pressDelayMs={0}
+                        />
+                      ) : null}
+                    </View>
+                  </Animated.View>
+                ) : (
+                  <View className="gap-3">
+                    <Button
+                      label="Use Peaches"
+                      icon={Flame}
+                      disabled={!canSpendPeaches}
+                      onPress={() => chooseUnlockAction('spend')}
+                    />
+                    <Button
+                      label="Earn More"
+                      size="large"
+                      variant="outline"
+                      onPress={() => chooseUnlockAction('earn')}
+                      pressDelayMs={0}
+                    />
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Hold to unlock'}
+              accessibilityHint={showUnlockedState ? undefined : 'Hold until the card fills to choose how to unlock'}
+              disabled={showUnlockedState || tourActive}
+              onPressIn={startUnlockHold}
+              onPressOut={cancelUnlockHold}
+              className="p-7"
             >
+              {!showUnlockedState ? (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.holdFill, { height: holdFillHeight }]}
+                />
+              ) : null}
               {showUnlockedState ? (
-                <Unlock size={38} stroke={colors.cocoa} strokeWidth={3} />
-              ) : (
-                <Lock size={38} stroke={colors.white} strokeWidth={3} />
-              )}
-            </View>
-            <Text className={`mt-4 text-5xl font-bold ${showUnlockedState ? 'text-cocoa' : 'text-white'}`}>
-              {status}
-            </Text>
-            {showUnlockedState ? (
-              <Text className="mt-2 text-base font-bold text-mink">Remaining time</Text>
-            ) : null}
-          </View>
+                <View className="mb-5 flex-row justify-end">
+                  <View className="rounded-full bg-white/45 px-4 py-2">
+                    <Text className="text-xs font-black uppercase tracking-[1.2px] text-cocoa">
+                      Unlocked window
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
 
-          <View className={`mt-6 rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
-            <Text className={`text-xs font-black uppercase tracking-[1.4px] ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
-              {showUnlockedState ? 'Remaining time' : 'Peaches'}
-            </Text>
-            {showUnlockedState ? (
-              <Text
-                className="mt-1 text-4xl font-black tabular-nums text-cocoa"
-                accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
-              >
-                {formatBankDuration(usageWindowSeconds)}
-              </Text>
-            ) : (
-              <View className="mt-1 flex-row items-center gap-2">
-                <PeachIcon size={38} />
-                <Text className="text-4xl font-black tabular-nums text-white" accessibilityLabel={`${peachBalance} Peaches`}>
-                  {peachBalance}
+              <View className="items-center">
+                <View
+                  className={`h-20 w-20 items-center justify-center rounded-[28px] ${
+                    showUnlockedState ? 'bg-white/60' : 'bg-white/15'
+                  }`}
+                >
+                  {showUnlockedState ? (
+                    <Unlock size={38} stroke={colors.cocoa} strokeWidth={3} />
+                  ) : (
+                    <Lock size={38} stroke={colors.white} strokeWidth={3} />
+                  )}
+                </View>
+                <Text className={`mt-4 text-5xl font-bold ${showUnlockedState ? 'text-cocoa' : 'text-white'}`}>
+                  {status}
                 </Text>
+                {showUnlockedState ? (
+                  <Text className="mt-2 text-base font-bold text-mink">Remaining time</Text>
+                ) : null}
               </View>
-            )}
-          </View>
-        </Pressable>
+
+              <View className={`mt-6 rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
+                <Text className={`text-xs font-black uppercase tracking-[1.4px] ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
+                  {showUnlockedState ? 'Remaining time' : 'Peaches'}
+                </Text>
+                {showUnlockedState ? (
+                  <Text
+                    className="mt-1 text-4xl font-black tabular-nums text-cocoa"
+                    accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
+                  >
+                    {formatBankDuration(usageWindowSeconds)}
+                  </Text>
+                ) : (
+                  <View className="mt-1 flex-row items-center gap-2">
+                    <PeachIcon size={38} />
+                    <Text className="text-4xl font-black tabular-nums text-white" accessibilityLabel={`${peachBalance} Peaches`}>
+                      {peachBalance}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+          )}
+        </View>
       </TourHighlight>
 
-      {!showUnlockedState ? <RoughUnlockPrompt /> : null}
-
-      {canSpendPeaches && !showUnlockedState && !tourActive ? (
-        <View className="mt-4">
-          <Button
-            label="Use Peaches"
-            icon={Flame}
-            onPress={() => showUnlockPrompt('spend')}
-          />
-        </View>
-      ) : null}
+      {!showUnlockedState && !unlockPromptVisible ? <RoughUnlockPrompt /> : null}
 
       {!hasAppAccess ? (
         <View className="mt-4">
@@ -700,144 +748,6 @@ export default function Home() {
           onNext={continueTour}
         />
       ) : null}
-
-      <Modal
-        animationType="none"
-        onRequestClose={hideUnlockPrompt}
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
-        transparent
-        visible={unlockPromptVisible}
-      >
-        <View style={[styles.unlockPromptWrap, showEmptyWallet ? styles.emptyBankPromptWrap : null]}>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.unlockPromptBloom,
-              showEmptyWallet ? styles.emptyBankPromptBloom : null,
-              {
-                borderRadius: promptBloomSize / 2,
-                height: promptBloomSize,
-                transform: [{ scale: promptBackdropScale }],
-                width: promptBloomSize,
-              },
-            ]}
-          />
-          <Animated.View style={[styles.unlockPromptContent, promptContentStyle]}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close unlock options"
-              onPress={hideUnlockPrompt}
-              style={styles.unlockPromptClose}
-            >
-              <X size={22} stroke={colors.white} strokeWidth={3} />
-            </Pressable>
-
-            <View style={styles.unlockPromptStage}>
-              {unlockAction ? (
-                <Animated.View pointerEvents="none" style={[styles.unlockPromptBankExit, promptBankStyle]}>
-                  <View className="flex-row items-end justify-center">
-                    <Text className={`mb-5 mr-2 text-2xl font-black ${showEmptyWallet ? 'text-petal' : 'text-white/75'}`}>
-                      Peaches:
-                    </Text>
-                    <Text
-                      className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyWallet ? 'text-petal' : 'text-white'
-                      }`}
-                    >
-                      {peachBalance}
-                    </Text>
-                    <View className="mb-5 ml-2">
-                      <PeachIcon size={44} />
-                    </View>
-                  </View>
-                </Animated.View>
-              ) : (
-                <>
-                  <View className="flex-row items-end justify-center">
-                    <Text className={`mb-5 mr-2 text-2xl font-black ${showEmptyWallet ? 'text-petal' : 'text-white/75'}`}>
-                      Peaches:
-                    </Text>
-                    <Text
-                      className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyWallet ? 'text-petal' : 'text-white'
-                      }`}
-                    >
-                      {peachBalance}
-                    </Text>
-                    <View className="mb-5 ml-2">
-                      <PeachIcon size={44} />
-                    </View>
-                  </View>
-                </>
-              )}
-
-              {unlockAction ? (
-                <Animated.View style={selectorStyle}>
-                  <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
-                    {selectorTitle}
-                  </Text>
-                  <View className="my-3 flex-row items-end justify-center">
-                    <Text className="text-[92px] font-black leading-[98px] text-white">
-                      {unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
-                    </Text>
-                    <Text className="mb-4 ml-2 text-2xl font-black text-white/80">
-                      {unlockAction === 'earn' ? 'Peaches' : 'min'}
-                    </Text>
-                  </View>
-                  <Text className="mb-3 text-center text-sm font-bold text-white/75">
-                    {unlockAction === 'earn'
-                      ? `${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats • worth ${selectedMinutes} min`
-                      : `Costs ${selectedPeaches} Peaches`}
-                  </Text>
-                  <Slider
-                    accessibilityLabel={selectorTitle}
-                    accessibilityValue={unlockAction === 'earn'
-                      ? { min: PEACHES_PER_MINUTE, max: earnMaxMinutes * PEACHES_PER_MINUTE, now: selectedPeaches, text: `${selectedPeaches} Peaches` }
-                      : { min: 1, max: spendMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes, costs ${selectedPeaches} Peaches` }}
-                    minimumValue={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
-                    maximumValue={unlockAction === 'earn' ? earnMaxMinutes * PEACHES_PER_MINUTE : spendMaxMinutes}
-                    step={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
-                    value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
-                    onValueChange={(value) => updateSelectedMinutes(unlockAction === 'earn' ? value / PEACHES_PER_MINUTE : value)}
-                    minimumTrackTintColor={colors.white}
-                    maximumTrackTintColor="rgba(255, 255, 255, 0.32)"
-                    thumbTintColor={colors.white}
-                  />
-                  <View className="mt-5">
-                    <Button
-                      label={selectorButtonLabel}
-                      icon={unlockAction === 'spend' ? Flame : Dumbbell}
-                      onPress={() => void confirmUnlockAction()}
-                      loading={unlocking}
-                      disabled={unlockAction === 'spend' && !canSpendPeaches}
-                      pressDelayMs={unlockAction === 'earn' ? 0 : undefined}
-                    />
-                  </View>
-                </Animated.View>
-              ) : (
-                <View className="gap-3">
-                  {canSpendPeaches ? (
-                    <Button
-                      label="Use Peaches"
-                      icon={Flame}
-                      onPress={() => chooseUnlockAction('spend')}
-                    />
-                  ) : null}
-                  <Button
-                    label="Earn Peaches"
-                    size="large"
-                    variant={canSpendPeaches ? 'secondary' : 'primary'}
-                    noOutline={canSpendPeaches}
-                    onPress={() => chooseUnlockAction('earn')}
-                    pressDelayMs={0}
-                  />
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
     </Screen>
   );
 }
@@ -894,51 +804,9 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 16,
   },
-  unlockPromptWrap: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(208, 27, 101, 0.96)',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    zIndex: 40,
-  },
-  emptyBankPromptWrap: {
-    backgroundColor: colors.cocoa,
-  },
-  unlockPromptBloom: {
-    backgroundColor: colors.raspberry,
-    position: 'absolute',
-  },
-  emptyBankPromptBloom: {
-    backgroundColor: colors.cherry,
-  },
-  unlockPromptContent: {
-    flex: 1,
-    justifyContent: 'center',
-    width: '100%',
-  },
-  unlockPromptStage: {
-    alignSelf: 'center',
-    minHeight: 292,
-    width: '100%',
-    maxWidth: 320,
-  },
-  unlockPromptBankExit: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  unlockPromptClose: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: 999,
-    height: 44,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 24,
-    top: 58,
-    width: 44,
+  unlockSelectorValue: {
+    height: 82,
+    width: 130,
   },
   xpCard: {
     shadowColor: colors.cherry,

@@ -268,7 +268,9 @@ export default function Games() {
 
   const beginPlaying = useCallback(() => {
     if (endedRef.current) return;
-    depthRef.current = latestDepthRef.current;
+    // Always open at the standing/top position. The game loop immediately
+    // follows live pose depth from here, so squatting still moves the bird.
+    depthRef.current = 0;
     gameStartedAtRef.current = Date.now();
     setStatus('playing');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -450,17 +452,14 @@ export default function Games() {
   }
 
   return (
-    <Screen scroll={!gameActive} flush={gameActive} backgroundColor={gameActive ? colors.cocoa : undefined}>
+    <Screen scroll={!gameActive} flush={gameActive} backgroundColor={gameActive ? '#7AD7FF' : undefined}>
       {gameActive ? (
         <Animated.View
-          className="flex-1 bg-cocoa"
+          className="flex-1"
           onLayout={handleGameLayout}
           style={{
-            opacity: gameEntrance,
-            transform: [
-              { scale: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.975, 1] }) },
-              { translateY: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) },
-            ],
+            opacity: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] }),
+            transform: [{ translateY: gameEntrance.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
           }}
           {...panResponder.panHandlers}
         >
@@ -662,7 +661,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
   },
   gameHero: {
-    backgroundColor: colors.cocoa,
+    backgroundColor: '#7AD7FF',
     borderRadius: 30,
     height: 360,
     overflow: 'hidden',
@@ -699,7 +698,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.72)',
-    backgroundColor: colors.cocoa,
+    backgroundColor: '#7AD7FF',
   },
   scoreContainer: {
     alignItems: 'center',
