@@ -114,7 +114,7 @@ export default function Calibration() {
 
   return (
     <Screen scroll={false}>
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1">
           <View
             className="mb-4 items-center rounded-[24px] border border-white/20 px-3 py-4"

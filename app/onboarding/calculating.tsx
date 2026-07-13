@@ -135,7 +135,7 @@ export default function CalculatingPlan() {
       <StatusBar style="light" animated />
       <OnboardingProgress step={26} onBack={() => router.back()} showBar={false} dark />
 
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1 items-center justify-center pb-10">
           <View className="items-center">
             <FadeInStage delay={0}>

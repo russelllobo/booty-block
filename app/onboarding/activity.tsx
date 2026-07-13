@@ -59,7 +59,7 @@ export default function Activity() {
     <Screen scroll={false}>
       <OnboardingProgress step={22} onBack={() => router.back()} />
 
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1">
           <View>
             <Text className="text-[15px] font-bold leading-[19px] text-mink">

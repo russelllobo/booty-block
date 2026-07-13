@@ -142,7 +142,7 @@ export default function Quiz() {
     <Screen scroll={false}>
       <QuizHeader step={step} back={back} />
 
-      <SlidePanel stepKey={step} direction={direction}>
+      <SlidePanel stepKey={step} direction={direction} animateOnMount>
         {step === 1 ? (
           <KeyboardAvoidingView
             className="flex-1"

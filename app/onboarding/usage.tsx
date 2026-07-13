@@ -227,7 +227,7 @@ export default function Usage() {
     <Screen scroll={false}>
       <UsageHeader step={step} back={back} />
 
-      <SlidePanel stepKey={step} direction={direction}>
+      <SlidePanel stepKey={step} direction={direction} animateOnMount>
         <View className="flex-1">
           <View>
             <Text className="text-[15px] font-bold leading-[19px] text-mink">

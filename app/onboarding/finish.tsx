@@ -40,7 +40,7 @@ export default function FinishSetup() {
     >
       <OnboardingProgress step={23} onBack={() => router.back()} showBar={false} dark />
 
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">
           <View />
 

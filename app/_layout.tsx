@@ -26,7 +26,7 @@ import { tiktokService } from '../lib/services/tiktok';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
 
 const onboardingScreenOptions = {
-  animation: 'slide_from_right',
+  animation: 'none',
   gestureEnabled: false,
 } as const;
 

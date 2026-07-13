@@ -104,7 +104,7 @@ export function NotificationPermissionContent({
       <StatusBar style="light" animated />
       <OnboardingProgress step={25} onBack={onBack} showBar={false} dark />
 
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">
           <View className="pt-8">
             <Text className="text-center text-sm font-bold leading-5 text-white/60">

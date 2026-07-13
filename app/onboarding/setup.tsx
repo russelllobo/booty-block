@@ -194,7 +194,7 @@ export default function Setup() {
       <StatusBar style="light" animated />
       <OnboardingProgress step={19 + step} onBack={back} dark />
 
-      <SlidePanel stepKey={step} direction={direction}>
+      <SlidePanel stepKey={step} direction={direction} animateOnMount>
         <View className="flex-1">
           <View className="mb-4">
             {slide.eyebrow ? (

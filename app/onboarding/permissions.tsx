@@ -56,7 +56,7 @@ export default function Permissions() {
         <StarsBackground />
         <OnboardingProgress step={1} onBack={() => router.back()} showBar={false} />
 
-        <SlidePanel>
+        <SlidePanel animateOnMount>
           <View className="flex-1 justify-between">
             <View>
               <Text className="text-center text-[28px] font-bold leading-[33px] text-white">

@@ -308,7 +308,7 @@ export default function WellbeingPlan() {
       <StatusBar style="light" animated />
       <OnboardingProgress step={27} onBack={() => router.back()} showBar={false} dark />
 
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1">
           <ScrollView
             className="flex-1"

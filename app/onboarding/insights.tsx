@@ -2287,7 +2287,7 @@ export default function Insights() {
         dark={darkScreen}
       />
 
-      <SlidePanel stepKey={step} direction={direction}>
+      <SlidePanel stepKey={step} direction={direction} animateOnMount>
         {choosingApps || choosingReasons || choosingFeelings || choosingTried ? (
           <View className="flex-1">
             <Text className="text-base font-bold leading-6 text-mink">

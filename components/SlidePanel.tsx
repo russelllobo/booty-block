@@ -7,6 +7,7 @@ type SlidePanelProps = {
   stepKey?: string | number;
   direction?: SlideDirection;
   distance?: number;
+  animateOnMount?: boolean;
   children: ReactNode;
 };
 
@@ -23,6 +24,7 @@ export function SlidePanel({
   stepKey,
   direction = 'forward',
   distance = 34,
+  animateOnMount = false,
   children,
 }: SlidePanelProps) {
   const translateX = useRef(new Animated.Value(0)).current;
@@ -55,10 +57,13 @@ export function SlidePanel({
   useLayoutEffect(() => {
     if (firstStep.current) {
       firstStep.current = false;
+      if (animateOnMount) {
+        slideIn(dirRef.current);
+      }
       return;
     }
     slideIn(dirRef.current);
-  }, [stepKey]);
+  }, [animateOnMount, stepKey]);
 
   return (
     <Animated.View style={{ flex: 1, transform: [{ translateX }], opacity }}>

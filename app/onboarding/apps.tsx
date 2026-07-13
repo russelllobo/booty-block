@@ -123,7 +123,7 @@ export default function Apps() {
   if (!subscriptionGateReady) {
     return (
       <Screen>
-        <SlidePanel>
+        <SlidePanel animateOnMount>
           <View className="flex-1 justify-center gap-6">
             <Header title="Bootyblock Pro" subtitle="Subscribe before choosing the apps Bootyblock should protect." />
 
@@ -162,7 +162,7 @@ export default function Apps() {
 
   return (
     <Screen>
-      <SlidePanel>
+      <SlidePanel animateOnMount>
         <View className="flex-1">
           <Header title="Blocked apps" subtitle="Pick the apps that should make you squat before scrolling." />
 
