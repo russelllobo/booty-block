@@ -47,9 +47,9 @@ function RoughUnlockPrompt() {
       pointerEvents="none"
       style={styles.roughUnlockPrompt}
     >
-      <Svg height="78" style={styles.roughUnlockArrow} viewBox="0 0 300 78" width="100%">
+      <Svg height="66" style={styles.roughUnlockArrow} viewBox="0 0 300 66" width="100%">
         <Path
-          d="M 214 65 C 196 48, 176 25, 137 12"
+          d="M 211 58 C 226 39, 211 16, 164 12"
           fill="none"
           opacity={0.22}
           stroke={colors.cocoa}
@@ -57,14 +57,14 @@ function RoughUnlockPrompt() {
           strokeWidth={5.5}
         />
         <Path
-          d="M 216 64 C 196 47, 174 24, 137 11"
+          d="M 213 58 C 226 38, 209 15, 164 11"
           fill="none"
           stroke={colors.cocoa}
           strokeLinecap="round"
           strokeWidth={3.2}
         />
         <Path
-          d="M 137 11 C 148 12, 155 10, 163 6 M 137 11 C 144 19, 148 25, 150 33"
+          d="M 164 11 C 174 13, 181 12, 189 8 M 164 11 C 171 19, 174 25, 175 32"
           fill="none"
           stroke={colors.cocoa}
           strokeLinecap="round"
@@ -575,24 +575,6 @@ export default function Home() {
         logo
         centerLogo
         logoHeight={48}
-        rightAccessory={
-          <TourHighlight id="streak" activeId={activeSpotlight}>
-            <Pressable
-              accessibilityRole="button"
-              className="h-11 flex-row items-center gap-1 rounded-full bg-white/70 px-3"
-              accessibilityLabel={`${currentStreak} day streak`}
-              accessibilityHint="Opens statistics"
-              onPress={() => router.push('/statistics' as Href)}
-            >
-              <Flame
-                size={18}
-                stroke={colors.raspberry}
-                fill={currentStreak > 0 ? colors.raspberry : 'transparent'}
-              />
-              <Text className="text-base font-black text-cocoa">{currentStreak}</Text>
-            </Pressable>
-          </TourHighlight>
-        }
       />
 
       <Pressable
@@ -637,7 +619,7 @@ export default function Home() {
           disabled={showUnlockedState || tourActive}
           onPressIn={startUnlockHold}
           onPressOut={cancelUnlockHold}
-          className={`mt-auto overflow-hidden rounded-[40px] p-7 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}
+          className={`mt-8 overflow-hidden rounded-[40px] p-7 ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}
         >
           {!showUnlockedState ? (
             <Animated.View
@@ -987,7 +969,7 @@ const styles = StyleSheet.create({
   },
   roughUnlockPrompt: {
     alignSelf: 'center',
-    height: 82,
+    height: 70,
     marginTop: 2,
     position: 'relative',
     width: '100%',
@@ -1002,12 +984,13 @@ const styles = StyleSheet.create({
     bottom: 1,
     color: colors.cocoa,
     fontFamily: Platform.select({
-      ios: 'MarkerFelt-Wide',
+      ios: 'SF Pro Rounded',
       android: 'sans-serif',
-      web: 'Comic Sans MS',
+      web: 'SF Pro Rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }),
-    fontSize: 22,
-    letterSpacing: 0.45,
+    fontSize: 23,
+    fontWeight: '700',
+    letterSpacing: 0.2,
     position: 'absolute',
     right: 34,
     transform: [{ rotate: '-2deg' }],

@@ -194,7 +194,7 @@ export default function Settings() {
   }
 
   return (
-    <Screen backgroundColor="#F2F2F7">
+    <Screen>
       <Header title="Settings" />
 
       <View className="gap-7">

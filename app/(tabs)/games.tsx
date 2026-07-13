@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Activity, Play, Timer, Trophy, X } from 'lucide-react-native';
+import { Activity, Play, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -46,13 +46,6 @@ const PIPE_SPACING = 210;
 const PIPE_SPEED = 4.2;
 const COUNTDOWN_START = 3;
 
-function formatBankDuration(totalSeconds: number) {
-  const roundedSeconds = Math.max(0, Math.round(totalSeconds));
-  const minutes = Math.floor(roundedSeconds / 60);
-  const seconds = roundedSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
 function makePipe(id: number, x: number, height: number): Pipe {
   const minGapY = 88;
   const maxGapY = Math.max(minGapY, height - PIPE_GAP - 88);
@@ -67,6 +60,10 @@ function makePipe(id: number, x: number, height: number): Pipe {
 
 function makeInitialPipes(width: number, height: number) {
   return [0, 1, 2].map((index) => makePipe(index + 1, width + 120 + index * PIPE_SPACING, height));
+}
+
+function makePreviewPipes(width: number) {
+  return [makePipe(1, Math.max(180, width * 0.58), 360)];
 }
 
 function calculateDepthFromPose(depth: number, visible: boolean, fallback: number) {
@@ -117,7 +114,6 @@ function FlappyScene({
 
 export default function Games() {
   const {
-    timeBankSeconds,
     bankGameTime,
     syncTimeBank,
     subscriptionHydrated,
@@ -405,13 +401,11 @@ export default function Games() {
     durationSeconds: Math.floor(elapsedMs / 1000),
     visibilityRatio: totalTicks > 0 ? visibleTicks / totalTicks : 1,
   });
+  const previewPipes = makePreviewPipes(Math.max(size.width, 320));
 
   function handleGameLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
     setSize({ width, height });
-    if (pipes.length === 0) {
-      setPipes(makeInitialPipes(width, height));
-    }
   }
 
   function exitGame() {
@@ -502,15 +496,7 @@ export default function Games() {
         </View>
       ) : (
         <View className="flex-1">
-          <Header
-            title="Games"
-            rightAccessory={(
-              <View style={styles.balancePill}>
-                <Timer size={15} stroke={colors.cocoa} strokeWidth={2.7} />
-                <Text style={styles.balancePillText}>{formatBankDuration(timeBankSeconds)}</Text>
-              </View>
-            )}
-          />
+          <Header title="Games" />
 
           <Animated.View
             style={[
@@ -539,7 +525,7 @@ export default function Games() {
                   width={Math.max(size.width, 1)}
                   height={360}
                   birdY={mapDepthToBirdY(0.48, 360, BIRD_SIZE)}
-                  pipes={pipes}
+                  pipes={previewPipes}
                 />
               </Animated.View>
               <LinearGradient
@@ -600,23 +586,6 @@ export default function Games() {
 const styles = StyleSheet.create({
   bankAction: {
     marginTop: 16,
-  },
-  balancePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.76)',
-    borderColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  balancePillText: {
-    color: colors.cocoa,
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: -0.2,
   },
   bestBadge: {
     alignItems: 'center',
