@@ -8,10 +8,8 @@ import {
   Animated,
   Easing,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
-  Text as NativeText,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -20,10 +18,11 @@ import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
+import { PeachIcon } from '../../components/PeachIcon';
 import { Screen } from '../../components/Screen';
-import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
+import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
-import { getPeachProgress } from '../../lib/progression';
+import { getBootyProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type SpotlightKey = 'balance' | 'earn' | 'streak';
@@ -72,7 +71,7 @@ function RoughUnlockPrompt() {
           strokeWidth={3.2}
         />
       </Svg>
-      <NativeText style={styles.roughUnlockText}>hold to unlock</NativeText>
+      <Text style={styles.roughUnlockText}>hold to unlock</Text>
     </View>
   );
 }
@@ -87,14 +86,14 @@ const homeTips: HomeTip[] = [
   {
     id: 'earn',
     eyebrow: 'Move first',
-    title: 'Earn minutes with squats',
-    body: 'Start a quick squat session whenever you want more scrolling time back.',
+    title: 'Earn Peaches with squats',
+    body: 'Start a quick squat session whenever you want more Peaches for scrolling time.',
   },
   {
     id: 'streak',
     eyebrow: 'Momentum',
     title: 'Build your streak',
-    body: 'Every day you earn minutes keeps your progress visible at the top of Home.',
+    body: 'Every day you earn Peaches keeps your progress visible at the top of Home.',
   },
 ];
 
@@ -114,7 +113,7 @@ function formatBankDuration(totalSeconds: number) {
   return `${minuteLabel}:${secondLabel}`;
 }
 
-function remainingTimeAccessibilityLabel(totalSeconds: number, context: 'bank' | 'window') {
+function remainingTimeAccessibilityLabel(totalSeconds: number) {
   const roundedSeconds = Math.max(0, Math.round(totalSeconds));
   const hours = Math.floor(roundedSeconds / 3600);
   const remainingSeconds = roundedSeconds % 3600;
@@ -126,7 +125,7 @@ function remainingTimeAccessibilityLabel(totalSeconds: number, context: 'bank' |
     `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`,
   ].filter(Boolean);
 
-  return `${parts.join(', ')} remaining ${context === 'window' ? 'in current unlock window' : 'in bank'}`;
+  return `${parts.join(', ')} remaining in current unlock window`;
 }
 
 function TourHighlight({
@@ -209,14 +208,14 @@ export default function Home() {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ appTour?: string; openUnlock?: string; tourStep?: string }>();
   const {
-    timeBankSeconds,
+    peachBalance,
     usageWindowSeconds,
-    requestedMinutes,
-    setRequestedMinutes,
-    useBankedTime,
+    requestedPeaches,
+    setRequestedPeaches,
+    spendPeachesForMinutes,
     currentStreak,
     unlockHistory,
-    syncTimeBank,
+    syncUsageWindow,
     hasAppAccess,
     selectedAppsConfigured,
     requestSubscriptionAccess,
@@ -238,11 +237,11 @@ export default function Home() {
   const shieldPromptHandledRef = useRef(false);
   const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
-  const peachProgress = useMemo(
-    () => getPeachProgress(unlockHistory, currentStreak),
+  const bootyProgress = useMemo(
+    () => getBootyProgress(unlockHistory, currentStreak),
     [unlockHistory, currentStreak],
   );
-  const peachProgressPercent = `${Math.round(peachProgress.progressRatio * 100)}%` as `${number}%`;
+  const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
 
   useEffect(() => {
     if (!tourActive) return;
@@ -254,14 +253,14 @@ export default function Home() {
   }, [params.tourStep, tourActive]);
 
   useEffect(() => {
-    syncTimeBank();
+    syncUsageWindow();
     setTick(Date.now());
     const interval = setInterval(() => {
-      syncTimeBank();
+      syncUsageWindow();
       setTick(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, [syncTimeBank]);
+  }, [syncUsageWindow]);
 
   useEffect(() => {
     return () => {
@@ -269,19 +268,21 @@ export default function Home() {
     };
   }, []);
 
-  const hasBank = timeBankSeconds > 0;
+  const hasPeaches = peachBalance > 0;
+  const canSpendPeaches = peachBalance >= PEACHES_PER_MINUTE;
   const hasUsageWindow = usageWindowSeconds > 0;
   const showUnlockedState = hasUsageWindow;
-  const showEmptyBank = !hasBank && !hasUsageWindow;
+  const showEmptyWallet = !hasPeaches && !hasUsageWindow;
+  const showLowWallet = hasPeaches && !canSpendPeaches && !hasUsageWindow;
   const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
-  const bankMinutes = Math.ceil(timeBankSeconds / 60);
-  const spendMaxMinutes = Math.max(1, bankMinutes);
+  const spendMaxMinutes = Math.max(1, Math.floor(peachBalance / PEACHES_PER_MINUTE));
   const earnMaxMinutes = 60;
   const sliderMaxMinutes = unlockAction === 'spend' ? spendMaxMinutes : earnMaxMinutes;
-  const selectorTitle = unlockAction === 'spend' ? 'Use banked minutes' : 'Earn more minutes';
+  const selectedPeaches = selectedMinutes * PEACHES_PER_MINUTE;
+  const selectorTitle = unlockAction === 'spend' ? 'Unlock time' : 'Peaches to earn';
   const selectorButtonLabel = unlockAction === 'spend'
-    ? `Use ${selectedMinutes} min`
-    : `Start ${selectedMinutes * MINUTES_TO_SQUATS} squats`;
+    ? `Spend ${selectedPeaches} Peaches`
+    : `Start ${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`;
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
@@ -356,10 +357,10 @@ export default function Home() {
     setUnlockAction(initialAction);
     setSelectedMinutes(
       initialAction === 'earn'
-        ? Math.min(10, requestedMinutes)
-        : hasBank
+        ? Math.min(10, requestedPeaches / PEACHES_PER_MINUTE)
+        : canSpendPeaches
           ? Math.min(10, spendMaxMinutes)
-          : Math.min(10, requestedMinutes),
+          : Math.min(10, requestedPeaches / PEACHES_PER_MINUTE),
     );
     unlockSelectorProgress.setValue(initialAction ? 1 : 0);
     setUnlockPromptVisible(true);
@@ -423,7 +424,7 @@ export default function Home() {
   function chooseUnlockAction(action: UnlockAction) {
     const nextMinutes = action === 'spend'
       ? Math.min(Math.max(1, selectedMinutes), spendMaxMinutes)
-      : Math.min(Math.max(1, requestedMinutes), earnMaxMinutes);
+      : Math.min(Math.max(1, requestedPeaches / PEACHES_PER_MINUTE), earnMaxMinutes);
 
     setUnlockAction(action);
     setSelectedMinutes(nextMinutes);
@@ -457,7 +458,7 @@ export default function Home() {
     if (!canContinue) return;
 
     if (unlockAction === 'earn') {
-      setRequestedMinutes(selectedMinutes);
+      setRequestedPeaches(selectedPeaches);
       setUnlockPromptVisible(false);
       setUnlockAction(null);
       unlockSelectorProgress.setValue(0);
@@ -466,11 +467,11 @@ export default function Home() {
       return;
     }
 
-    if (!hasBank) return;
+    if (!canSpendPeaches) return;
 
     setUnlocking(true);
     try {
-      const started = await useBankedTime(selectedMinutes);
+      const started = await spendPeachesForMinutes(selectedMinutes);
       if (started) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         Animated.timing(unlockPromptProgress, {
@@ -579,7 +580,7 @@ export default function Home() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Level ${peachProgress.currentLevel.level}, ${peachProgress.currentLevel.title}, ${peachProgress.xp} Peach XP`}
+        accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP`}
         accessibilityHint="Opens statistics"
         onPress={() => router.push('/statistics' as Href)}
         className="-mt-10 rounded-[28px] bg-white/75 p-4"
@@ -590,23 +591,23 @@ export default function Home() {
           </View>
           <View className="flex-1">
             <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
-              Level {peachProgress.currentLevel.level}
+              Level {bootyProgress.currentLevel.level}
             </Text>
             <Text className="mt-0.5 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
-              {peachProgress.currentLevel.title}
+              {bootyProgress.currentLevel.title}
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-[11px] font-black uppercase tracking-[1.2px] text-mink">Peach XP</Text>
-            <Text className="mt-0.5 text-lg font-black text-raspberry">{peachProgress.xp}</Text>
+            <Text className="text-[11px] font-black uppercase tracking-[1.2px] text-mink">Booty XP</Text>
+            <Text className="mt-0.5 text-lg font-black text-raspberry">{bootyProgress.xp}</Text>
           </View>
         </View>
         <View style={styles.peachProgressTrack}>
-          <View style={[styles.peachProgressFill, { width: peachProgressPercent }]} />
+          <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
         </View>
         <Text className="mt-2 text-xs font-bold text-mink">
-          {peachProgress.nextLevel
-            ? `${peachProgress.xpToNext} XP to ${peachProgress.nextLevel.title}`
+          {bootyProgress.nextLevel
+            ? `${bootyProgress.xpToNext} XP to ${bootyProgress.nextLevel.title}`
             : 'Max level unlocked'}
         </Text>
       </Pressable>
@@ -657,31 +658,35 @@ export default function Home() {
             ) : null}
           </View>
 
-          {showUnlockedState ? (
-            <View className="mt-6 rounded-[28px] bg-white/55 p-4">
-              <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
-                {hasUsageWindow ? 'Remaining time' : 'Banked time'}
-              </Text>
+          <View className={`mt-6 rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
+            <Text className={`text-xs font-black uppercase tracking-[1.4px] ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
+              {showUnlockedState ? 'Remaining time' : 'Peaches'}
+            </Text>
+            {showUnlockedState ? (
               <Text
                 className="mt-1 text-4xl font-black tabular-nums text-cocoa"
-                accessibilityLabel={remainingTimeAccessibilityLabel(
-                  hasUsageWindow ? usageWindowSeconds : timeBankSeconds,
-                  hasUsageWindow ? 'window' : 'bank',
-                )}
+                accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
               >
-                {formatBankDuration(hasUsageWindow ? usageWindowSeconds : timeBankSeconds)}
+                {formatBankDuration(usageWindowSeconds)}
               </Text>
-            </View>
-          ) : null}
+            ) : (
+              <View className="mt-1 flex-row items-center gap-2">
+                <PeachIcon size={38} />
+                <Text className="text-4xl font-black tabular-nums text-white" accessibilityLabel={`${peachBalance} Peaches`}>
+                  {peachBalance}
+                </Text>
+              </View>
+            )}
+          </View>
         </Pressable>
       </TourHighlight>
 
       {!showUnlockedState ? <RoughUnlockPrompt /> : null}
 
-      {hasBank && !showUnlockedState && !tourActive ? (
+      {canSpendPeaches && !showUnlockedState && !tourActive ? (
         <View className="mt-4">
           <Button
-            label="Use minutes"
+            label="Use Peaches"
             icon={Flame}
             onPress={() => showUnlockPrompt('spend')}
           />
@@ -715,12 +720,12 @@ export default function Home() {
         transparent
         visible={unlockPromptVisible}
       >
-        <View style={[styles.unlockPromptWrap, showEmptyBank ? styles.emptyBankPromptWrap : null]}>
+        <View style={[styles.unlockPromptWrap, showEmptyWallet || showLowWallet ? styles.emptyBankPromptWrap : null]}>
           <Animated.View
             pointerEvents="none"
             style={[
               styles.unlockPromptBloom,
-              showEmptyBank ? styles.emptyBankPromptBloom : null,
+              showEmptyWallet || showLowWallet ? styles.emptyBankPromptBloom : null,
               {
                 borderRadius: promptBloomSize / 2,
                 height: promptBloomSize,
@@ -744,52 +749,44 @@ export default function Home() {
                 <Animated.View pointerEvents="none" style={[styles.unlockPromptBankExit, promptBankStyle]}>
                   <Text
                     className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
-                      showEmptyBank ? 'text-petal' : 'text-white/75'
+                      showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white/75'
                     }`}
                   >
-                    {showEmptyBank ? 'Bank empty' : 'Bank'}
+                    {showEmptyWallet ? 'No Peaches' : showLowWallet ? 'Not enough Peaches' : 'Peaches'}
                   </Text>
                   <View className="mt-2 flex-row items-end justify-center">
                     <Text
                       className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyBank ? 'text-petal' : 'text-white'
+                        showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white'
                       }`}
                     >
-                      {bankMinutes}
+                      {peachBalance}
                     </Text>
-                    <Text
-                      className={`mb-5 ml-2 text-3xl font-black ${
-                        showEmptyBank ? 'text-petal/80' : 'text-white/80'
-                      }`}
-                    >
-                      min
-                    </Text>
+                    <View className="mb-5 ml-2">
+                      <PeachIcon size={44} />
+                    </View>
                   </View>
                 </Animated.View>
               ) : (
                 <>
                   <Text
                     className={`text-center text-xs font-black uppercase tracking-[1.5px] ${
-                      showEmptyBank ? 'text-petal' : 'text-white/75'
+                      showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white/75'
                     }`}
                   >
-                    {showEmptyBank ? 'Bank empty' : 'Bank'}
+                    {showEmptyWallet ? 'No Peaches' : showLowWallet ? 'Not enough Peaches' : 'Peaches'}
                   </Text>
                   <View className="mt-2 flex-row items-end justify-center">
                     <Text
                       className={`text-[118px] font-black leading-[122px] ${
-                        showEmptyBank ? 'text-petal' : 'text-white'
+                        showEmptyWallet || showLowWallet ? 'text-petal' : 'text-white'
                       }`}
                     >
-                      {bankMinutes}
+                      {peachBalance}
                     </Text>
-                    <Text
-                      className={`mb-5 ml-2 text-3xl font-black ${
-                        showEmptyBank ? 'text-petal/80' : 'text-white/80'
-                      }`}
-                    >
-                      min
-                    </Text>
+                    <View className="mb-5 ml-2">
+                      <PeachIcon size={44} />
+                    </View>
                   </View>
                 </>
               )}
@@ -801,20 +798,27 @@ export default function Home() {
                   </Text>
                   <View className="my-3 flex-row items-end justify-center">
                     <Text className="text-[92px] font-black leading-[98px] text-white">
-                      {selectedMinutes}
+                      {unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
                     </Text>
                     <Text className="mb-4 ml-2 text-2xl font-black text-white/80">
-                      min
+                      {unlockAction === 'earn' ? 'Peaches' : 'min'}
                     </Text>
                   </View>
+                  <Text className="mb-3 text-center text-sm font-bold text-white/75">
+                    {unlockAction === 'earn'
+                      ? `${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats • worth ${selectedMinutes} min`
+                      : `Costs ${selectedPeaches} Peaches`}
+                  </Text>
                   <Slider
                     accessibilityLabel={selectorTitle}
-                    accessibilityValue={{ min: 1, max: sliderMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes` }}
-                    minimumValue={1}
-                    maximumValue={sliderMaxMinutes}
-                    step={1}
-                    value={selectedMinutes}
-                    onValueChange={updateSelectedMinutes}
+                    accessibilityValue={unlockAction === 'earn'
+                      ? { min: PEACHES_PER_MINUTE, max: earnMaxMinutes * PEACHES_PER_MINUTE, now: selectedPeaches, text: `${selectedPeaches} Peaches` }
+                      : { min: 1, max: spendMaxMinutes, now: selectedMinutes, text: `${selectedMinutes} minutes, costs ${selectedPeaches} Peaches` }}
+                    minimumValue={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
+                    maximumValue={unlockAction === 'earn' ? earnMaxMinutes * PEACHES_PER_MINUTE : spendMaxMinutes}
+                    step={unlockAction === 'earn' ? PEACHES_PER_MINUTE : 1}
+                    value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
+                    onValueChange={(value) => updateSelectedMinutes(unlockAction === 'earn' ? value / PEACHES_PER_MINUTE : value)}
                     minimumTrackTintColor={colors.white}
                     maximumTrackTintColor="rgba(255, 255, 255, 0.32)"
                     thumbTintColor={colors.white}
@@ -825,25 +829,25 @@ export default function Home() {
                       icon={unlockAction === 'spend' ? Flame : Dumbbell}
                       onPress={() => void confirmUnlockAction()}
                       loading={unlocking}
-                      disabled={unlockAction === 'spend' && !hasBank}
+                      disabled={unlockAction === 'spend' && !canSpendPeaches}
                       pressDelayMs={unlockAction === 'earn' ? 0 : undefined}
                     />
                   </View>
                 </Animated.View>
               ) : (
                 <View className="gap-3">
-                  {hasBank ? (
+                  {canSpendPeaches ? (
                     <Button
-                      label="Use banked minutes"
+                      label="Use Peaches"
                       icon={Flame}
                       onPress={() => chooseUnlockAction('spend')}
                     />
                   ) : null}
                   <Button
-                    label="Earn more minutes"
+                    label="Earn Peaches"
                     icon={Dumbbell}
-                    variant={hasBank ? 'secondary' : 'primary'}
-                    noOutline={hasBank}
+                    variant={canSpendPeaches ? 'secondary' : 'primary'}
+                    noOutline={canSpendPeaches}
                     onPress={() => chooseUnlockAction('earn')}
                     pressDelayMs={0}
                   />
@@ -983,12 +987,8 @@ const styles = StyleSheet.create({
   roughUnlockText: {
     bottom: 1,
     color: colors.cocoa,
-    fontFamily: Platform.select({
-      ios: 'SFProRounded-Bold',
-      android: 'sans-serif',
-      web: 'SF Pro Rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    }),
     fontSize: 23,
+    fontWeight: '700',
     letterSpacing: 0.2,
     position: 'absolute',
     right: 34,

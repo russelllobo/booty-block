@@ -1,5 +1,7 @@
+import { PEACHES_PER_MINUTE } from '../constants/bootyblock';
+
 export type ProgressionEntry = {
-  minutes: number;
+  peaches: number;
   squats: number;
 };
 
@@ -18,32 +20,32 @@ export const peachLevels = [
 ] satisfies PeachLevel[];
 
 const SQUAT_XP = 8;
-const MINUTE_AVOIDED_XP = 5;
+const PEACH_BUNDLE_XP = 5;
 const STREAK_DAY_XP = 90;
 
-export function calculatePeachXp(history: ProgressionEntry[], currentStreak: number) {
+export function calculateBootyXp(history: ProgressionEntry[], currentStreak: number) {
   const totals = history.reduce(
     (summary, entry) => ({
       squats: summary.squats + Math.max(0, entry.squats),
-      minutesAvoided: summary.minutesAvoided + Math.max(0, entry.minutes),
+      peachesEarned: summary.peachesEarned + Math.max(0, entry.peaches),
     }),
-    { squats: 0, minutesAvoided: 0 },
+    { squats: 0, peachesEarned: 0 },
   );
   const streakDays = Math.max(0, currentStreak);
   const xp = (totals.squats * SQUAT_XP)
-    + (totals.minutesAvoided * MINUTE_AVOIDED_XP)
+    + (Math.floor(totals.peachesEarned / PEACHES_PER_MINUTE) * PEACH_BUNDLE_XP)
     + (streakDays * STREAK_DAY_XP);
 
   return {
     xp,
     squats: totals.squats,
-    minutesAvoided: totals.minutesAvoided,
+    peachesEarned: totals.peachesEarned,
     streakDays,
   };
 }
 
-export function getPeachProgress(history: ProgressionEntry[], currentStreak: number) {
-  const totals = calculatePeachXp(history, currentStreak);
+export function getBootyProgress(history: ProgressionEntry[], currentStreak: number) {
+  const totals = calculateBootyXp(history, currentStreak);
   const currentLevel = [...peachLevels].reverse().find((level) => totals.xp >= level.minXp) ?? peachLevels[0];
   const nextLevel = peachLevels.find((level) => level.minXp > totals.xp) ?? null;
   const previousMinXp = currentLevel.minXp;

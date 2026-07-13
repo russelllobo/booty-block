@@ -1,20 +1,19 @@
+import { PEACHES_PER_MINUTE } from '../../constants/bootyblock';
+
 export const FLAPPY_SQUAT_GAME_ID = 'flappy_squat';
-export const FLAPPY_SQUAT_MIN_SECONDS = 30;
-export const FLAPPY_SQUAT_SECONDS_PER_MINUTE = 30;
 const CONTROLLER_SQUAT_RANGE = 0.4;
 const CONTROLLER_STANDING_DEAD_ZONE = 0.025;
 const CONTROLLER_RESPONSE_CURVE = 1.12;
 const BIRD_TOP_PADDING = 18;
 
 export type FlappySquatRewardInput = {
-  durationSeconds: number;
-  visibilityRatio: number;
+  score: number;
 };
 
 export type FlappySquatReward = {
-  minutes: number;
+  peaches: number;
   qualified: boolean;
-  reason: 'earned' | 'too_short' | 'poor_visibility';
+  reason: 'earned' | 'no_score';
 };
 
 export function clamp(value: number, min: number, max: number) {
@@ -40,20 +39,11 @@ export function smoothDepth(previous: number, next: number, factor = 0.2) {
 }
 
 export function calculateFlappySquatReward({
-  durationSeconds,
-  visibilityRatio,
+  score,
 }: FlappySquatRewardInput): FlappySquatReward {
-  if (durationSeconds < FLAPPY_SQUAT_MIN_SECONDS) {
-    return { minutes: 0, qualified: false, reason: 'too_short' };
-  }
+  const peaches = Math.max(0, Math.floor(score)) * PEACHES_PER_MINUTE;
 
-  if (visibilityRatio < 0.7) {
-    return { minutes: 0, qualified: false, reason: 'poor_visibility' };
-  }
-
-  const minutes = Math.floor(durationSeconds / FLAPPY_SQUAT_SECONDS_PER_MINUTE);
-
-  return minutes > 0
-    ? { minutes, qualified: true, reason: 'earned' }
-    : { minutes: 0, qualified: false, reason: 'too_short' };
+  return peaches > 0
+    ? { peaches, qualified: true, reason: 'earned' }
+    : { peaches: 0, qualified: false, reason: 'no_score' };
 }

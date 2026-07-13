@@ -13,7 +13,7 @@ import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { PoseOverlay } from '../components/PoseOverlay';
 import { Screen } from '../components/Screen';
 import { SlidePanel } from '../components/SlidePanel';
-import { MINUTES_TO_SQUATS } from '../constants/bootyblock';
+import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../constants/bootyblock';
 import { colors, shadow } from '../constants/theme';
 import { captureAnalytics } from '../lib/analytics';
 import { usePoseSession } from '../lib/services/pose';
@@ -24,13 +24,14 @@ const AnimatedText = Animated.createAnimatedComponent(Text);
 
 export default function Session() {
   const {
-    requestedMinutes,
-    bankTime,
+    requestedPeaches,
+    earnPeaches,
     subscriptionHydrated,
     isSubscribed,
   } = useBootyblock();
   const posthog = usePostHog();
-  const target = requestedMinutes * MINUTES_TO_SQUATS;
+  const target = Math.ceil(requestedPeaches / PEACHES_PER_SQUAT);
+  const unlockMinutes = requestedPeaches / PEACHES_PER_MINUTE;
   const [permission, requestPermission] = useCameraPermissions();
   const [sessionActive, setSessionActive] = useState(true);
   const subscriptionReady = subscriptionHydrated && isSubscribed;
@@ -59,13 +60,14 @@ export default function Session() {
     setSessionActive(false);
     setCelebrating(true);
     captureAnalytics(posthog, 'unlock_earned', {
-      minutes: requestedMinutes,
+      minutes: unlockMinutes,
+      peaches: requestedPeaches,
       squats: target,
     });
 
     let cancelled = false;
     const startedAt = Date.now();
-    void bankTime(requestedMinutes)
+    void earnPeaches(requestedPeaches)
       .then(() => {
         if (cancelled) return;
         const elapsed = Date.now() - startedAt;
@@ -84,16 +86,17 @@ export default function Session() {
     return () => {
       cancelled = true;
     };
-  }, [bankTime, pose.count, posthog, requestedMinutes, subscriptionReady, target]);
+  }, [earnPeaches, pose.count, posthog, requestedPeaches, subscriptionReady, target, unlockMinutes]);
 
   useEffect(() => {
     if (!subscriptionReady) return;
 
     captureAnalytics(posthog, 'session_started', {
-      minutes: requestedMinutes,
+      minutes: unlockMinutes,
+      peaches: requestedPeaches,
       target_squats: target,
     });
-  }, [posthog, requestedMinutes, subscriptionReady, target]);
+  }, [posthog, requestedPeaches, subscriptionReady, target, unlockMinutes]);
 
   useEffect(() => {
     const previous = prevCountRef.current;

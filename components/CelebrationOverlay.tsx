@@ -192,7 +192,7 @@ export function CelebrationOverlay({ visible }: CelebrationOverlayProps) {
             },
           ]}
         >
-          <Text style={styles.labelText}>BANKED</Text>
+          <Text style={styles.labelText}>PEACHES EARNED</Text>
         </Animated.View>
       </View>
     </View>

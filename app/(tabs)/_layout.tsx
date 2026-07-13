@@ -17,7 +17,7 @@ export default function TabsLayout() {
   return (
     <ThemeProvider value={DefaultTheme}>
       <NativeTabs
-        {...(tabsHidden ? { hidden: true } : {})}
+        hidden={tabsHidden}
         iconColor={{ default: colors.mink, selected: colors.raspberry }}
         labelStyle={labelStyle}
         screenListeners={{

@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
-import { getPeachProgress } from '../lib/progression';
+import { getBootyProgress } from '../lib/progression';
 import type { UnlockHistoryEntry } from '../lib/store/BootyblockProvider';
 import { calculateCurrentStreak } from '../lib/streak';
 
@@ -14,7 +14,7 @@ type StatsBucket = {
   key: string;
   label: string;
   squats: number;
-  minutes: number;
+  peaches: number;
 };
 
 const periodLabels: Record<StatsPeriod, string> = {
@@ -65,7 +65,7 @@ function summarizeBucket(key: string, label: string, entries: UnlockHistoryEntry
     key,
     label,
     squats: entries.reduce((sum, entry) => sum + entry.squats, 0),
-    minutes: entries.reduce((sum, entry) => sum + entry.minutes, 0),
+    peaches: entries.reduce((sum, entry) => sum + entry.peaches, 0),
   };
 }
 
@@ -118,15 +118,15 @@ export function StatisticsContent({
 }) {
   const [period, setPeriod] = useState<StatsPeriod>('daily');
   const currentStreak = useMemo(() => calculateCurrentStreak(history, now), [history, now]);
-  const peachProgress = useMemo(
-    () => getPeachProgress(history, currentStreak),
+  const bootyProgress = useMemo(
+    () => getBootyProgress(history, currentStreak),
     [history, currentStreak],
   );
-  const peachProgressPercent = `${Math.round(peachProgress.progressRatio * 100)}%` as `${number}%`;
+  const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
   const buckets = useMemo(() => buildStatsBuckets(history, period, now), [history, now, period]);
   const maxSquats = Math.max(1, ...buckets.map((bucket) => bucket.squats));
   const totalSquats = buckets.reduce((sum, bucket) => sum + bucket.squats, 0);
-  const totalMinutes = buckets.reduce((sum, bucket) => sum + bucket.minutes, 0);
+  const totalPeaches = buckets.reduce((sum, bucket) => sum + bucket.peaches, 0);
   const latest = history[0];
 
   return (
@@ -153,43 +153,43 @@ export function StatisticsContent({
           </View>
           <View className="flex-1">
             <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
-              Level {peachProgress.currentLevel.level}
+              Level {bootyProgress.currentLevel.level}
             </Text>
             <Text className="mt-1 text-[26px] font-black leading-[30px] text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
-              {peachProgress.currentLevel.title}
+              {bootyProgress.currentLevel.title}
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Peach XP</Text>
-            <Text className="mt-1 text-3xl font-black text-raspberry">{peachProgress.xp}</Text>
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Booty XP</Text>
+            <Text className="mt-1 text-3xl font-black text-raspberry">{bootyProgress.xp}</Text>
           </View>
         </View>
 
         <View style={styles.peachProgressTrack}>
-          <View style={[styles.peachProgressFill, { width: peachProgressPercent }]} />
+          <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
         </View>
         <Text className="mt-2 text-sm font-bold text-mink">
-          {peachProgress.nextLevel
-            ? `${peachProgress.xpToNext} XP to ${peachProgress.nextLevel.title}`
+          {bootyProgress.nextLevel
+            ? `${bootyProgress.xpToNext} XP to ${bootyProgress.nextLevel.title}`
             : 'Max level unlocked'}
         </Text>
 
         <View className="mt-4 flex-row gap-3 border-t border-petal pt-4">
           <View className="flex-1">
             <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Squats</Text>
-            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.squats}</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{bootyProgress.squats}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Avoided</Text>
-            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.minutesAvoided}m</Text>
+            <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Peaches</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{bootyProgress.peachesEarned}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-[10px] font-black uppercase tracking-[1px] text-mink">Streak</Text>
-            <Text className="mt-1 text-lg font-black text-cocoa">{peachProgress.streakDays}d</Text>
+            <Text className="mt-1 text-lg font-black text-cocoa">{bootyProgress.streakDays}d</Text>
           </View>
         </View>
         <Text className="mt-3 text-xs font-bold leading-4 text-mink">
-          Game progress only: squats, streaks, and minutes avoided become Peach XP.
+          Squats, streaks, and Peaches earned become Booty XP.
         </Text>
       </View>
 
@@ -219,8 +219,8 @@ export function StatisticsContent({
             <Text className="mt-1 text-4xl font-black text-cocoa">{totalSquats}</Text>
           </View>
           <View className="items-end">
-            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Minutes</Text>
-            <Text className="mt-1 text-4xl font-black text-raspberry">{totalMinutes}</Text>
+            <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">Peaches</Text>
+            <Text className="mt-1 text-4xl font-black text-raspberry">{totalPeaches}</Text>
           </View>
         </View>
         <Text className="mt-4 text-sm font-bold text-mink">

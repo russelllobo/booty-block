@@ -140,7 +140,7 @@ export function usePoseSession({ target, active, restartAfterNativeCount = true 
           ...machineRef.current,
           count: Math.min(rep, target),
           phase: rep >= target ? 'complete' : 'standing',
-          hint: rep >= target ? 'Banked. You earned those minutes.' : 'Counted. Drop again.',
+          hint: rep >= target ? 'Done. Your Peaches are earned.' : 'Counted. Drop again.',
         };
       }
 

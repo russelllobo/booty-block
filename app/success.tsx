@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
-import { CheckCircle2, Sparkles } from 'lucide-react-native';
+import { Sparkles } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { PeachIcon } from '../components/PeachIcon';
 import { Text } from '../components/AppText';
 import { Screen } from '../components/Screen';
 import { colors } from '../constants/theme';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
 export default function Success() {
-  const { timeBankMinutes, subscriptionHydrated, isSubscribed } = useBootyblock();
+  const { peachBalance, requestedPeaches, subscriptionHydrated, isSubscribed } = useBootyblock();
 
   useEffect(() => {
     if (!subscriptionHydrated || isSubscribed) return;
@@ -32,11 +33,11 @@ export default function Success() {
     <Screen scroll={false}>
       <View className="flex-1 items-center justify-center">
         <View className="h-28 w-28 items-center justify-center rounded-full bg-mint">
-          <CheckCircle2 size={58} stroke={colors.cocoa} />
+          <PeachIcon size={66} />
         </View>
-        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">Banked</Text>
+        <Text className="mt-8 text-center text-[28px] font-bold leading-[33px] text-cocoa">Peaches earned</Text>
         <Text className="mt-3 text-center text-lg font-bold leading-7 text-mink">
-          {timeBankMinutes > 0 ? `${timeBankMinutes} minutes are ready to spend.` : 'Your earned scroll time is ready.'}
+          {`${requestedPeaches} Peaches added. You now have ${peachBalance}.`}
         </Text>
       </View>
 

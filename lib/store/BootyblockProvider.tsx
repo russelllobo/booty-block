@@ -3,7 +3,7 @@ import { createContext, PropsWithChildren, useCallback, useContext, useEffect, u
 import { Alert, AppState, Modal, Platform, Pressable, StyleSheet } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
 
-import { MINUTES_TO_SQUATS } from '../../constants/bootyblock';
+import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootyblock';
 import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
 import {
   screenTimeService,
@@ -12,15 +12,16 @@ import {
 } from '../services/screenTime';
 import { tiktokService } from '../services/tiktok';
 import { calculateCurrentStreak } from '../streak';
+import { minutesToPeaches, resolveStoredPeachBalance } from '../peaches';
 
-type BankEarnedSession = {
-  minutes: number;
+type PeachEarnedSession = {
+  peaches: number;
   squats: number;
-  bankedMinutes: number;
+  peachBalance: number;
   completedAt: number;
 };
 
-type GameBankSession = BankEarnedSession & {
+type GamePeachSession = PeachEarnedSession & {
   source: 'game';
   gameId: string;
   score: number;
@@ -40,7 +41,7 @@ export type RoutineReminderTime = {
 
 export type UnlockHistoryEntry = {
   id: string;
-  minutes: number;
+  peaches: number;
   squats: number;
   completedAt: number;
   source?: 'squat_session' | 'game';
@@ -64,9 +65,8 @@ type BootyblockState = {
   selectedAppsConfigured: boolean;
   selectionSummary: ScreenTimeSelectionSummary | null;
   selectedAppsLabel: string;
-  requestedMinutes: number;
-  timeBankMinutes: number;
-  timeBankSeconds: number;
+  requestedPeaches: number;
+  peachBalance: number;
   usageWindow: UsageWindow | null;
   usageWindowSeconds: number;
   unlockHistory: UnlockHistoryEntry[];
@@ -84,11 +84,11 @@ type BootyblockState = {
   setRoutineReminderTime: (time: RoutineReminderTime | null) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<boolean>;
-  setRequestedMinutes: (minutes: number) => void;
-  bankTime: (minutes: number) => Promise<BankEarnedSession>;
-  bankGameTime: (input: { minutes: number; gameId: string; score: number; durationSeconds: number }) => Promise<GameBankSession>;
-  useBankedTime: (minutes: number) => Promise<boolean>;
-  syncTimeBank: () => void;
+  setRequestedPeaches: (peaches: number) => void;
+  earnPeaches: (peaches: number) => Promise<PeachEarnedSession>;
+  earnGamePeaches: (input: { peaches: number; gameId: string; score: number; durationSeconds: number }) => Promise<GamePeachSession>;
+  spendPeachesForMinutes: (minutes: number) => Promise<boolean>;
+  syncUsageWindow: () => void;
   refreshSubscription: () => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   presentSubscriptionPaywall: (options?: { force?: boolean }) => Promise<boolean>;
@@ -101,6 +101,7 @@ type BootyblockState = {
 const STORAGE_KEY = 'bootyblock:v1';
 const RESET_SUBSCRIPTION_STATE_KEY = 'bootyblock:subscription-reset';
 const USAGE_WINDOW_MONITOR_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
 
 const BootyblockContext = createContext<BootyblockState | null>(null);
 
@@ -131,29 +132,39 @@ function defaultPayload() {
     selectionSummary: webUiPreview
       ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 }
       : null as ScreenTimeSelectionSummary | null,
-    requestedMinutes: 10,
-    timeBankMinutes: webUiPreview ? 12 : 0,
-    timeBankSeconds: webUiPreview ? 12 * 60 : 0,
+    schemaVersion: STORAGE_SCHEMA_VERSION,
+    requestedPeaches: 100,
+    peachBalance: webUiPreview ? 120 : 0,
     usageWindow: null as UsageWindow | null,
     usageWindowSeconds: 0,
     usageWindowMonitorVersion: 0,
     unlockHistory: webUiPreview
       ? ([
-          { id: 'preview-1', minutes: 10, squats: 10, completedAt: now },
-          { id: 'preview-2', minutes: 15, squats: 15, completedAt: now - 86_400_000 },
-          { id: 'preview-3', minutes: 5, squats: 5, completedAt: now - 2 * 86_400_000 },
-          { id: 'preview-4', minutes: 20, squats: 20, completedAt: now - 7 * 86_400_000 },
-          { id: 'preview-5', minutes: 30, squats: 30, completedAt: now - 18 * 86_400_000 },
+          { id: 'preview-1', peaches: 100, squats: 10, completedAt: now },
+          { id: 'preview-2', peaches: 150, squats: 15, completedAt: now - 86_400_000 },
+          { id: 'preview-3', peaches: 50, squats: 5, completedAt: now - 2 * 86_400_000 },
+          { id: 'preview-4', peaches: 200, squats: 20, completedAt: now - 7 * 86_400_000 },
+          { id: 'preview-5', peaches: 300, squats: 30, completedAt: now - 18 * 86_400_000 },
         ] satisfies UnlockHistoryEntry[])
       : ([] as UnlockHistoryEntry[]),
   };
 }
 
-type StoredPayload = ReturnType<typeof defaultPayload> & {
+type StoredUnlockHistoryEntry = Omit<UnlockHistoryEntry, 'peaches'> & {
+  peaches?: number;
+  minutes?: number;
+};
+
+type StoredPayload = Omit<ReturnType<typeof defaultPayload>, 'unlockHistory'> & {
+  schemaVersion?: number;
+  requestedMinutes?: number;
+  timeBankMinutes?: number;
+  timeBankSeconds?: number;
   activeUnlock?: { startedAt?: number; minutes?: number };
   timeBankStartedAt?: number | null;
   timeBankStartedSeconds?: number;
   usageWindow?: UsageWindow | null;
+  unlockHistory: StoredUnlockHistoryEntry[];
 };
 
 type OneTimeOfferModalState = {
@@ -191,13 +202,34 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         const storedBankSeconds = typeof parsedPayload.timeBankSeconds === 'number'
           ? parsedPayload.timeBankSeconds
           : ((stored.timeBankMinutes ?? legacyActiveUnlock?.minutes ?? 0) * 60);
-        const bankProgressSeconds = screenTimeService.getUsageBankProgressSeconds(storedBankStartedAt);
+        const bankProgressSeconds = typeof parsedPayload.peachBalance === 'number'
+          ? 0
+          : screenTimeService.getUsageBankProgressSeconds(storedBankStartedAt);
         const progressDepleted = bankProgressSeconds === Number.MAX_SAFE_INTEGER;
         const remainingBankSeconds = progressDepleted
           ? 0
           : Math.max(0, storedBankSeconds - bankProgressSeconds);
-        const timeBankSeconds = Math.min(storedBankSeconds, remainingBankSeconds);
-        const timeBankMinutes = Math.ceil(timeBankSeconds / 60);
+        const legacyRemainingBankSeconds = Math.min(storedBankSeconds, remainingBankSeconds);
+        const peachBalance = raw
+          ? resolveStoredPeachBalance(parsedPayload.peachBalance, legacyRemainingBankSeconds)
+          : stored.peachBalance;
+        const requestedPeaches = typeof parsedPayload.requestedPeaches === 'number'
+          ? Math.max(PEACHES_PER_MINUTE, Math.floor(parsedPayload.requestedPeaches))
+          : typeof parsedPayload.requestedMinutes === 'number'
+            ? Math.max(PEACHES_PER_MINUTE, minutesToPeaches(parsedPayload.requestedMinutes))
+            : stored.requestedPeaches;
+        const unlockHistory = (stored.unlockHistory ?? []).map((entry) => ({
+          id: entry.id,
+          peaches: typeof entry.peaches === 'number'
+            ? Math.max(0, Math.floor(entry.peaches))
+            : minutesToPeaches(entry.minutes ?? 0),
+          squats: entry.squats,
+          completedAt: entry.completedAt,
+          source: entry.source,
+          gameId: entry.gameId,
+          score: entry.score,
+          durationSeconds: entry.durationSeconds,
+        } satisfies UnlockHistoryEntry));
         const storedUsageWindow = stored.usageWindow ?? null;
         const usageWindowStartedAt = storedUsageWindow?.startedAt ?? null;
         const usageWindowStartedSeconds = storedUsageWindow?.startedSeconds ?? storedUsageWindow?.seconds ?? 0;
@@ -226,8 +258,18 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
             screenTimeService.applyDefaultBlock();
           }
         }
+        const {
+          activeUnlock: _activeUnlock,
+          requestedMinutes: _requestedMinutes,
+          timeBankMinutes: _timeBankMinutes,
+          timeBankSeconds: _timeBankSeconds,
+          timeBankStartedAt: _timeBankStartedAt,
+          timeBankStartedSeconds: _timeBankStartedSeconds,
+          ...currentStored
+        } = stored;
         setPayload({
-          ...stored,
+          ...currentStored,
+          schemaVersion: STORAGE_SCHEMA_VERSION,
           onboardingComplete: webUiPreview ? true : stored.onboardingComplete,
           screenTimeStatus: webUiPreview ? 'approved' : screenTimeService.getAuthorizationStatus(),
           selectedAppsConfigured: webUiPreview
@@ -238,8 +280,9 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           selectionSummary: webUiPreview
             ? stored.selectionSummary ?? defaultPayload().selectionSummary
             : selectionSummary ?? stored.selectionSummary ?? null,
-          timeBankMinutes,
-          timeBankSeconds,
+          requestedPeaches,
+          peachBalance,
+          unlockHistory,
           usageWindow,
           usageWindowSeconds,
           usageWindowMonitorVersion: usageWindow ? USAGE_WINDOW_MONITOR_VERSION : 0,
@@ -381,22 +424,23 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     return true;
   }, [isSubscribed]);
 
-  const setRequestedMinutes = useCallback((minutes: number) => {
-    setPayload((current) => ({ ...current, requestedMinutes: minutes }));
+  const setRequestedPeaches = useCallback((peaches: number) => {
+    setPayload((current) => ({ ...current, requestedPeaches: Math.max(PEACHES_PER_MINUTE, Math.floor(peaches)) }));
   }, []);
 
-  const bankTime = useCallback(async (minutes: number) => {
+  const earnPeaches = useCallback(async (peaches: number) => {
     if (!hasSubscriptionAccess(isSubscribed)) {
-      throw new Error('Bootyblock Pro is required to bank app time.');
+      throw new Error('Bootyblock Pro is required to earn Peaches.');
     }
 
-    const squats = minutes * MINUTES_TO_SQUATS;
+    const safePeaches = Math.max(0, Math.floor(peaches));
+    if (safePeaches <= 0) throw new Error('No Peaches were earned.');
+    const squats = Math.ceil(safePeaches / PEACHES_PER_SQUAT);
     const completedAt = Date.now();
-    const nextBankSeconds = (payloadRef.current.timeBankSeconds ?? (payloadRef.current.timeBankMinutes ?? 0) * 60) + (minutes * 60);
-    const nextBankMinutes = Math.ceil(nextBankSeconds / 60);
+    const nextPeachBalance = (payloadRef.current.peachBalance ?? 0) + safePeaches;
     const historyEntry = {
       id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
-      minutes,
+      peaches: safePeaches,
       squats,
       completedAt,
       source: 'squat_session' as const,
@@ -404,46 +448,44 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload((current) => {
       return {
         ...current,
-        timeBankMinutes: nextBankMinutes,
-        timeBankSeconds: nextBankSeconds,
+        peachBalance: nextPeachBalance,
         unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
       };
     });
     screenTimeService.applyDefaultBlock();
     return {
-      minutes,
+      peaches: safePeaches,
       squats,
-      bankedMinutes: nextBankMinutes,
+      peachBalance: nextPeachBalance,
       completedAt,
     };
   }, [isSubscribed]);
 
-  const bankGameTime = useCallback(async ({
-    minutes,
+  const earnGamePeaches = useCallback(async ({
+    peaches,
     gameId,
     score,
     durationSeconds,
   }: {
-    minutes: number;
+    peaches: number;
     gameId: string;
     score: number;
     durationSeconds: number;
   }) => {
     if (!hasSubscriptionAccess(isSubscribed)) {
-      throw new Error('Bootyblock Pro is required to bank app time.');
+      throw new Error('Bootyblock Pro is required to earn Peaches.');
     }
 
-    const safeMinutes = Math.max(0, Math.floor(minutes));
-    if (safeMinutes <= 0) {
-      throw new Error('No game minutes were earned.');
+    const safePeaches = Math.max(0, Math.floor(peaches));
+    if (safePeaches <= 0) {
+      throw new Error('No game Peaches were earned.');
     }
 
     const completedAt = Date.now();
-    const nextBankSeconds = (payloadRef.current.timeBankSeconds ?? (payloadRef.current.timeBankMinutes ?? 0) * 60) + (safeMinutes * 60);
-    const nextBankMinutes = Math.ceil(nextBankSeconds / 60);
+    const nextPeachBalance = (payloadRef.current.peachBalance ?? 0) + safePeaches;
     const historyEntry = {
       id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
-      minutes: safeMinutes,
+      peaches: safePeaches,
       squats: 0,
       completedAt,
       source: 'game' as const,
@@ -454,16 +496,15 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
     setPayload((current) => ({
       ...current,
-      timeBankMinutes: nextBankMinutes,
-      timeBankSeconds: nextBankSeconds,
+      peachBalance: nextPeachBalance,
       unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
     }));
     screenTimeService.applyDefaultBlock();
 
     return {
-      minutes: safeMinutes,
+      peaches: safePeaches,
       squats: 0,
-      bankedMinutes: nextBankMinutes,
+      peachBalance: nextPeachBalance,
       completedAt,
       source: 'game' as const,
       gameId,
@@ -472,36 +513,32 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     };
   }, [isSubscribed]);
 
-  const useBankedTime = useCallback(async (minutes: number) => {
+  const spendPeachesForMinutes = useCallback(async (minutes: number) => {
     if (!hasSubscriptionAccess(isSubscribed)) return false;
 
     const requestedSeconds = Math.max(0, Math.round(minutes * 60));
-    const availableSeconds = payloadRef.current.timeBankSeconds ?? 0;
-    const spendSeconds = Math.min(requestedSeconds, availableSeconds);
-    if (spendSeconds <= 0) return false;
+    const peachCost = minutesToPeaches(minutes);
+    if (requestedSeconds <= 0 || peachCost <= 0 || (payloadRef.current.peachBalance ?? 0) < peachCost) return false;
 
-    await screenTimeService.startUsageWindow(spendSeconds);
+    await screenTimeService.startUsageWindow(requestedSeconds);
     const startedAt = Date.now();
     setPayload((current) => {
-      const actualSpendSeconds = Math.min(spendSeconds, current.timeBankSeconds ?? 0);
-      const nextBankSeconds = Math.max(0, (current.timeBankSeconds ?? 0) - actualSpendSeconds);
       return {
         ...current,
-        timeBankMinutes: Math.ceil(nextBankSeconds / 60),
-        timeBankSeconds: nextBankSeconds,
+        peachBalance: Math.max(0, current.peachBalance - peachCost),
         usageWindow: {
           startedAt,
-          seconds: actualSpendSeconds,
-          startedSeconds: actualSpendSeconds,
+          seconds: requestedSeconds,
+          startedSeconds: requestedSeconds,
         },
-        usageWindowSeconds: actualSpendSeconds,
+        usageWindowSeconds: requestedSeconds,
         usageWindowMonitorVersion: USAGE_WINDOW_MONITOR_VERSION,
       };
     });
     return true;
   }, [isSubscribed]);
 
-  const syncTimeBank = useCallback(() => {
+  const syncUsageWindow = useCallback(() => {
     setPayload((current) => {
       const currentWindow = current.usageWindow ?? null;
       if (currentWindow) {
@@ -549,10 +586,6 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         };
       }
 
-      if (current.timeBankSeconds <= 0 && current.timeBankMinutes !== 0) {
-        return { ...current, timeBankMinutes: 0 };
-      }
-
       return current;
     });
   }, []);
@@ -574,19 +607,14 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, [isSubscribed, subscriptionHydrated]);
 
   useEffect(() => {
-    syncTimeBank();
+    syncUsageWindow();
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        syncTimeBank();
+        syncUsageWindow();
       }
     });
     return () => subscription.remove();
-  }, [syncTimeBank]);
-
-  useEffect(() => {
-    const subscription = screenTimeService.onUsageBankThreshold(syncTimeBank);
-    return () => subscription.remove();
-  }, [syncTimeBank]);
+  }, [syncUsageWindow]);
 
   const refreshSubscription = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -830,11 +858,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
-      setRequestedMinutes,
-      bankTime,
-      bankGameTime,
-      useBankedTime,
-      syncTimeBank,
+      setRequestedPeaches,
+      earnPeaches,
+      earnGamePeaches,
+      spendPeachesForMinutes,
+      syncUsageWindow,
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,
@@ -858,11 +886,11 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
-      setRequestedMinutes,
-      bankTime,
-      bankGameTime,
-      useBankedTime,
-      syncTimeBank,
+      setRequestedPeaches,
+      earnPeaches,
+      earnGamePeaches,
+      spendPeachesForMinutes,
+      syncUsageWindow,
       refreshSubscription,
       restorePurchases,
       presentSubscriptionPaywall,

@@ -1,10 +1,13 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useLocalSearchParams } from 'expo-router';
 import { Gamepad2, Home, Settings } from 'lucide-react-native';
 
 import { appFontFamilyForWeight } from '../../components/AppText';
 import { colors } from '../../constants/theme';
 
 export default function TabsLayout() {
+  const params = useLocalSearchParams<{ hideTabs?: string }>();
+  const tabsHidden = params.hideTabs === '1';
+
   return (
     <Tabs
       screenOptions={{
@@ -14,6 +17,7 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.cream,
           borderTopColor: colors.petal,
+          display: tabsHidden ? 'none' : 'flex',
           height: 82,
           paddingBottom: 24,
           paddingTop: 10,

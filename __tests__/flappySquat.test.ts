@@ -25,27 +25,22 @@ describe('flappy squat game logic', () => {
     expect(smoothDepth(0.5, -1, 0.2)).toBeCloseTo(0.4);
   });
 
-  it('requires enough visible movement time before rewarding minutes', () => {
-    expect(calculateFlappySquatReward({ durationSeconds: 29, visibilityRatio: 1 })).toEqual({
-      minutes: 0,
+  it('does not reward a round with no score', () => {
+    expect(calculateFlappySquatReward({ score: 0 })).toEqual({
+      peaches: 0,
       qualified: false,
-      reason: 'too_short',
-    });
-    expect(calculateFlappySquatReward({ durationSeconds: 60, visibilityRatio: 0.4 })).toEqual({
-      minutes: 0,
-      qualified: false,
-      reason: 'poor_visibility',
+      reason: 'no_score',
     });
   });
 
-  it('rewards the full play time without session or daily caps', () => {
-    expect(calculateFlappySquatReward({ durationSeconds: 180, visibilityRatio: 1 })).toEqual({
-      minutes: 6,
+  it('rewards ten Peaches for every point scored', () => {
+    expect(calculateFlappySquatReward({ score: 6 })).toEqual({
+      peaches: 60,
       qualified: true,
       reason: 'earned',
     });
-    expect(calculateFlappySquatReward({ durationSeconds: 600, visibilityRatio: 1 })).toEqual({
-      minutes: 20,
+    expect(calculateFlappySquatReward({ score: 20 })).toEqual({
+      peaches: 200,
       qualified: true,
       reason: 'earned',
     });

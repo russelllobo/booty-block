@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Activity, Play, Trophy, X } from 'lucide-react-native';
+import { ArrowDown, Play, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -11,6 +11,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Sto
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Header } from '../../components/Header';
+import { PeachIcon } from '../../components/PeachIcon';
 import { PoseOverlay } from '../../components/PoseOverlay';
 import { Screen } from '../../components/Screen';
 import {
@@ -36,6 +37,11 @@ type Pipe = {
 };
 
 type GameStatus = 'idle' | 'countdown' | 'playing' | 'ended';
+
+type GameResultNotice = {
+  score: number;
+  message: string;
+};
 
 const BEST_SCORE_KEY = 'bootyblock:flappy-squat-best';
 const GAME_TICK_MS = 40;
@@ -114,8 +120,8 @@ function FlappyScene({
 
 export default function Games() {
   const {
-    bankGameTime,
-    syncTimeBank,
+    earnGamePeaches,
+    syncUsageWindow,
     subscriptionHydrated,
     isSubscribed,
     requestSubscriptionAccess,
@@ -125,19 +131,16 @@ export default function Games() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [pipes, setPipes] = useState<Pipe[]>([]);
   const [score, setScore] = useState(0);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [visibleTicks, setVisibleTicks] = useState(0);
-  const [totalTicks, setTotalTicks] = useState(0);
   const [bestScore, setBestScore] = useState(0);
-  const [banking, setBanking] = useState(false);
-  const [lastAward, setLastAward] = useState(0);
+  const [resultNotice, setResultNotice] = useState<GameResultNotice | null>(null);
   const [simulatedDepth, setSimulatedDepth] = useState(0.5);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
+  const [hasMovedLower, setHasMovedLower] = useState(false);
   const depthRef = useRef(0.5);
   const latestDepthRef = useRef(0.5);
   const rawPoseDepthRef = useRef(0);
   const standingDepthRef = useRef<number | null>(null);
-  const poseVisibleRef = useRef(false);
+  const scoreRef = useRef(0);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
   const endedRef = useRef(false);
@@ -145,6 +148,7 @@ export default function Games() {
   const previewDrift = useRef(new Animated.Value(0)).current;
   const scoreScale = useRef(new Animated.Value(1)).current;
   const scoreFlash = useRef(new Animated.Value(0)).current;
+  const resultNoticeProgress = useRef(new Animated.Value(0)).current;
   const gameActive = status === 'countdown' || status === 'playing';
   const nativePoseActive = gameActive && Boolean(permission?.granted);
   const pose = usePoseSession({
@@ -161,7 +165,6 @@ export default function Games() {
     : standingDepthRef.current === null
       ? 0
       : normalizePoseDepth(rawDepth, standingDepthRef.current);
-  poseVisibleRef.current = pose.visible;
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
   const bodyVisible = Platform.OS === 'web' || pose.visible;
@@ -181,8 +184,8 @@ export default function Games() {
   }), [size.height]);
 
   useEffect(() => {
-    syncTimeBank();
-  }, [syncTimeBank]);
+    syncUsageWindow();
+  }, [syncUsageWindow]);
 
   useEffect(() => {
     Animated.timing(launcherEntrance, {
@@ -224,12 +227,34 @@ export default function Games() {
     if (endedRef.current) return;
     endedRef.current = true;
     setStatus('ended');
+    const finalScore = scoreRef.current;
+    const reward = calculateFlappySquatReward({ score: finalScore });
+    const durationSeconds = Math.max(0, Math.floor((Date.now() - gameStartedAtRef.current) / 1000));
+
+    if (reward.peaches > 0) {
+      void earnGamePeaches({
+        peaches: reward.peaches,
+        gameId: FLAPPY_SQUAT_GAME_ID,
+        score: finalScore,
+        durationSeconds,
+      }).then(() => {
+        setResultNotice({
+          score: finalScore,
+          message: `${reward.peaches} Peaches added to your wallet`,
+        });
+      }).catch(() => {
+        setResultNotice({ score: finalScore, message: 'Peaches could not be added' });
+      });
+    } else {
+      setResultNotice({ score: finalScore, message: '0 Peaches earned' });
+    }
+
     if (crashed) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } else {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  }, []);
+  }, [earnGamePeaches]);
 
   const beginPlaying = useCallback(() => {
     if (endedRef.current) return;
@@ -241,9 +266,6 @@ export default function Games() {
     }
     depthRef.current = Platform.OS === 'web' ? latestDepthRef.current : 0;
     gameStartedAtRef.current = Date.now();
-    setElapsedMs(0);
-    setVisibleTicks(0);
-    setTotalTicks(0);
     setStatus('playing');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   }, []);
@@ -282,10 +304,6 @@ export default function Games() {
       const birdTop = nextBirdY;
       const birdBottom = nextBirdY + BIRD_SIZE;
 
-      setElapsedMs(Date.now() - gameStartedAtRef.current);
-      setTotalTicks((current) => current + 1);
-      setVisibleTicks((current) => current + (poseVisibleRef.current || Platform.OS === 'web' ? 1 : 0));
-
       setPipes((current) => {
         let nextScore = score;
         let collided = false;
@@ -310,6 +328,7 @@ export default function Games() {
         }
 
         if (nextScore !== score) {
+          scoreRef.current = nextScore;
           setScore(nextScore);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
@@ -328,6 +347,33 @@ export default function Games() {
     setBestScore(score);
     void AsyncStorage.setItem(BEST_SCORE_KEY, String(score)).catch(() => {});
   }, [bestScore, score, status]);
+
+  useEffect(() => {
+    if (!resultNotice) return;
+
+    resultNoticeProgress.setValue(0);
+    const animation = Animated.sequence([
+      Animated.spring(resultNoticeProgress, {
+        toValue: 1,
+        useNativeDriver: true,
+        stiffness: 260,
+        damping: 22,
+        mass: 0.8,
+      }),
+      Animated.delay(2800),
+      Animated.timing(resultNoticeProgress, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start(({ finished }) => {
+      if (finished) setResultNotice(null);
+    });
+
+    return () => animation.stop();
+  }, [resultNotice, resultNoticeProgress]);
 
   useEffect(() => {
     scoreScale.setValue(1.34);
@@ -349,6 +395,16 @@ export default function Games() {
     ]).start();
   }, [score, scoreFlash, scoreScale]);
 
+  useEffect(() => {
+    if (status !== 'playing' || hasMovedLower) return;
+
+    const movedLower = Platform.OS === 'web'
+      ? simulatedDepth >= 0.62
+      : latestDepthRef.current >= 0.12;
+
+    if (movedLower) setHasMovedLower(true);
+  }, [hasMovedLower, pose.metrics.depth, simulatedDepth, status]);
+
   const startGame = useCallback(async () => {
     if (!canPlay) {
       const active = await requestSubscriptionAccess();
@@ -366,41 +422,15 @@ export default function Games() {
     rawPoseDepthRef.current = 0;
     gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
+    scoreRef.current = 0;
     setPipes(makeInitialPipes(Math.max(size.width, 320), Math.max(size.height, 420)));
     setScore(0);
-    setElapsedMs(0);
-    setVisibleTicks(0);
-    setTotalTicks(0);
     setCountdown(COUNTDOWN_START);
-    setLastAward(0);
-    setBanking(false);
+    setHasMovedLower(false);
+    setResultNotice(null);
     setStatus('countdown');
   }, [canPlay, permission?.granted, requestPermission, requestSubscriptionAccess, size.height, size.width]);
 
-  const bankReward = useCallback(async () => {
-    if (banking) return;
-    const reward = calculateFlappySquatReward({
-      durationSeconds: Math.floor(elapsedMs / 1000),
-      visibilityRatio: totalTicks > 0 ? visibleTicks / totalTicks : 1,
-    });
-    if (!reward.qualified || reward.minutes <= 0) return;
-
-    setBanking(true);
-    await bankGameTime({
-      minutes: reward.minutes,
-      gameId: FLAPPY_SQUAT_GAME_ID,
-      score,
-      durationSeconds: Math.floor(elapsedMs / 1000),
-    });
-    setLastAward(reward.minutes);
-    setBanking(false);
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [bankGameTime, banking, elapsedMs, score, totalTicks, visibleTicks]);
-
-  const rewardPreview = calculateFlappySquatReward({
-    durationSeconds: Math.floor(elapsedMs / 1000),
-    visibilityRatio: totalTicks > 0 ? visibleTicks / totalTicks : 1,
-  });
   const previewPipes = makePreviewPipes(Math.max(size.width, 320));
 
   function handleGameLayout(event: LayoutChangeEvent) {
@@ -470,6 +500,12 @@ export default function Games() {
                   {score}
                 </AnimatedText>
               </View>
+              {!hasMovedLower ? (
+                <View style={styles.scorePrompt}>
+                  <Text style={styles.scorePromptText}>GO LOWER</Text>
+                  <ArrowDown size={25} stroke={colors.white} strokeWidth={3} />
+                </View>
+              ) : null}
             </View>
           ) : null}
           <Pressable
@@ -496,7 +532,7 @@ export default function Games() {
         </View>
       ) : (
         <View className="flex-1">
-          <Header title="Games" />
+          <Header title="Games" subtitle="Earn Peaches by playing games" />
 
           <Animated.View
             style={[
@@ -550,33 +586,33 @@ export default function Games() {
               </View>
             </View>
 
-            {status === 'ended' ? (
-              <View style={styles.gameDetails}>
-                <View style={styles.result}>
-                  <View className="flex-row items-center gap-3">
-                    <Trophy size={24} stroke={colors.raspberry} strokeWidth={2.5} />
-                    <View className="flex-1">
-                      <Text className="text-lg font-black text-cocoa">Score {score}</Text>
-                      <Text className="mt-1 text-sm font-bold text-mink">
-                        {lastAward > 0
-                          ? `${lastAward} minutes added to your bank.`
-                          : rewardPreview.qualified
-                            ? `${rewardPreview.minutes} minutes ready to bank.`
-                            : rewardPreview.reason === 'poor_visibility'
-                              ? 'Stay visible for most of the round to earn minutes.'
-                              : 'Last at least 30 seconds to bank minutes.'}
-                      </Text>
-                    </View>
-                  </View>
-                  {rewardPreview.qualified && lastAward <= 0 ? (
-                    <View style={styles.bankAction}>
-                      <Button label={`Bank ${rewardPreview.minutes} min`} icon={Activity} loading={banking} onPress={bankReward} />
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            ) : null}
           </Animated.View>
+
+          {resultNotice ? (
+            <Animated.View
+              accessibilityLiveRegion="polite"
+              style={[
+                styles.resultNotice,
+                {
+                  opacity: resultNoticeProgress,
+                  transform: [{
+                    translateY: resultNoticeProgress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [120, 0],
+                    }),
+                  }],
+                },
+              ]}
+            >
+              <View style={styles.resultNoticeIcon}>
+                <PeachIcon size={24} />
+              </View>
+              <View className="flex-1">
+                <Text style={styles.resultNoticeScore}>Score {resultNotice.score}</Text>
+                <Text style={styles.resultNoticeMessage}>{resultNotice.message}</Text>
+              </View>
+            </Animated.View>
+          ) : null}
         </View>
       )}
     </Screen>
@@ -584,9 +620,6 @@ export default function Games() {
 }
 
 const styles = StyleSheet.create({
-  bankAction: {
-    marginTop: 16,
-  },
   bestBadge: {
     alignItems: 'center',
     backgroundColor: 'rgba(58,31,44,0.48)',
@@ -610,9 +643,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-  },
-  gameDetails: {
-    paddingTop: 18,
   },
   launcher: {
     borderRadius: 32,
@@ -648,9 +678,9 @@ const styles = StyleSheet.create({
   posePreview: {
     position: 'absolute',
     right: 18,
-    bottom: 32,
-    width: 144,
-    height: 216,
+    bottom: 24,
+    width: 190,
+    height: 285,
     overflow: 'hidden',
     borderRadius: 22,
     borderWidth: 2,
@@ -681,15 +711,66 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
   },
+  scorePrompt: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    left: '50%',
+    marginLeft: 42,
+    position: 'absolute',
+    top: 104,
+  },
+  scorePromptText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textShadowColor: 'rgba(58, 31, 44, 0.72)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
   scoreWrap: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     width: '100%',
   },
-  result: {
-    backgroundColor: colors.cream,
-    borderRadius: 24,
-    padding: 16,
+  resultNotice: {
+    alignItems: 'center',
+    backgroundColor: colors.cocoa,
+    borderRadius: 22,
+    bottom: 8,
+    flexDirection: 'row',
+    gap: 12,
+    left: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    position: 'absolute',
+    right: 0,
+    shadowColor: colors.cocoa,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    elevation: 10,
+    zIndex: 20,
+  },
+  resultNoticeIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.lime,
+    borderRadius: 18,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  resultNoticeMessage: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  resultNoticeScore: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '900',
   },
 });
