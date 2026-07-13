@@ -3,9 +3,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Activity, Camera, ChevronRight, Play, Sparkles, Timer, Trophy, X } from 'lucide-react-native';
+import { Activity, Play, Timer, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '../../components/AppText';
@@ -16,7 +16,6 @@ import { Screen } from '../../components/Screen';
 import {
   calculateFlappySquatReward,
   clamp,
-  FLAPPY_SQUAT_DAILY_CAP_MINUTES,
   FLAPPY_SQUAT_GAME_ID,
   mapDepthToBirdY,
   smoothDepth,
@@ -24,7 +23,7 @@ import {
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCameraView';
-import { colors, shadow } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 
 type Pipe = {
   id: number;
@@ -42,7 +41,6 @@ const PIPE_WIDTH = 68;
 const PIPE_GAP = 152;
 const PIPE_SPACING = 210;
 const PIPE_SPEED = 4.2;
-const START_SECONDS = 45;
 const COUNTDOWN_START = 3;
 
 function formatBankDuration(totalSeconds: number) {
@@ -50,14 +48,6 @@ function formatBankDuration(totalSeconds: number) {
   const minutes = Math.floor(roundedSeconds / 60);
   const seconds = roundedSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
-}
-
-function sameLocalDay(left: number, right: number) {
-  const a = new Date(left);
-  const b = new Date(right);
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
 }
 
 function makePipe(id: number, x: number, height: number): Pipe {
@@ -86,15 +76,11 @@ function FlappyScene({
   height,
   birdY,
   pipes,
-  score,
-  secondsLeft,
 }: {
   width: number;
   height: number;
   birdY: number;
   pipes: Pipe[];
-  score: number;
-  secondsLeft: number;
 }) {
   const groundY = height - 28;
 
@@ -122,11 +108,6 @@ function FlappyScene({
       <Circle cx={84} cy={birdY + 15} r={2.5} fill="#3A1F2C" />
       <Path d={`M52 ${birdY + 24} C 30 ${birdY + 12}, 30 ${birdY + 42}, 54 ${birdY + 34}`} fill="#E91E73" opacity={0.9} />
       <Path d={`M94 ${birdY + 24} L116 ${birdY + 14} L108 ${birdY + 33} Z`} fill="#FFE56F" />
-      <Rect x={14} y={14} width={102} height={38} rx={19} fill="rgba(58,31,44,0.28)" />
-      <Rect x={width - 116} y={14} width={102} height={38} rx={19} fill="rgba(58,31,44,0.28)" />
-      <Path d="M34 34 L42 24 L50 34 Z" fill="#FFFFFF" opacity={0.92} />
-      <Rect x={58} y={25} width={36} height={18} rx={9} fill="#FFFFFF" opacity={0.92} />
-      <Path d={`M${width - 86} 24 A10 10 0 1 1 ${width - 86} 44 A10 10 0 1 1 ${width - 86} 24`} fill="#FFFFFF" opacity={0.92} />
     </Svg>
   );
 }
@@ -134,7 +115,6 @@ function FlappyScene({
 export default function Games() {
   const {
     timeBankSeconds,
-    unlockHistory,
     bankGameTime,
     syncTimeBank,
     subscriptionHydrated,
@@ -146,7 +126,6 @@ export default function Games() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [pipes, setPipes] = useState<Pipe[]>([]);
   const [score, setScore] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(START_SECONDS);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [visibleTicks, setVisibleTicks] = useState(0);
   const [totalTicks, setTotalTicks] = useState(0);
@@ -156,20 +135,25 @@ export default function Games() {
   const [simulatedDepth, setSimulatedDepth] = useState(0.5);
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const depthRef = useRef(0.5);
+  const latestDepthRef = useRef(0.5);
+  const poseVisibleRef = useRef(false);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
   const endedRef = useRef(false);
+  const launcherEntrance = useRef(new Animated.Value(0)).current;
+  const previewDrift = useRef(new Animated.Value(0)).current;
   const gameActive = status === 'countdown' || status === 'playing';
   const nativePoseActive = gameActive && Boolean(permission?.granted);
-  const pose = usePoseSession({ target: 999, active: nativePoseActive });
-  const todayGameMinutes = useMemo(() => {
-    const now = Date.now();
-    return unlockHistory
-      .filter((entry) => entry.source === 'game' && sameLocalDay(entry.completedAt, now))
-      .reduce((sum, entry) => sum + entry.minutes, 0);
-  }, [unlockHistory]);
-  const dailyRemaining = Math.max(0, FLAPPY_SQUAT_DAILY_CAP_MINUTES - todayGameMinutes);
+  const pose = usePoseSession({
+    target: 999,
+    active: nativePoseActive,
+    // The game needs one continuous calibration. Restarting after a counted
+    // squat makes the crouched position the new baseline and pins the bird.
+    restartAfterNativeCount: false,
+  });
   const depth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
+  latestDepthRef.current = depth;
+  poseVisibleRef.current = pose.visible;
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
   const bodyVisible = Platform.OS === 'web' || pose.visible;
@@ -191,6 +175,23 @@ export default function Games() {
   useEffect(() => {
     syncTimeBank();
   }, [syncTimeBank]);
+
+  useEffect(() => {
+    Animated.timing(launcherEntrance, {
+      toValue: 1,
+      duration: 420,
+      useNativeDriver: true,
+    }).start();
+
+    const drift = Animated.loop(
+      Animated.sequence([
+        Animated.timing(previewDrift, { toValue: 1, duration: 2400, useNativeDriver: true }),
+        Animated.timing(previewDrift, { toValue: 0, duration: 2400, useNativeDriver: true }),
+      ]),
+    );
+    drift.start();
+    return () => drift.stop();
+  }, [launcherEntrance, previewDrift]);
 
   useEffect(() => {
     void AsyncStorage.getItem(BEST_SCORE_KEY)
@@ -226,7 +227,6 @@ export default function Games() {
     if (endedRef.current) return;
     gameStartedAtRef.current = Date.now();
     setElapsedMs(0);
-    setSecondsLeft(START_SECONDS);
     setVisibleTicks(0);
     setTotalTicks(0);
     setStatus('playing');
@@ -256,7 +256,10 @@ export default function Games() {
     if (status !== 'playing' || size.width <= 0 || size.height <= 0) return;
 
     const interval = setInterval(() => {
-      const nextDepth = smoothDepth(depthRef.current, depth, 0.24);
+      // Pose updates can arrive faster than this game loop. Read the newest
+      // sample from a ref so those updates do not tear down and recreate the
+      // interval before it gets a chance to move the bird.
+      const nextDepth = smoothDepth(depthRef.current, latestDepthRef.current, 0.32);
       depthRef.current = nextDepth;
       const nextBirdY = mapDepthToBirdY(nextDepth, size.height, BIRD_SIZE);
       const birdLeft = 72 - BIRD_SIZE / 2;
@@ -265,9 +268,8 @@ export default function Games() {
       const birdBottom = nextBirdY + BIRD_SIZE;
 
       setElapsedMs(Date.now() - gameStartedAtRef.current);
-      setSecondsLeft(Math.max(0, START_SECONDS - Math.floor((Date.now() - gameStartedAtRef.current) / 1000)));
       setTotalTicks((current) => current + 1);
-      setVisibleTicks((current) => current + (pose.visible || Platform.OS === 'web' ? 1 : 0));
+      setVisibleTicks((current) => current + (poseVisibleRef.current || Platform.OS === 'web' ? 1 : 0));
 
       setPipes((current) => {
         let nextScore = score;
@@ -296,7 +298,7 @@ export default function Games() {
           setScore(nextScore);
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
-        if (collided || Date.now() - gameStartedAtRef.current >= START_SECONDS * 1000) {
+        if (collided) {
           finishGame(collided);
         }
         return moved;
@@ -304,7 +306,7 @@ export default function Games() {
     }, GAME_TICK_MS);
 
     return () => clearInterval(interval);
-  }, [depth, finishGame, pose.visible, score, size.height, size.width, status]);
+  }, [finishGame, score, size.height, size.width, status]);
 
   useEffect(() => {
     if (status !== 'ended' || score <= bestScore) return;
@@ -330,7 +332,6 @@ export default function Games() {
     setPipes(makeInitialPipes(Math.max(size.width, 320), Math.max(size.height, 420)));
     setScore(0);
     setElapsedMs(0);
-    setSecondsLeft(START_SECONDS);
     setVisibleTicks(0);
     setTotalTicks(0);
     setCountdown(COUNTDOWN_START);
@@ -344,7 +345,6 @@ export default function Games() {
     const reward = calculateFlappySquatReward({
       durationSeconds: Math.floor(elapsedMs / 1000),
       visibilityRatio: totalTicks > 0 ? visibleTicks / totalTicks : 1,
-      alreadyEarnedTodayMinutes: todayGameMinutes,
     });
     if (!reward.qualified || reward.minutes <= 0) return;
 
@@ -358,12 +358,11 @@ export default function Games() {
     setLastAward(reward.minutes);
     setBanking(false);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [bankGameTime, banking, elapsedMs, score, todayGameMinutes, totalTicks, visibleTicks]);
+  }, [bankGameTime, banking, elapsedMs, score, totalTicks, visibleTicks]);
 
   const rewardPreview = calculateFlappySquatReward({
     durationSeconds: Math.floor(elapsedMs / 1000),
     visibilityRatio: totalTicks > 0 ? visibleTicks / totalTicks : 1,
-    alreadyEarnedTodayMinutes: todayGameMinutes,
   });
 
   function handleGameLayout(event: LayoutChangeEvent) {
@@ -393,8 +392,6 @@ export default function Games() {
               height={Math.max(size.height, 1)}
               birdY={birdY}
               pipes={pipes}
-              score={score}
-              secondsLeft={secondsLeft}
             />
           </View>
           {permission?.granted && Platform.OS === 'ios' ? (
@@ -417,9 +414,6 @@ export default function Games() {
           <View className="absolute left-5 right-5 top-12 flex-row items-center justify-between">
             <View className="rounded-full bg-cocoa/55 px-4 py-2">
               <Text className="text-sm font-black text-white">Score {score}</Text>
-            </View>
-            <View className="rounded-full bg-cocoa/55 px-4 py-2">
-              <Text className="text-sm font-black text-white">{secondsLeft}s</Text>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -461,7 +455,6 @@ export default function Games() {
         <View className="flex-1">
           <Header
             title="Games"
-            subtitle="Move your body. Beat your best. Earn screen time."
             rightAccessory={(
               <View style={styles.balancePill}>
                 <Timer size={15} stroke={colors.cocoa} strokeWidth={2.7} />
@@ -470,62 +463,61 @@ export default function Games() {
             )}
           />
 
-          <View style={[styles.gameCard, shadow]}>
+          <Animated.View
+            style={[
+              styles.launcher,
+              {
+                opacity: launcherEntrance,
+                transform: [{
+                  translateY: launcherEntrance.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }),
+                }],
+              },
+            ]}
+          >
             <View style={styles.gameHero} onLayout={handleGameLayout}>
-              <FlappyScene
-                width={Math.max(size.width, 1)}
-                height={286}
-                birdY={mapDepthToBirdY(0.48, 286, BIRD_SIZE)}
-                pipes={pipes}
-                score={status === 'ended' ? score : bestScore}
-                secondsLeft={secondsLeft}
-              />
+              <Animated.View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    transform: [
+                      { scale: previewDrift.interpolate({ inputRange: [0, 1], outputRange: [1.01, 1.035] }) },
+                      { translateY: previewDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+                    ],
+                  },
+                ]}
+              >
+                <FlappyScene
+                  width={Math.max(size.width, 1)}
+                  height={360}
+                  birdY={mapDepthToBirdY(0.48, 360, BIRD_SIZE)}
+                  pipes={pipes}
+                />
+              </Animated.View>
               <LinearGradient
                 colors={['rgba(58,31,44,0.02)', 'rgba(58,31,44,0.08)', 'rgba(58,31,44,0.76)']}
-                locations={[0, 0.52, 1]}
+                locations={[0, 0.58, 1]}
                 style={StyleSheet.absoluteFill}
               />
-              <View style={styles.heroTopRow}>
-                <View style={styles.featuredLabel}>
-                  <Sparkles size={14} stroke={colors.cocoa} strokeWidth={2.6} />
-                  <Text style={styles.featuredLabelText}>Featured game</Text>
-                </View>
-                <View style={styles.bestBadge}>
-                  <Trophy size={15} stroke={colors.white} strokeWidth={2.5} />
-                  <Text style={styles.bestBadgeText}>Best {bestScore}</Text>
-                </View>
+              <View style={styles.bestBadge}>
+                <Trophy size={14} stroke={colors.white} strokeWidth={2.5} />
+                <Text style={styles.bestBadgeText}>Best {bestScore}</Text>
               </View>
               <View style={styles.heroCopy}>
-                <Text style={styles.heroEyebrow}>45 second challenge</Text>
                 <Text style={styles.heroTitle}>Flappy Squat</Text>
-                <Text style={styles.heroSubtitle}>Stand tall to rise. Squat low to dive.</Text>
+                <Text style={styles.heroSubtitle}>Stand to rise. Squat to dive.</Text>
+                <View style={styles.heroAction}>
+                  <Button
+                    label={status === 'ended' ? 'Play again' : 'Play'}
+                    icon={Play}
+                    onPress={startGame}
+                  />
+                </View>
               </View>
             </View>
 
-            <View style={styles.gameBody}>
-              <View style={styles.rewardStrip}>
-                <View style={styles.rewardIcon}>
-                  <Timer size={22} stroke={colors.cocoa} strokeWidth={2.7} />
-                </View>
-                <View style={styles.rewardCopy}>
-                  <Text style={styles.rewardLabel}>Today’s game allowance</Text>
-                  <Text style={styles.rewardValue}>{dailyRemaining} min left to earn</Text>
-                </View>
-                <ChevronRight size={20} stroke={colors.mink} strokeWidth={2.5} />
-              </View>
-
-              <View style={styles.howToRow}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>1</Text>
-                </View>
-                <View style={styles.howToCopy}>
-                  <Text style={styles.howToTitle}>Give the camera a full-body view</Text>
-                  <Text style={styles.howToText}>Your squat depth becomes the controller—no taps needed.</Text>
-                </View>
-              </View>
-
-              {status === 'ended' ? (
-                <View className="mt-5 rounded-3xl bg-cream p-4">
+            {status === 'ended' ? (
+              <View style={styles.gameDetails}>
+                <View style={styles.result}>
                   <View className="flex-row items-center gap-3">
                     <Trophy size={24} stroke={colors.raspberry} strokeWidth={2.5} />
                     <View className="flex-1">
@@ -537,33 +529,19 @@ export default function Games() {
                             ? `${rewardPreview.minutes} minutes ready to bank.`
                             : rewardPreview.reason === 'poor_visibility'
                               ? 'Stay visible for most of the round to earn minutes.'
-                              : rewardPreview.reason === 'daily_cap'
-                                ? 'Daily game minutes are maxed out.'
-                                : 'Last at least 30 seconds to bank minutes.'}
+                              : 'Last at least 30 seconds to bank minutes.'}
                       </Text>
                     </View>
                   </View>
                   {rewardPreview.qualified && lastAward <= 0 ? (
-                    <View className="mt-4">
+                    <View style={styles.bankAction}>
                       <Button label={`Bank ${rewardPreview.minutes} min`} icon={Activity} loading={banking} onPress={bankReward} />
                     </View>
                   ) : null}
                 </View>
-              ) : null}
-
-              <View style={styles.actions}>
-                <Button
-                  label={status === 'ended' ? 'Play again' : 'Play'}
-                  icon={Play}
-                  onPress={startGame}
-                  disabled={dailyRemaining <= 0}
-                />
-                {Platform.OS !== 'web' && !permission?.granted ? (
-                  <Button label="Allow camera" icon={Camera} variant="secondary" onPress={requestPermission} />
-                ) : null}
               </View>
-            </View>
-          </View>
+            ) : null}
+          </Animated.View>
         </View>
       )}
     </Screen>
@@ -571,9 +549,8 @@ export default function Games() {
 }
 
 const styles = StyleSheet.create({
-  actions: {
-    gap: 12,
-    marginTop: 22,
+  bankAction: {
+    marginTop: 16,
   },
   balancePill: {
     alignItems: 'center',
@@ -594,12 +571,13 @@ const styles = StyleSheet.create({
   },
   bestBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(58,31,44,0.66)',
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(58,31,44,0.48)',
     borderRadius: 18,
-    borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
+    position: 'absolute',
+    right: 16,
+    top: 16,
     paddingHorizontal: 11,
     paddingVertical: 8,
   },
@@ -615,36 +593,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  featuredLabel: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 9,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  featuredLabelText: {
-    color: colors.cocoa,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.2,
-  },
-  gameBody: {
-    paddingBottom: 22,
-    paddingHorizontal: 20,
+  gameDetails: {
     paddingTop: 18,
   },
-  gameCard: {
-    backgroundColor: colors.white,
-    borderColor: 'rgba(255,255,255,0.88)',
+  launcher: {
     borderRadius: 32,
-    borderWidth: 1,
-    overflow: 'hidden',
   },
   gameHero: {
     backgroundColor: colors.cocoa,
-    height: 286,
+    borderRadius: 30,
+    height: 360,
     overflow: 'hidden',
   },
   heroCopy: {
@@ -653,18 +611,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
   },
-  heroEyebrow: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
+  heroAction: {
+    marginTop: 18,
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.86)',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    marginTop: 4,
+    marginTop: 3,
   },
   heroTitle: {
     color: colors.white,
@@ -672,37 +626,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -1.3,
     lineHeight: 39,
-    marginTop: 3,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: 16,
-    position: 'absolute',
-    right: 16,
-    top: 16,
-  },
-  howToCopy: {
-    flex: 1,
-  },
-  howToRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 18,
-  },
-  howToText: {
-    color: colors.mink,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 3,
-  },
-  howToTitle: {
-    color: colors.cocoa,
-    fontSize: 15,
-    fontWeight: '900',
-    lineHeight: 19,
   },
   posePreview: {
     position: 'absolute',
@@ -716,49 +639,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.72)',
     backgroundColor: colors.cocoa,
   },
-  rewardCopy: {
-    flex: 1,
-  },
-  rewardIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.mint,
-    borderRadius: 14,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  rewardLabel: {
-    color: colors.mink,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  rewardStrip: {
-    alignItems: 'center',
+  result: {
     backgroundColor: colors.cream,
-    borderRadius: 19,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 12,
-  },
-  rewardValue: {
-    color: colors.cocoa,
-    fontSize: 16,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  stepNumber: {
-    alignItems: 'center',
-    backgroundColor: colors.petal,
-    borderRadius: 12,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
-  },
-  stepNumberText: {
-    color: colors.cherry,
-    fontSize: 13,
-    fontWeight: '900',
+    borderRadius: 24,
+    padding: 16,
   },
 });

@@ -12,7 +12,6 @@ export default function Index() {
   const {
     hydrated,
     onboardingComplete,
-    timeBankSeconds,
     subscriptionHydrated,
   } = useBootyblock();
   const linkingUrl = Linking.useLinkingURL();
@@ -30,17 +29,14 @@ export default function Index() {
       || linkingUrl?.startsWith('bootyblock://unlock')
       || screenTimeService.consumeShieldOpenRequest(),
     );
-    router.replace(
-      openedFromShield || timeBankSeconds > 0
-        ? '/plan'
-        : '/(tabs)',
-    );
+    router.replace(openedFromShield
+      ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
+      : '/(tabs)');
   }, [
     hydrated,
     linkingUrl,
     onboardingComplete,
     subscriptionHydrated,
-    timeBankSeconds,
   ]);
 
   if (!hydrated || !subscriptionHydrated) {

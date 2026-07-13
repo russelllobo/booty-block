@@ -30,29 +30,16 @@ describe('flappy squat game logic', () => {
     });
   });
 
-  it('caps session and daily game rewards', () => {
+  it('rewards the full play time without session or daily caps', () => {
     expect(calculateFlappySquatReward({ durationSeconds: 180, visibilityRatio: 1 })).toEqual({
-      minutes: 5,
+      minutes: 6,
       qualified: true,
       reason: 'earned',
     });
-    expect(calculateFlappySquatReward({
-      durationSeconds: 180,
-      visibilityRatio: 1,
-      alreadyEarnedTodayMinutes: 18,
-    })).toEqual({
-      minutes: 2,
+    expect(calculateFlappySquatReward({ durationSeconds: 600, visibilityRatio: 1 })).toEqual({
+      minutes: 20,
       qualified: true,
       reason: 'earned',
-    });
-    expect(calculateFlappySquatReward({
-      durationSeconds: 180,
-      visibilityRatio: 1,
-      alreadyEarnedTodayMinutes: 20,
-    })).toEqual({
-      minutes: 0,
-      qualified: false,
-      reason: 'daily_cap',
     });
   });
 });

@@ -11,6 +11,7 @@ import { createSquatMachine, publicSquatState, SquatState, updateSquatMachine } 
 type PoseSessionOptions = {
   target: number;
   active: boolean;
+  restartAfterNativeCount?: boolean;
 };
 
 export type PoseSessionState = SquatState & {
@@ -41,7 +42,7 @@ function initialPoseState(target: number): PoseSessionState {
   };
 }
 
-export function usePoseSession({ target, active }: PoseSessionOptions) {
+export function usePoseSession({ target, active, restartAfterNativeCount = true }: PoseSessionOptions) {
   const machineRef = useRef(createSquatMachine(target));
   const completedNativeCountRef = useRef(0);
   const restartingNativeSessionRef = useRef(false);
@@ -91,6 +92,7 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
         // remaining reps. This is intentionally JS-side so EAS Update can fix
         // existing installs without waiting for a new native build.
         if (
+          restartAfterNativeCount &&
           event.phase === 'rising' &&
           nativeCount > 0 &&
           totalCount < target &&
@@ -157,7 +159,7 @@ export function usePoseSession({ target, active }: PoseSessionOptions) {
     }, 250);
 
     return () => clearInterval(interval);
-  }, [active, nativeAvailable, target]);
+  }, [active, nativeAvailable, restartAfterNativeCount, target]);
 
   return state;
 }

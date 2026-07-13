@@ -106,7 +106,9 @@ function NotificationObserver() {
         || screenTimeService.consumeShieldOpenRequest(),
       );
       if (openedFromShield) {
-        router.push(onboardingComplete ? '/plan' : '/onboarding');
+        router.push(onboardingComplete
+          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
+          : '/onboarding');
       }
     }
 
@@ -121,7 +123,9 @@ function NotificationObserver() {
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && screenTimeService.consumeShieldOpenRequest()) {
-        router.push(onboardingComplete ? '/plan' : '/onboarding');
+        router.push(onboardingComplete
+          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
+          : '/onboarding');
       }
     });
 
@@ -134,7 +138,7 @@ function NotificationObserver() {
     function openNotification(notification: Notifications.Notification) {
       const url = notification.request.content.data?.url;
       if (url === '/plan' || url === '/(tabs)/plan') {
-        router.push('/plan');
+        router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
       }
     }
 

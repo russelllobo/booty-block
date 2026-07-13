@@ -157,7 +157,7 @@ function HomeTourOverlay({
 
 export default function Home() {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const params = useLocalSearchParams<{ appTour?: string; tourStep?: string }>();
+  const params = useLocalSearchParams<{ appTour?: string; openUnlock?: string; tourStep?: string }>();
   const {
     timeBankSeconds,
     usageWindowSeconds,
@@ -185,6 +185,7 @@ export default function Home() {
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
   const holdAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
   const holdCompleteRef = useRef(false);
+  const shieldPromptHandledRef = useRef(false);
   const tourActive = params.appTour === 'home';
   const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
   const peachProgress = useMemo(
@@ -313,7 +314,7 @@ export default function Home() {
     );
     unlockSelectorProgress.setValue(initialAction ? 1 : 0);
     setUnlockPromptVisible(true);
-    router.setParams({ hideTabs: '1' });
+    router.setParams({ hideTabs: '1', openUnlock: undefined });
     unlockPromptProgress.setValue(0);
     Animated.spring(unlockPromptProgress, {
       toValue: 1,
@@ -336,6 +337,17 @@ export default function Home() {
       if (finished) setUnlockPromptVisible(false);
     });
   }
+
+  useEffect(() => {
+    if (params.openUnlock !== '1') {
+      shieldPromptHandledRef.current = false;
+      return;
+    }
+    if (shieldPromptHandledRef.current || tourActive) return;
+
+    shieldPromptHandledRef.current = true;
+    showUnlockPrompt();
+  }, [params.openUnlock, tourActive]);
 
   async function openSubscriptionFlow() {
     if (hasAppAccess || subscriptionBusy) return hasAppAccess;
@@ -474,7 +486,7 @@ export default function Home() {
 
   function continueTour() {
     if (tourStep === 0) {
-      router.replace({ pathname: '/plan', params: { planTour: 'onboarding' } });
+      setTourStep(2);
       return;
     }
 
@@ -539,7 +551,7 @@ export default function Home() {
         accessibilityLabel={`Level ${peachProgress.currentLevel.level}, ${peachProgress.currentLevel.title}, ${peachProgress.xp} Peach XP`}
         accessibilityHint="Opens statistics"
         onPress={() => router.push('/statistics' as Href)}
-        className="mt-4 rounded-[28px] bg-white/75 p-4"
+        className="-mt-2 rounded-[28px] bg-white/75 p-4"
       >
         <View className="flex-row items-center gap-3">
           <View className="h-12 w-12 items-center justify-center rounded-[18px] bg-petal">
