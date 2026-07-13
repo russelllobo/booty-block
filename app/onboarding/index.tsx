@@ -91,7 +91,7 @@ export default function Onboarding() {
 
   return (
     <Screen scroll={false}>
-      <SlidePanel animateOnMount blurOnTransition={false}>
+      <SlidePanel animateOnMount>
         <View className="flex-1">
           <View className="flex-row items-center justify-center gap-2 pb-5 pt-1">
             <Pressable

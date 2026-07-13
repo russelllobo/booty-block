@@ -1,5 +1,4 @@
-import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ReactNode, useLayoutEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 
 export type SlideDirection = 'forward' | 'back';
@@ -9,17 +8,8 @@ type SlidePanelProps = {
   direction?: SlideDirection;
   distance?: number;
   animateOnMount?: boolean;
-  blurOnTransition?: boolean;
   children: ReactNode;
 };
-
-const GLASS_AVAILABLE = (() => {
-  try {
-    return isGlassEffectAPIAvailable();
-  } catch {
-    return false;
-  }
-})();
 
 export function useStepDirection(step: number): SlideDirection {
   const prevRef = useRef(step);
@@ -35,32 +25,18 @@ export function SlidePanel({
   direction = 'forward',
   distance = 34,
   animateOnMount = false,
-  blurOnTransition = animateOnMount,
   children,
 }: SlidePanelProps) {
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
   const firstStep = useRef(true);
-  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [blurActive, setBlurActive] = useState(blurOnTransition && GLASS_AVAILABLE);
   const dirRef = useRef<SlideDirection>(direction);
   dirRef.current = direction;
 
-  function blurToSharp() {
-    if (!blurOnTransition || !GLASS_AVAILABLE) return;
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-    setBlurActive(true);
-    blurTimerRef.current = setTimeout(() => {
-      blurTimerRef.current = null;
-      setBlurActive(false);
-    }, 110);
-  }
-
   function slideIn(dir: SlideDirection) {
     const start = dir === 'back' ? -distance : distance;
-    blurToSharp();
     translateX.setValue(start);
-    opacity.setValue(0.72);
+    opacity.setValue(0.58);
     Animated.parallel([
       Animated.spring(translateX, {
         toValue: 0,
@@ -71,7 +47,7 @@ export function SlidePanel({
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 210,
+        duration: 280,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -89,24 +65,9 @@ export function SlidePanel({
     slideIn(dirRef.current);
   }, [animateOnMount, stepKey]);
 
-  useEffect(() => () => {
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-  }, []);
-
   return (
     <Animated.View style={{ flex: 1, transform: [{ translateX }], opacity }}>
       {children}
-      {blurOnTransition && GLASS_AVAILABLE ? (
-        <GlassView
-          pointerEvents="none"
-          glassEffectStyle={{
-            style: blurActive ? 'regular' : 'none',
-            animate: true,
-            animationDuration: 0.34,
-          }}
-          style={{ position: 'absolute', inset: 0 }}
-        />
-      ) : null}
     </Animated.View>
   );
 }
