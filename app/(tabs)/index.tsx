@@ -47,9 +47,9 @@ function RoughUnlockPrompt() {
       pointerEvents="none"
       style={styles.roughUnlockPrompt}
     >
-      <Svg height="66" style={styles.roughUnlockArrow} viewBox="0 0 300 66" width="100%">
+      <Svg height="52" style={styles.roughUnlockArrow} viewBox="0 0 300 52" width="100%">
         <Path
-          d="M 211 58 C 226 39, 211 16, 164 12"
+          d="M 211 43 C 226 29, 211 12, 164 9"
           fill="none"
           opacity={0.22}
           stroke={colors.cocoa}
@@ -57,14 +57,14 @@ function RoughUnlockPrompt() {
           strokeWidth={5.5}
         />
         <Path
-          d="M 213 58 C 226 38, 209 15, 164 11"
+          d="M 213 43 C 226 28, 209 11, 164 8"
           fill="none"
           stroke={colors.cocoa}
           strokeLinecap="round"
           strokeWidth={3.2}
         />
         <Path
-          d="M 164 11 C 174 13, 181 12, 189 8 M 164 11 C 171 19, 174 25, 175 32"
+          d="M 164 8 C 174 10, 181 9, 189 5 M 164 8 C 171 16, 174 21, 175 28"
           fill="none"
           stroke={colors.cocoa}
           strokeLinecap="round"
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
   },
   roughUnlockPrompt: {
     alignSelf: 'center',
-    height: 70,
+    height: 78,
     marginTop: 2,
     position: 'relative',
     width: '100%',
@@ -984,12 +984,11 @@ const styles = StyleSheet.create({
     bottom: 1,
     color: colors.cocoa,
     fontFamily: Platform.select({
-      ios: 'SF Pro Rounded',
+      ios: 'SFProRounded-Bold',
       android: 'sans-serif',
       web: 'SF Pro Rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }),
     fontSize: 23,
-    fontWeight: '700',
     letterSpacing: 0.2,
     position: 'absolute',
     right: 34,
