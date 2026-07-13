@@ -9,6 +9,7 @@ type SlidePanelProps = {
   direction?: SlideDirection;
   distance?: number;
   animateOnMount?: boolean;
+  blurOnTransition?: boolean;
   children: ReactNode;
 };
 
@@ -34,24 +35,25 @@ export function SlidePanel({
   direction = 'forward',
   distance = 34,
   animateOnMount = false,
+  blurOnTransition = animateOnMount,
   children,
 }: SlidePanelProps) {
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
   const firstStep = useRef(true);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [blurActive, setBlurActive] = useState(animateOnMount && GLASS_AVAILABLE);
+  const [blurActive, setBlurActive] = useState(blurOnTransition && GLASS_AVAILABLE);
   const dirRef = useRef<SlideDirection>(direction);
   dirRef.current = direction;
 
   function blurToSharp() {
-    if (!GLASS_AVAILABLE) return;
+    if (!blurOnTransition || !GLASS_AVAILABLE) return;
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     setBlurActive(true);
     blurTimerRef.current = setTimeout(() => {
       blurTimerRef.current = null;
       setBlurActive(false);
-    }, 40);
+    }, 110);
   }
 
   function slideIn(dir: SlideDirection) {
@@ -94,13 +96,13 @@ export function SlidePanel({
   return (
     <Animated.View style={{ flex: 1, transform: [{ translateX }], opacity }}>
       {children}
-      {animateOnMount && GLASS_AVAILABLE ? (
+      {blurOnTransition && GLASS_AVAILABLE ? (
         <GlassView
           pointerEvents="none"
           glassEffectStyle={{
             style: blurActive ? 'regular' : 'none',
             animate: true,
-            animationDuration: 0.28,
+            animationDuration: 0.34,
           }}
           style={{ position: 'absolute', inset: 0 }}
         />

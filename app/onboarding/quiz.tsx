@@ -13,7 +13,7 @@ import {
   Weight,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useEffect, useRef, useState } from 'react';
+import { ComponentType, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -103,16 +103,6 @@ export default function Quiz() {
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
-  useEffect(() => {
-    if (step !== 1) return;
-
-    const focusTimer = setTimeout(() => {
-      nameInputRef.current?.focus();
-    }, 350);
-
-    return () => clearTimeout(focusTimer);
-  }, [step]);
-
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/quiz',
@@ -191,7 +181,6 @@ export default function Quiz() {
                     ref={nameInputRef}
                     autoCapitalize="words"
                     autoCorrect={false}
-                    autoFocus
                     caretHidden
                     placeholder="Your name"
                     placeholderTextColor={colors.mink}
