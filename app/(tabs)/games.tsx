@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Activity, Play, Timer, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '../../components/AppText';
@@ -18,12 +18,15 @@ import {
   clamp,
   FLAPPY_SQUAT_GAME_ID,
   mapDepthToBirdY,
+  normalizePoseDepth,
   smoothDepth,
 } from '../../lib/games/flappySquat';
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { BootyPoseCameraView } from '../../modules/booty-pose/src/BootyPoseCameraView';
 import { colors } from '../../constants/theme';
+
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 type Pipe = {
   id: number;
@@ -136,12 +139,16 @@ export default function Games() {
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const depthRef = useRef(0.5);
   const latestDepthRef = useRef(0.5);
+  const rawPoseDepthRef = useRef(0);
+  const standingDepthRef = useRef<number | null>(null);
   const poseVisibleRef = useRef(false);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
   const endedRef = useRef(false);
   const launcherEntrance = useRef(new Animated.Value(0)).current;
   const previewDrift = useRef(new Animated.Value(0)).current;
+  const scoreScale = useRef(new Animated.Value(1)).current;
+  const scoreFlash = useRef(new Animated.Value(0)).current;
   const gameActive = status === 'countdown' || status === 'playing';
   const nativePoseActive = gameActive && Boolean(permission?.granted);
   const pose = usePoseSession({
@@ -151,8 +158,13 @@ export default function Games() {
     // squat makes the crouched position the new baseline and pins the bird.
     restartAfterNativeCount: false,
   });
-  const depth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
-  latestDepthRef.current = depth;
+  const rawDepth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
+  rawPoseDepthRef.current = rawDepth;
+  latestDepthRef.current = Platform.OS === 'web'
+    ? rawDepth
+    : standingDepthRef.current === null
+      ? 0
+      : normalizePoseDepth(rawDepth, standingDepthRef.current);
   poseVisibleRef.current = pose.visible;
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
@@ -225,9 +237,13 @@ export default function Games() {
 
   const beginPlaying = useCallback(() => {
     if (endedRef.current) return;
-    // Start from the pose captured during the countdown instead of briefly
-    // drawing the bird in the middle of the track.
-    depthRef.current = latestDepthRef.current;
+    if (Platform.OS !== 'web') {
+      // The user's normal standing pose is the top of the controller range,
+      // regardless of the absolute depth reported by the installed tracker.
+      standingDepthRef.current = rawPoseDepthRef.current;
+      latestDepthRef.current = 0;
+    }
+    depthRef.current = Platform.OS === 'web' ? latestDepthRef.current : 0;
     gameStartedAtRef.current = Date.now();
     setElapsedMs(0);
     setVisibleTicks(0);
@@ -317,6 +333,26 @@ export default function Games() {
     void AsyncStorage.setItem(BEST_SCORE_KEY, String(score)).catch(() => {});
   }, [bestScore, score, status]);
 
+  useEffect(() => {
+    scoreScale.setValue(1.34);
+    scoreFlash.setValue(0.9);
+    Animated.parallel([
+      Animated.spring(scoreScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        stiffness: 220,
+        damping: 11,
+        mass: 0.6,
+      }),
+      Animated.timing(scoreFlash, {
+        toValue: 0,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [score, scoreFlash, scoreScale]);
+
   const startGame = useCallback(async () => {
     if (!canPlay) {
       const active = await requestSubscriptionAccess();
@@ -330,6 +366,8 @@ export default function Games() {
 
     endedRef.current = false;
     depthRef.current = 0.5;
+    standingDepthRef.current = null;
+    rawPoseDepthRef.current = 0;
     gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
     setPipes(makeInitialPipes(Math.max(size.width, 320), Math.max(size.height, 420)));
@@ -414,21 +452,40 @@ export default function Games() {
               <CameraView active facing="front" mirror style={styles.cameraFill} />
             </View>
           ) : null}
-          <View className="absolute left-5 right-5 top-12 flex-row items-center justify-between">
-            {status === 'playing' ? (
-              <View className="rounded-full bg-cocoa/55 px-4 py-2">
-                <Text className="text-sm font-black text-white">Score {score}</Text>
+          {status === 'playing' ? (
+            <View pointerEvents="none" style={styles.scoreContainer}>
+              <View style={styles.scoreWrap}>
+                <AnimatedText
+                  accessibilityLabel={`Score ${score}`}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[styles.scoreNumber, { transform: [{ scale: scoreScale }] }]}
+                >
+                  {score}
+                </AnimatedText>
+                <AnimatedText
+                  pointerEvents="none"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[
+                    styles.scoreNumber,
+                    styles.scoreNumberFlash,
+                    { opacity: scoreFlash, transform: [{ scale: scoreScale }] },
+                  ]}
+                >
+                  {score}
+                </AnimatedText>
               </View>
-            ) : <View />}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="End game"
-              onPress={exitGame}
-              className="h-11 w-11 items-center justify-center rounded-full bg-cocoa/55"
-            >
-              <X size={22} stroke={colors.white} strokeWidth={2.5} />
-            </Pressable>
-          </View>
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="End game"
+            onPress={exitGame}
+            className="absolute right-5 top-12 h-11 w-11 items-center justify-center rounded-full bg-cocoa/55"
+          >
+            <X size={22} stroke={colors.white} strokeWidth={2.5} />
+          </Pressable>
           {status === 'countdown' ? (
             <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-8">
               <View className="min-w-[280px] items-center rounded-[30px] bg-cocoa/50 px-8 py-8">
@@ -630,6 +687,36 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.72)',
     backgroundColor: colors.cocoa,
+  },
+  scoreContainer: {
+    alignItems: 'center',
+    left: 64,
+    position: 'absolute',
+    right: 64,
+    top: 38,
+  },
+  scoreNumber: {
+    color: colors.white,
+    fontSize: 128,
+    fontWeight: '900',
+    letterSpacing: -4,
+    lineHeight: 136,
+    textAlign: 'center',
+    textShadowColor: 'rgba(58, 31, 44, 0.72)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 18,
+  },
+  scoreNumberFlash: {
+    color: colors.lime,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  scoreWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
   },
   result: {
     backgroundColor: colors.cream,

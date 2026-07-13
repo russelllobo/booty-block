@@ -8,10 +8,11 @@ import {
   TextStyle,
 } from 'react-native';
 
-const webFontFamily = 'SF Pro Rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const iosFontFamily = 'ui-rounded';
+const webFontFamily = 'ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export const appFontFamily = Platform.select({
-  ios: undefined,
+  ios: iosFontFamily,
   web: webFontFamily,
   default: 'System',
 });
@@ -19,7 +20,7 @@ export const appFontFamily = Platform.select({
 export function appFontFamilyForWeight(fontWeight?: TextStyle['fontWeight']): string | undefined {
   if (Platform.OS === 'web') return webFontFamily;
   if (Platform.OS !== 'ios') return 'System';
-  return undefined;
+  return iosFontFamily;
 }
 
 function roundedStyle(style: TextProps['style']): TextStyle {
@@ -28,8 +29,15 @@ function roundedStyle(style: TextProps['style']): TextStyle {
 
 export type AppTextInputRef = RNTextInput;
 
-export const Text = forwardRef<RNText, TextProps>(function Text({ style, ...props }, ref) {
-  return <RNText ref={ref} style={[style, roundedStyle(style)]} {...props} />;
+type AppTextProps = TextProps & {
+  useAppFont?: boolean;
+};
+
+export const Text = forwardRef<RNText, AppTextProps>(function Text(
+  { style, useAppFont = true, ...props },
+  ref,
+) {
+  return <RNText ref={ref} style={[style, useAppFont ? roundedStyle(style) : null]} {...props} />;
 });
 
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, ...props }, ref) {

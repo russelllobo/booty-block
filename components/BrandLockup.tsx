@@ -35,6 +35,7 @@ export function BrandLockup({
         style={{ width: height * aspectRatio, height }}
       />
       <Text
+        useAppFont={false}
         className={[
           quietText
             ? ''

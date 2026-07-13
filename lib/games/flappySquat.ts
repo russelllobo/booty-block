@@ -1,7 +1,8 @@
 export const FLAPPY_SQUAT_GAME_ID = 'flappy_squat';
 export const FLAPPY_SQUAT_MIN_SECONDS = 30;
 export const FLAPPY_SQUAT_SECONDS_PER_MINUTE = 30;
-const STANDING_DEPTH_DEAD_ZONE = 0.08;
+const CONTROLLER_SQUAT_RANGE = 0.4;
+const CONTROLLER_STANDING_DEAD_ZONE = 0.025;
 
 export type FlappySquatRewardInput = {
   durationSeconds: number;
@@ -20,15 +21,14 @@ export function clamp(value: number, min: number, max: number) {
 
 export function mapDepthToBirdY(depth: number, trackHeight: number, birdSize: number) {
   const travel = Math.max(0, trackHeight - birdSize);
-  // Small pose-estimation fluctuations remain even when the user is standing
-  // tall. Treat that range as fully standing, then use the remaining range for
-  // proportional squat control so standing places the bird exactly at the top.
-  const normalizedDepth = clamp(
-    (depth - STANDING_DEPTH_DEAD_ZONE) / (1 - STANDING_DEPTH_DEAD_ZONE),
-    0,
-    1,
-  );
+  const normalizedDepth = clamp(depth, 0, 1);
   return clamp(normalizedDepth * travel, 0, travel);
+}
+
+export function normalizePoseDepth(depth: number, standingDepth: number) {
+  const movement = depth - standingDepth - CONTROLLER_STANDING_DEAD_ZONE;
+  const usableRange = CONTROLLER_SQUAT_RANGE - CONTROLLER_STANDING_DEAD_ZONE;
+  return clamp(movement / usableRange, 0, 1);
 }
 
 export function smoothDepth(previous: number, next: number, factor = 0.2) {

@@ -3,7 +3,19 @@ import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { AppWindow, Dumbbell, Flame, Lock, Trophy, Unlock, X } from 'lucide-react-native';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Animated,
+  Easing,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text as NativeText,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
@@ -26,6 +38,44 @@ type HomeTip = {
 const HOLD_TO_UNLOCK_MS = 920;
 
 type UnlockAction = 'spend' | 'earn';
+
+function RoughUnlockPrompt() {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
+      style={styles.roughUnlockPrompt}
+    >
+      <Svg height="78" style={styles.roughUnlockArrow} viewBox="0 0 300 78" width="100%">
+        <Path
+          d="M 214 65 C 196 48, 176 25, 137 12"
+          fill="none"
+          opacity={0.22}
+          stroke={colors.cocoa}
+          strokeLinecap="round"
+          strokeWidth={5.5}
+        />
+        <Path
+          d="M 216 64 C 196 47, 174 24, 137 11"
+          fill="none"
+          stroke={colors.cocoa}
+          strokeLinecap="round"
+          strokeWidth={3.2}
+        />
+        <Path
+          d="M 137 11 C 148 12, 155 10, 163 6 M 137 11 C 144 19, 148 25, 150 33"
+          fill="none"
+          stroke={colors.cocoa}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3.2}
+        />
+      </Svg>
+      <NativeText style={styles.roughUnlockText}>hold to unlock</NativeText>
+    </View>
+  );
+}
 
 const homeTips: HomeTip[] = [
   {
@@ -237,7 +287,6 @@ export default function Home() {
     if (hasUsageWindow) return 'All apps unlocked';
     return 'Locked';
   }, [hasUsageWindow]);
-  const lockedCardSubcopy = 'hold to unlock';
   const holdFillHeight = holdFill.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
@@ -551,7 +600,7 @@ export default function Home() {
         accessibilityLabel={`Level ${peachProgress.currentLevel.level}, ${peachProgress.currentLevel.title}, ${peachProgress.xp} Peach XP`}
         accessibilityHint="Opens statistics"
         onPress={() => router.push('/statistics' as Href)}
-        className="-mt-2 rounded-[28px] bg-white/75 p-4"
+        className="-mt-10 rounded-[28px] bg-white/75 p-4"
       >
         <View className="flex-row items-center gap-3">
           <View className="h-12 w-12 items-center justify-center rounded-[18px] bg-petal">
@@ -621,9 +670,9 @@ export default function Home() {
             <Text className={`mt-4 text-5xl font-bold ${showUnlockedState ? 'text-cocoa' : 'text-white'}`}>
               {status}
             </Text>
-            <Text className={`mt-2 text-base font-bold ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
-              {showUnlockedState ? 'Remaining time' : lockedCardSubcopy}
-            </Text>
+            {showUnlockedState ? (
+              <Text className="mt-2 text-base font-bold text-mink">Remaining time</Text>
+            ) : null}
           </View>
 
           {showUnlockedState ? (
@@ -644,6 +693,8 @@ export default function Home() {
           ) : null}
         </Pressable>
       </TourHighlight>
+
+      {!showUnlockedState ? <RoughUnlockPrompt /> : null}
 
       {hasBank && !showUnlockedState && !tourActive ? (
         <View className="mt-4">
@@ -933,5 +984,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.raspberry,
     borderRadius: 999,
     height: '100%',
+  },
+  roughUnlockPrompt: {
+    alignSelf: 'center',
+    height: 82,
+    marginTop: 2,
+    position: 'relative',
+    width: '100%',
+  },
+  roughUnlockArrow: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: -5,
+  },
+  roughUnlockText: {
+    bottom: 1,
+    color: colors.cocoa,
+    fontFamily: Platform.select({
+      ios: 'MarkerFelt-Wide',
+      android: 'sans-serif',
+      web: 'Comic Sans MS',
+    }),
+    fontSize: 22,
+    letterSpacing: 0.45,
+    position: 'absolute',
+    right: 34,
+    transform: [{ rotate: '-2deg' }],
   },
 });

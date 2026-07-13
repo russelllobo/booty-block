@@ -1,16 +1,23 @@
 import {
   calculateFlappySquatReward,
   mapDepthToBirdY,
+  normalizePoseDepth,
   smoothDepth,
 } from '../lib/games/flappySquat';
 
 describe('flappy squat game logic', () => {
   it('maps squat depth to the bird track', () => {
     expect(mapDepthToBirdY(0, 300, 40)).toBe(0);
-    expect(mapDepthToBirdY(0.08, 300, 40)).toBe(0);
-    expect(mapDepthToBirdY(0.54, 300, 40)).toBeCloseTo(130);
+    expect(mapDepthToBirdY(0.5, 300, 40)).toBe(130);
     expect(mapDepthToBirdY(1, 300, 40)).toBe(260);
     expect(mapDepthToBirdY(2, 300, 40)).toBe(260);
+  });
+
+  it('uses the countdown standing pose as the top of the controller range', () => {
+    expect(normalizePoseDepth(0.6, 0.6)).toBe(0);
+    expect(normalizePoseDepth(0.62, 0.6)).toBe(0);
+    expect(normalizePoseDepth(0.8, 0.6)).toBeCloseTo(0.4667, 3);
+    expect(normalizePoseDepth(1, 0.6)).toBe(1);
   });
 
   it('smooths depth toward the next pose sample', () => {
