@@ -165,7 +165,12 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   );
 
   const surface = (
-    <Animated.View style={[isPrimary && !useGlass ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.48 } : null]}>
+    <Animated.View
+      style={[
+        !useGlass ? (isPrimary ? primaryStyle : flatStyle) : null,
+        useGlass && inert ? { opacity: 0.48 } : null,
+      ]}
+    >
       {useGlass ? (
         <GlassView
           glassEffectStyle={{

@@ -13,15 +13,14 @@ import {
   Weight,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useRef, useState } from 'react';
+import { ComponentType, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   View,
 } from 'react-native';
-import { AppTextInputRef, Text, TextInput } from '../../components/AppText';
+import { Text, TextInput } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import {
@@ -97,9 +96,7 @@ export default function Quiz() {
   const posthog = usePostHog();
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
-  const [focused, setFocused] = useState(false);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const nameInputRef = useRef<AppTextInputRef>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -143,7 +140,7 @@ export default function Quiz() {
               className="flex-1"
               contentContainerStyle={{
                 flexGrow: 1,
-                paddingBottom: focused ? FOCUSED_BOTTOM_PADDING : 24,
+                paddingBottom: FOCUSED_BOTTOM_PADDING,
               }}
               keyboardShouldPersistTaps="handled"
               bounces={false}
@@ -164,12 +161,7 @@ export default function Quiz() {
                   </Text>
                 </View>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Name input"
-                  onPress={() => nameInputRef.current?.focus()}
-                  className="mt-6 min-h-[176px] justify-center"
-                >
+                <View className="mt-6 min-h-[176px] justify-center">
                   <View
                     className="min-h-[142px] flex-row flex-wrap content-center items-center"
                     pointerEvents="none"
@@ -178,7 +170,7 @@ export default function Quiz() {
                   </View>
 
                   <TextInput
-                    ref={nameInputRef}
+                    accessibilityLabel="Name input"
                     autoCapitalize="words"
                     autoCorrect={false}
                     caretHidden
@@ -187,8 +179,6 @@ export default function Quiz() {
                     returnKeyType="next"
                     value={name}
                     onChangeText={setName}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
                     onSubmitEditing={() => name.trim() && setStep(2)}
                     className="absolute inset-0 text-[1px] text-transparent"
                     style={{
@@ -200,7 +190,7 @@ export default function Quiz() {
                     selectionColor={colors.raspberry}
                   />
 
-                </Pressable>
+                </View>
 
                 <View className="flex-1" />
 
