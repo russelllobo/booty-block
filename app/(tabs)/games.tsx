@@ -602,7 +602,9 @@ export default function Games() {
     }
 
     endedRef.current = false;
-    depthRef.current = 0.5;
+    // Keep the mascot near the top while the countdown runs, matching the
+    // standing position used when play begins.
+    depthRef.current = 0;
     gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
     scoreRef.current = 0;
