@@ -27,6 +27,7 @@ type ButtonProps = {
   loading?: boolean;
   foregroundColor?: string;
   noOutline?: boolean;
+  disableGlass?: boolean;
   pressDelayMs?: number;
   size?: 'default' | 'large';
 };
@@ -58,14 +59,14 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, disableGlass = false, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
   const transitionLayer = useSlideTransitionLayer();
   const glassRevealDelayMs = useContext(GlassRevealDelayContext);
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
   const inert = disabled || loading;
-  const useGlass = GLASS_AVAILABLE && (!isPrimary || transitionLayer !== null);
+  const useGlass = !disableGlass && GLASS_AVAILABLE && (!isPrimary || transitionLayer !== null);
 
   const press = useSharedValue(0);
   const contentProgress = useSharedValue(1);

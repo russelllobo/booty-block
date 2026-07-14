@@ -532,39 +532,52 @@ export default function Home() {
       <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
           {unlockPromptVisible ? (
             <Animated.View className="p-7" style={promptContentStyle}>
-              <View className="rounded-[28px] bg-white/15 p-4">
-                <View className="flex-row items-start justify-between gap-4">
-                  <View>
-                    <Text className="text-xs font-black uppercase tracking-[1.4px] text-white/75">
-                      Peaches
-                    </Text>
-                    <View className="mt-1 flex-row items-center gap-2">
-                      <PeachIcon size={38} />
-                      <Text
-                        className="text-4xl font-black tabular-nums text-white"
-                        accessibilityLabel={`${peachBalance} Peaches`}
-                      >
-                        {peachBalance}
+              {unlockAction !== 'earn' ? (
+                <View className="rounded-[28px] bg-white/15 p-4">
+                  <View className="flex-row items-start justify-between gap-4">
+                    <View>
+                      <Text className="text-xs font-black uppercase tracking-[1.4px] text-white/75">
+                        Peaches
                       </Text>
+                      <View className="mt-1 flex-row items-center gap-2">
+                        <PeachIcon size={38} />
+                        <Text
+                          className="text-4xl font-black tabular-nums text-white"
+                          accessibilityLabel={`${peachBalance} Peaches`}
+                        >
+                          {peachBalance}
+                        </Text>
+                      </View>
                     </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Close unlock options"
+                      className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
+                      onPress={hideUnlockPrompt}
+                    >
+                      <X size={21} stroke={colors.white} strokeWidth={3} />
+                    </Pressable>
                   </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Close unlock options"
-                    className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
-                    onPress={hideUnlockPrompt}
-                  >
-                    <X size={21} stroke={colors.white} strokeWidth={3} />
-                  </Pressable>
                 </View>
-              </View>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close unlock options"
+                  className="h-11 w-11 self-end items-center justify-center rounded-full bg-white/15"
+                  onPress={hideUnlockPrompt}
+                >
+                  <X size={21} stroke={colors.white} strokeWidth={3} />
+                </Pressable>
+              )}
 
               <View className="mt-6">
                 {unlockAction ? (
                   <Animated.View style={selectorStyle}>
-                    <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
-                      {selectorTitle}
-                    </Text>
+                    {unlockAction === 'spend' ? (
+                      <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
+                        {selectorTitle}
+                      </Text>
+                    ) : null}
                     <View className="my-3 flex-row items-end justify-center">
                       <NativeRollingNumber
                         value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
@@ -577,11 +590,11 @@ export default function Home() {
                         {unlockAction === 'earn' ? 'Peaches' : 'min'}
                       </Text>
                     </View>
-                    <Text className="mb-3 text-center text-sm font-bold text-white/75">
-                      {unlockAction === 'spend'
-                        ? `Costs ${selectedPeaches} Peaches`
-                        : `${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`}
-                    </Text>
+                    {unlockAction === 'spend' ? (
+                      <Text className="mb-3 text-center text-sm font-bold text-white/75">
+                        {`Costs ${selectedPeaches} Peaches`}
+                      </Text>
+                    ) : null}
                     <Slider
                       accessibilityLabel={selectorTitle}
                       accessibilityValue={unlockAction === 'earn'
@@ -611,6 +624,7 @@ export default function Home() {
                           label="Earn More"
                           size="large"
                           variant="secondary"
+                          disableGlass
                           onPress={() => chooseUnlockAction('earn')}
                           pressDelayMs={0}
                         />
@@ -625,6 +639,7 @@ export default function Home() {
                         icon={Flame}
                         size="large"
                         variant="secondary"
+                        disableGlass
                         onPress={() => chooseUnlockAction('spend')}
                       />
                     ) : null}
@@ -632,6 +647,7 @@ export default function Home() {
                       label="Earn More"
                       size="large"
                       variant="secondary"
+                      disableGlass
                       onPress={() => chooseUnlockAction('earn')}
                       pressDelayMs={0}
                     />
