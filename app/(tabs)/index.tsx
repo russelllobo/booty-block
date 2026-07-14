@@ -573,11 +573,6 @@ export default function Home() {
               <View className="mt-6">
                 {unlockAction ? (
                   <Animated.View style={selectorStyle}>
-                    {unlockAction === 'spend' ? (
-                      <Text className="text-center text-xs font-black uppercase tracking-[1.3px] text-white/75">
-                        {selectorTitle}
-                      </Text>
-                    ) : null}
                     <View className="my-3 flex-row items-end justify-center">
                       <NativeRollingNumber
                         value={unlockAction === 'earn' ? selectedPeaches : selectedMinutes}
@@ -613,23 +608,14 @@ export default function Home() {
                       <Button
                         label={selectorButtonLabel}
                         icon={unlockAction === 'spend' ? Flame : undefined}
-                        size={unlockAction === 'earn' ? 'large' : 'default'}
-                        forceGlass={unlockAction === 'earn'}
+                        size="large"
+                        variant="secondary"
+                        disableGlass
                         onPress={() => void confirmUnlockAction()}
                         loading={unlocking}
                         disabled={unlockAction === 'spend' && !canSpendPeaches}
                         pressDelayMs={unlockAction === 'earn' ? 0 : undefined}
                       />
-                      {unlockAction === 'spend' ? (
-                        <Button
-                          label="Earn More"
-                          size="large"
-                          variant="secondary"
-                          disableGlass
-                          onPress={() => chooseUnlockAction('earn')}
-                          pressDelayMs={0}
-                        />
-                      ) : null}
                     </View>
                   </Animated.View>
                 ) : (
