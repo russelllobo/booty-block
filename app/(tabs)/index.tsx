@@ -1,7 +1,7 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { ChevronLeft, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -21,7 +21,11 @@ import { Header } from '../../components/Header';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
 import { Screen } from '../../components/Screen';
-import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootyblock';
+import {
+  MAX_SQUAT_SESSION_PEACHES,
+  PEACHES_PER_MINUTE,
+  PEACHES_PER_SQUAT,
+} from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
 import { getBootyProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -147,7 +151,7 @@ export default function Home() {
   const showUnlockedState = hasUsageWindow;
   const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
   const spendMaxMinutes = Math.max(1, Math.floor(peachBalance / PEACHES_PER_MINUTE));
-  const earnMaxMinutes = 60;
+  const earnMaxMinutes = MAX_SQUAT_SESSION_PEACHES / PEACHES_PER_MINUTE;
   const sliderMaxMinutes = unlockAction === 'spend' ? spendMaxMinutes : earnMaxMinutes;
   const selectedPeaches = selectedMinutes * PEACHES_PER_MINUTE;
   const selectorTitle = unlockAction === 'spend' ? 'Unlock time' : 'Peaches to earn';
@@ -275,6 +279,11 @@ export default function Home() {
     }).start(({ finished }) => {
       if (finished) setUnlockPromptVisible(false);
     });
+  }
+
+  function returnToUnlockActions() {
+    setUnlockAction(null);
+    unlockSelectorProgress.setValue(0);
   }
 
   useEffect(() => {
@@ -551,26 +560,30 @@ export default function Home() {
                     </View>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Close unlock options"
+                      accessibilityLabel={unlockAction ? 'Back to unlock options' : 'Close unlock options'}
                       className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
-                      onPress={hideUnlockPrompt}
+                      onPress={unlockAction ? returnToUnlockActions : hideUnlockPrompt}
                     >
-                      <X size={21} stroke={colors.white} strokeWidth={3} />
+                      {unlockAction ? (
+                        <ChevronLeft size={24} stroke={colors.white} strokeWidth={3} />
+                      ) : (
+                        <X size={21} stroke={colors.white} strokeWidth={3} />
+                      )}
                     </Pressable>
                   </View>
                 </View>
               ) : (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Close unlock options"
+                  accessibilityLabel="Back to unlock options"
                   className="h-11 w-11 self-end items-center justify-center rounded-full bg-white/15"
-                  onPress={hideUnlockPrompt}
+                  onPress={returnToUnlockActions}
                 >
-                  <X size={21} stroke={colors.white} strokeWidth={3} />
+                  <ChevronLeft size={24} stroke={colors.white} strokeWidth={3} />
                 </Pressable>
               )}
 
-              <View className="mt-6">
+              <View className={unlockAction === 'earn' ? 'mt-0' : 'mt-6'}>
                 {unlockAction ? (
                   <Animated.View style={selectorStyle}>
                     <View className="my-3 flex-row items-end justify-center">
@@ -610,7 +623,6 @@ export default function Home() {
                         icon={unlockAction === 'spend' ? Flame : undefined}
                         size="large"
                         variant="secondary"
-                        disableGlass
                         onPress={() => void confirmUnlockAction()}
                         loading={unlocking}
                         disabled={unlockAction === 'spend' && !canSpendPeaches}
@@ -626,7 +638,6 @@ export default function Home() {
                         icon={Flame}
                         size="large"
                         variant="secondary"
-                        disableGlass
                         onPress={() => chooseUnlockAction('spend')}
                       />
                     ) : null}
@@ -634,7 +645,6 @@ export default function Home() {
                       label="Earn More"
                       size="large"
                       variant="secondary"
-                      disableGlass
                       onPress={() => chooseUnlockAction('earn')}
                       pressDelayMs={0}
                     />

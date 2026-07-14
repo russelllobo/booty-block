@@ -3,7 +3,11 @@ import { createContext, PropsWithChildren, useCallback, useContext, useEffect, u
 import { Alert, AppState, Modal, Platform, Pressable, StyleSheet } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
 
-import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootyblock';
+import {
+  MAX_SQUAT_SESSION_PEACHES,
+  PEACHES_PER_MINUTE,
+  PEACHES_PER_SQUAT,
+} from '../../constants/bootyblock';
 import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
 import {
   screenTimeService,
@@ -239,15 +243,21 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           ? migrateTenToOnePeaches(resolvedPeachBalance)
           : resolvedPeachBalance;
         const requestedPeaches = typeof parsedPayload.requestedPeaches === 'number'
-          ? Math.max(
-              PEACHES_PER_MINUTE,
-              storedUsesTenToOnePeaches
-                ? migrateTenToOnePeaches(parsedPayload.requestedPeaches)
-                : Math.floor(parsedPayload.requestedPeaches),
+          ? Math.min(
+              MAX_SQUAT_SESSION_PEACHES,
+              Math.max(
+                PEACHES_PER_MINUTE,
+                storedUsesTenToOnePeaches
+                  ? migrateTenToOnePeaches(parsedPayload.requestedPeaches)
+                  : Math.floor(parsedPayload.requestedPeaches),
+              ),
             )
           : typeof parsedPayload.requestedMinutes === 'number'
-            ? Math.max(PEACHES_PER_MINUTE, minutesToPeaches(parsedPayload.requestedMinutes))
-            : stored.requestedPeaches;
+            ? Math.min(
+                MAX_SQUAT_SESSION_PEACHES,
+                Math.max(PEACHES_PER_MINUTE, minutesToPeaches(parsedPayload.requestedMinutes)),
+              )
+            : Math.min(MAX_SQUAT_SESSION_PEACHES, stored.requestedPeaches);
         const unlockHistory = (stored.unlockHistory ?? []).map((entry) => ({
           id: entry.id,
           peaches: typeof entry.peaches === 'number'
@@ -483,7 +493,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, [isSubscribed]);
 
   const setRequestedPeaches = useCallback((peaches: number) => {
-    setPayload((current) => ({ ...current, requestedPeaches: Math.max(PEACHES_PER_MINUTE, Math.floor(peaches)) }));
+    setPayload((current) => ({
+      ...current,
+      requestedPeaches: Math.min(
+        MAX_SQUAT_SESSION_PEACHES,
+        Math.max(PEACHES_PER_MINUTE, Math.floor(peaches)),
+      ),
+    }));
   }, []);
 
   const earnPeaches = useCallback(async (peaches: number) => {
@@ -491,7 +507,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       throw new Error('Bootyblock Pro is required to earn Peaches.');
     }
 
-    const safePeaches = Math.max(0, Math.floor(peaches));
+    const safePeaches = Math.min(MAX_SQUAT_SESSION_PEACHES, Math.max(0, Math.floor(peaches)));
     if (safePeaches <= 0) throw new Error('No Peaches were earned.');
     const squats = Math.ceil(safePeaches / PEACHES_PER_SQUAT);
     const completedAt = Date.now();
