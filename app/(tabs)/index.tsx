@@ -614,6 +614,7 @@ export default function Home() {
                         label={selectorButtonLabel}
                         icon={unlockAction === 'spend' ? Flame : undefined}
                         size={unlockAction === 'earn' ? 'large' : 'default'}
+                        forceGlass={unlockAction === 'earn'}
                         onPress={() => void confirmUnlockAction()}
                         loading={unlocking}
                         disabled={unlockAction === 'spend' && !canSpendPeaches}
