@@ -12,8 +12,6 @@ import Animated, {
 
 import { colors } from '../constants/theme';
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const selectionTiming = {
   duration: 180,
   easing: Easing.out(Easing.cubic),
@@ -40,24 +38,39 @@ export function AnimatedOnboardingOption({
     progress.value = withTiming(selected ? 1 : 0, selectionTiming);
   }, [progress, selected]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const backgroundStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(
       progress.value,
       [0, 1],
       ['rgba(255,255,255,0.75)', '#FFE7F1'],
     ),
     borderColor: interpolateColor(progress.value, [0, 1], [colors.petal, colors.raspberry]),
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.012]) }],
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.976, 1]) }],
   }));
 
   return (
-    <AnimatedPressable
+    <Pressable
       {...pressableProps}
       className={className}
-      style={[animatedStyle, style]}
+      style={[{ backgroundColor: 'transparent', borderColor: 'transparent' }, style]}
     >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            borderRadius: 999,
+            borderWidth: 2,
+            bottom: 0,
+            left: 0,
+            position: 'absolute',
+            right: 0,
+            top: 0,
+          },
+          backgroundStyle,
+        ]}
+      />
       {children}
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -86,7 +99,6 @@ export function AnimatedOnboardingOptionIcon({
       [0, 1],
       [colors.petal, colors.raspberry],
     ),
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.06]) }],
   }));
 
   return (

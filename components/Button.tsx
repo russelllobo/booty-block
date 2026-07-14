@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { LucideIcon } from 'lucide-react-native';
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Text } from './AppText';
 import Animated, {
@@ -34,6 +34,22 @@ type ButtonProps = {
 const DEPTH = 6;
 const RELEASE_DELAY = 160;
 
+const GlassRevealDelayContext = createContext<number | null>(null);
+
+export function ButtonGlassRevealDelay({
+  children,
+  delayMs,
+}: {
+  children: ReactNode;
+  delayMs: number;
+}) {
+  return (
+    <GlassRevealDelayContext.Provider value={delayMs}>
+      {children}
+    </GlassRevealDelayContext.Provider>
+  );
+}
+
 const GLASS_AVAILABLE = (() => {
   try {
     return isGlassEffectAPIAvailable();
@@ -44,6 +60,7 @@ const GLASS_AVAILABLE = (() => {
 
 export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
   const transitionLayer = useSlideTransitionLayer();
+  const glassRevealDelayMs = useContext(GlassRevealDelayContext);
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
@@ -54,6 +71,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   const contentProgress = useSharedValue(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [glassMaterial, setGlassMaterial] = useState<'clear' | 'regular'>('regular');
+  const [glassGeneration, setGlassGeneration] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -74,6 +92,14 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
     const frame = requestAnimationFrame(() => setGlassMaterial('regular'));
     return () => cancelAnimationFrame(frame);
   }, [contentProgress, disabled, label, loading, useGlass]);
+
+  useEffect(() => {
+    if (!useGlass || glassRevealDelayMs === null) return;
+    const timer = setTimeout(() => {
+      setGlassGeneration((generation) => generation + 1);
+    }, glassRevealDelayMs);
+    return () => clearTimeout(timer);
+  }, [glassRevealDelayMs, useGlass]);
 
   const primaryStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: press.value * DEPTH }],
@@ -173,6 +199,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
     >
       {useGlass ? (
         <GlassView
+          key={`glass-${glassGeneration}`}
           glassEffectStyle={{
             style: glassMaterial === 'clear' ? 'clear' : glassStyle,
             animate: true,

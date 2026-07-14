@@ -1,12 +1,13 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { AppWindow, Flame, Lock, Unlock, X } from 'lucide-react-native';
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Easing,
+  Image,
   Pressable,
   StyleSheet,
   View,
@@ -15,6 +16,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
+import { CelebrationOverlay } from '../../components/CelebrationOverlay';
 import { Header } from '../../components/Header';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
@@ -23,15 +25,6 @@ import { PEACHES_PER_MINUTE, PEACHES_PER_SQUAT } from '../../constants/bootybloc
 import { colors } from '../../constants/theme';
 import { getBootyProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
-
-type SpotlightKey = 'balance' | 'earn' | 'streak';
-
-type HomeTip = {
-  id: SpotlightKey;
-  eyebrow: string;
-  title: string;
-  body: string;
-};
 
 const HOLD_TO_UNLOCK_MS = 920;
 
@@ -67,27 +60,6 @@ function RoughUnlockPrompt() {
   );
 }
 
-const homeTips: HomeTip[] = [
-  {
-    id: 'balance',
-    eyebrow: 'home',
-    title: 'Your lock status lives here',
-    body: 'See whether your distracting apps are locked, how many are protected, and what is ready to use.',
-  },
-  {
-    id: 'earn',
-    eyebrow: 'Move first',
-    title: 'Earn Peaches with squats',
-    body: 'Start a quick squat session whenever you want more Peaches for scrolling time.',
-  },
-  {
-    id: 'streak',
-    eyebrow: 'Momentum',
-    title: 'Build your streak',
-    body: 'Every day you earn Peaches keeps your progress visible at the top of Home.',
-  },
-];
-
 function formatBankDuration(totalSeconds: number) {
   const roundedSeconds = Math.max(0, Math.round(totalSeconds));
   const hours = Math.floor(roundedSeconds / 3600);
@@ -119,84 +91,8 @@ function remainingTimeAccessibilityLabel(totalSeconds: number) {
   return `${parts.join(', ')} remaining in current unlock window`;
 }
 
-function TourHighlight({
-  id,
-  activeId,
-  children,
-}: {
-  id: SpotlightKey;
-  activeId: SpotlightKey | null;
-  children: ReactNode;
-}) {
-  const active = id === activeId;
-
-  return (
-    <View style={[styles.highlightWrap, active ? styles.highlightActive : null]}>
-      {children}
-      {active ? <View pointerEvents="none" style={styles.highlightRing} /> : null}
-    </View>
-  );
-}
-
-function HomeTourOverlay({
-  step,
-  onNext,
-}: {
-  step: number;
-  onNext: () => void;
-}) {
-  const tip = homeTips[step];
-  const isLastStep = step === homeTips.length - 1;
-
-  return (
-    <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Home tour background"
-        onPress={() => {}}
-        style={styles.dimOverlay}
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Home tour touch blocker"
-        onPress={() => {}}
-        style={styles.touchBlocker}
-      />
-      <View pointerEvents="box-none" style={styles.tourCardWrap}>
-        <View
-          className="self-center rounded-[30px] border border-white/80 bg-white px-5 py-5"
-          style={styles.tourCard}
-        >
-          <View className="flex-row items-start gap-3">
-            <View className="flex-1">
-              <Text className="text-xs font-black uppercase tracking-wide text-mink">{tip.eyebrow}</Text>
-              <Text className="mt-1 text-[22px] font-black leading-[26px] text-cocoa">{tip.title}</Text>
-              <Text className="mt-2 text-[15px] font-bold leading-5 text-mink">{tip.body}</Text>
-            </View>
-          </View>
-
-          <View className="mt-5 flex-row items-center justify-between gap-4">
-            <View />
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                accessibilityRole="button"
-                onPress={onNext}
-                className="flex-row items-center gap-2 rounded-full bg-raspberry px-4 py-2.5"
-              >
-                <Text className="text-sm font-black text-white">
-                  {isLastStep ? 'Done' : 'Next'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </View>
-    </>
-  );
-}
-
 export default function Home() {
-  const params = useLocalSearchParams<{ appTour?: string; openUnlock?: '1' | 'spend'; tourStep?: string }>();
+  const params = useLocalSearchParams<{ openUnlock?: '1' | 'spend' }>();
   const {
     peachBalance,
     usageWindowSeconds,
@@ -209,39 +105,32 @@ export default function Home() {
     syncUsageWindow,
     hasAppAccess,
     selectedAppsConfigured,
+    subscriptionCelebrationPending,
+    consumeSubscriptionCelebration,
     requestSubscriptionAccess,
     subscriptionConfigured,
     subscriptionError,
   } = useBootyblock();
   const [, setTick] = useState(Date.now);
-  const [tourStep, setTourStep] = useState(params.tourStep === 'streak' ? 2 : 0);
   const [unlockPromptVisible, setUnlockPromptVisible] = useState(false);
   const [unlockAction, setUnlockAction] = useState<UnlockAction | null>(null);
   const [selectedMinutes, setSelectedMinutes] = useState(1);
   const [unlocking, setUnlocking] = useState(false);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
+  const [celebratingSubscription, setCelebratingSubscription] = useState(false);
   const holdFill = useRef(new Animated.Value(0)).current;
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
+  const blockedAppsEntry = useRef(new Animated.Value(0)).current;
+  const blockedAppsGlow = useRef(new Animated.Value(0)).current;
   const holdAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
   const holdCompleteRef = useRef(false);
   const shieldPromptHandledRef = useRef(false);
-  const tourActive = params.appTour === 'home';
-  const activeSpotlight = tourActive ? homeTips[tourStep]?.id ?? null : null;
   const bootyProgress = useMemo(
     () => getBootyProgress(unlockHistory, currentStreak, bonusXp),
     [unlockHistory, currentStreak, bonusXp],
   );
   const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
-
-  useEffect(() => {
-    if (!tourActive) return;
-    if (params.tourStep === 'streak') {
-      setTourStep(2);
-      return;
-    }
-    setTourStep(0);
-  }, [params.tourStep, tourActive]);
 
   useEffect(() => {
     syncUsageWindow();
@@ -265,6 +154,60 @@ export default function Home() {
   const selectorButtonLabel = unlockAction === 'spend'
     ? `Spend ${selectedPeaches} Peaches`
     : `Do ${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`;
+
+  useEffect(() => {
+    if (!needsBlockedApps) return;
+
+    blockedAppsEntry.setValue(0);
+    blockedAppsGlow.setValue(0);
+    const entrance = Animated.spring(blockedAppsEntry, {
+      toValue: 1,
+      friction: 7,
+      tension: 72,
+      useNativeDriver: true,
+    });
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blockedAppsGlow, {
+          toValue: 1,
+          duration: 950,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(blockedAppsGlow, {
+          toValue: 0,
+          duration: 950,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    entrance.start();
+    glow.start();
+
+    return () => {
+      entrance.stop();
+      glow.stop();
+    };
+  }, [blockedAppsEntry, blockedAppsGlow, needsBlockedApps]);
+
+  useEffect(() => {
+    if (!subscriptionCelebrationPending) return;
+    if (!needsBlockedApps) {
+      consumeSubscriptionCelebration();
+      return;
+    }
+
+    setCelebratingSubscription(true);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    const timeout = setTimeout(() => {
+      setCelebratingSubscription(false);
+      consumeSubscriptionCelebration();
+    }, 1700);
+
+    return () => clearTimeout(timeout);
+  }, [consumeSubscriptionCelebration, needsBlockedApps, subscriptionCelebrationPending]);
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
@@ -296,11 +239,6 @@ export default function Home() {
       },
     ],
   };
-  function finishTour() {
-    setTourStep(0);
-    router.replace('/(tabs)');
-  }
-
   function showUnlockPrompt(initialAction: UnlockAction | null = null) {
     setUnlockAction(initialAction);
     setSelectedMinutes(
@@ -323,6 +261,10 @@ export default function Home() {
   }
 
   function hideUnlockPrompt() {
+    holdAnimationRef.current?.stop();
+    holdAnimationRef.current = null;
+    holdCompleteRef.current = false;
+    holdFill.setValue(0);
     setUnlockAction(null);
     unlockSelectorProgress.setValue(0);
     Animated.timing(unlockPromptProgress, {
@@ -340,11 +282,11 @@ export default function Home() {
       shieldPromptHandledRef.current = false;
       return;
     }
-    if (shieldPromptHandledRef.current || tourActive) return;
+    if (shieldPromptHandledRef.current) return;
 
     shieldPromptHandledRef.current = true;
     showUnlockPrompt(params.openUnlock === 'spend' ? 'spend' : null);
-  }, [params.openUnlock, tourActive]);
+  }, [params.openUnlock]);
 
   async function openSubscriptionFlow() {
     if (hasAppAccess || subscriptionBusy) return hasAppAccess;
@@ -433,7 +375,7 @@ export default function Home() {
   }
 
   function startUnlockHold() {
-    if (showUnlockedState || tourActive) return;
+    if (showUnlockedState) return;
     if (!hasAppAccess) {
       void openSubscriptionFlow();
       return;
@@ -474,37 +416,75 @@ export default function Home() {
     }).start();
   }
 
-  function continueTour() {
-    if (tourStep === 0) {
-      setTourStep(2);
-      return;
-    }
-
-    if (tourStep >= homeTips.length - 1) {
-      finishTour();
-      return;
-    }
-    setTourStep((current) => Math.min(current + 1, homeTips.length - 1));
-  }
-
   if (needsBlockedApps) {
+    const entryStyle = {
+      opacity: blockedAppsEntry,
+      transform: [
+        {
+          translateY: blockedAppsEntry.interpolate({
+            inputRange: [0, 1],
+            outputRange: [24, 0],
+          }),
+        },
+        {
+          scale: blockedAppsEntry.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.94, 1],
+          }),
+        },
+      ],
+    };
+    const glowStyle = {
+      opacity: blockedAppsGlow.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.2, 0.62],
+      }),
+      transform: [
+        {
+          scale: blockedAppsGlow.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1.015, 1.075],
+          }),
+        },
+      ],
+    };
+
     return (
       <Screen>
         <View className="flex-1 justify-center">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Choose blocked apps"
-            onPress={() => router.push('/onboarding/apps')}
-            className="items-center justify-center rounded-[40px] bg-raspberry px-8 py-16"
-          >
-            <View className="h-24 w-24 items-center justify-center rounded-[32px] bg-white/15">
-              <AppWindow size={44} stroke={colors.white} strokeWidth={3} />
+          <Animated.View style={entryStyle}>
+            <View style={styles.blockedAppsCtaWrap}>
+              <Animated.View pointerEvents="none" style={[styles.blockedAppsGlow, glowStyle]} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Choose blocked apps"
+                accessibilityHint="Opens the Screen Time app picker"
+                onPress={() => router.push('/onboarding/apps')}
+                className="items-center justify-center rounded-[40px] bg-raspberry px-8 py-10"
+                style={({ pressed }) => pressed ? styles.blockedAppsCtaPressed : null}
+              >
+                <Text className="text-center text-xs font-black uppercase tracking-[2px] text-white/75">
+                  Bootyblock Pro unlocked
+                </Text>
+                <View style={styles.paywallArtFrame}>
+                  <Image
+                    accessibilityIgnoresInvertColors
+                    resizeMode="contain"
+                    source={require('../../assets/paywall-apps.png')}
+                    style={styles.paywallArt}
+                  />
+                </View>
+                <Text className="mt-5 text-center text-[34px] font-black leading-[38px] text-white">
+                  Choose blocked apps
+                </Text>
+                <Text className="mt-3 text-center text-base font-bold leading-6 text-white/80">
+                  Pick the apps you want Bootyblock to protect.
+                </Text>
+              </Pressable>
             </View>
-            <Text className="mt-6 text-center text-[34px] font-black leading-[38px] text-white">
-              Choose blocked apps
-            </Text>
-          </Pressable>
+          </Animated.View>
         </View>
+        <CelebrationOverlay visible={celebratingSubscription} showBadge={false} />
       </Screen>
     );
   }
@@ -549,8 +529,7 @@ export default function Home() {
         </Text>
       </Pressable>
 
-      <TourHighlight id="balance" activeId={activeSpotlight}>
-        <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
+      <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
           {unlockPromptVisible ? (
             <Animated.View className="p-7" style={promptContentStyle}>
               <View className="rounded-[28px] bg-white/15 p-4">
@@ -631,7 +610,7 @@ export default function Home() {
                         <Button
                           label="Earn More"
                           size="large"
-                          variant="outline"
+                          variant="secondary"
                           onPress={() => chooseUnlockAction('earn')}
                           pressDelayMs={0}
                         />
@@ -640,16 +619,19 @@ export default function Home() {
                   </Animated.View>
                 ) : (
                   <View className="gap-3">
-                    <Button
-                      label="Use Peaches"
-                      icon={Flame}
-                      disabled={!canSpendPeaches}
-                      onPress={() => chooseUnlockAction('spend')}
-                    />
+                    {canSpendPeaches ? (
+                      <Button
+                        label="Use Peaches"
+                        icon={Flame}
+                        size="large"
+                        variant="secondary"
+                        onPress={() => chooseUnlockAction('spend')}
+                      />
+                    ) : null}
                     <Button
                       label="Earn More"
                       size="large"
-                      variant="outline"
+                      variant="secondary"
                       onPress={() => chooseUnlockAction('earn')}
                       pressDelayMs={0}
                     />
@@ -662,7 +644,7 @@ export default function Home() {
               accessibilityRole="button"
               accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Hold to unlock'}
               accessibilityHint={showUnlockedState ? undefined : 'Hold until the card fills to choose how to unlock'}
-              disabled={showUnlockedState || tourActive}
+              disabled={showUnlockedState}
               onPressIn={startUnlockHold}
               onPressOut={cancelUnlockHold}
               className="p-7"
@@ -725,8 +707,7 @@ export default function Home() {
               </View>
             </Pressable>
           )}
-        </View>
-      </TourHighlight>
+      </View>
 
       {!showUnlockedState && !unlockPromptVisible ? <RoughUnlockPrompt /> : null}
 
@@ -742,25 +723,41 @@ export default function Home() {
         </View>
       ) : null}
 
-      {tourActive ? (
-        <HomeTourOverlay
-          step={tourStep}
-          onNext={continueTour}
-        />
-      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  dimOverlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 10,
-    backgroundColor: 'rgba(18, 8, 14, 0.76)',
+  blockedAppsCtaWrap: {
+    position: 'relative',
   },
-  touchBlocker: {
+  blockedAppsGlow: {
     ...StyleSheet.absoluteFill,
-    zIndex: 25,
+    backgroundColor: colors.bubble,
+    borderRadius: 40,
+    shadowColor: colors.raspberry,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  blockedAppsCtaPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
+  },
+  paywallArtFrame: {
+    alignItems: 'center',
+    backgroundColor: '#100911',
+    borderRadius: 28,
+    height: 150,
+    justifyContent: 'center',
+    marginTop: 18,
+    overflow: 'hidden',
+    width: 220,
+  },
+  paywallArt: {
+    height: 150,
+    width: 220,
   },
   holdFill: {
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
@@ -768,41 +765,6 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
-  },
-  highlightWrap: {
-    position: 'relative',
-  },
-  highlightActive: {
-    zIndex: 20,
-    shadowColor: colors.raspberry,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.3,
-    shadowRadius: 28,
-    elevation: 14,
-  },
-  highlightRing: {
-    ...StyleSheet.absoluteFill,
-    borderWidth: 3,
-    borderColor: colors.bubble,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  tourCardWrap: {
-    bottom: 80,
-    left: 0,
-    paddingHorizontal: 22,
-    position: 'absolute',
-    right: 0,
-    zIndex: 30,
-  },
-  tourCard: {
-    maxWidth: 360,
-    width: '100%',
-    shadowColor: colors.cherry,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.22,
-    shadowRadius: 30,
-    elevation: 16,
   },
   unlockSelectorValue: {
     height: 82,

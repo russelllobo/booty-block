@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
-  ArrowRight, Brain, Dumbbell, Heart, Moon, Quote, Sparkles, Star, TimerReset, Trophy, } from 'lucide-react-native';
+  ArrowRight, Brain, Dumbbell, Heart, Quote, Sparkles, Star, TimerReset, Trophy, } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, ReactNode, useEffect, useRef } from 'react';
+import { ComponentType, ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/AppText';
 
@@ -283,7 +283,9 @@ export default function WellbeingPlan() {
     completeOnboarding,
     dailyScreenTimeHours,
     dailyScreenTimeGoalHours,
+    requestSubscriptionAccess,
   } = useBootyblock();
+  const [starting, setStarting] = useState(false);
   const goalHours = dailyScreenTimeGoalHours;
   const savedPerDay = Math.max(0.5, dailyScreenTimeHours - goalHours);
   const squatsThisWeek = Math.round(savedPerDay * 7 * 12);
@@ -298,9 +300,17 @@ export default function WellbeingPlan() {
     ONBOARDING_STEP_TOTAL,
   );
 
-  async function showMeAround() {
-    await completeOnboarding();
-    router.replace({ pathname: '/(tabs)', params: { appTour: 'home' } });
+  async function startBuilding() {
+    if (starting) return;
+
+    setStarting(true);
+    try {
+      await completeOnboarding();
+      await requestSubscriptionAccess();
+      router.replace('/(tabs)');
+    } finally {
+      setStarting(false);
+    }
   }
 
   return (
@@ -439,9 +449,11 @@ export default function WellbeingPlan() {
 
           <View className="border-t border-white/10 bg-black/20 pt-3">
             <Button
-              label="Show me around"
-              icon={Moon}
-              onPress={showMeAround}
+              label="Start building my booty"
+              icon={Dumbbell}
+              loading={starting}
+              disabled={starting}
+              onPress={() => void startBuilding()}
             />
           </View>
         </View>

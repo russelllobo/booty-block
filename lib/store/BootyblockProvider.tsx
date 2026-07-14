@@ -85,6 +85,7 @@ type BootyblockState = {
   subscriptionHydrated: boolean;
   subscriptionConfigured: boolean;
   isSubscribed: boolean;
+  subscriptionCelebrationPending: boolean;
   subscriptionError: string | null;
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
@@ -105,6 +106,7 @@ type BootyblockState = {
   presentSubscriptionPaywall: (options?: { force?: boolean }) => Promise<boolean>;
   presentOneTimeOffer: () => Promise<boolean>;
   requestSubscriptionAccess: () => Promise<boolean>;
+  consumeSubscriptionCelebration: () => void;
   openSubscriptionManagement: () => Promise<void>;
   dismissXpRewardNotice: () => void;
   resetAppData: () => Promise<void>;
@@ -195,6 +197,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionHydrated, setSubscriptionHydrated] = useState(Platform.OS === 'web');
   const [subscriptionConfigured, setSubscriptionConfigured] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(Platform.OS === 'web');
+  const [subscriptionCelebrationPending, setSubscriptionCelebrationPending] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [xpRewardNotice, setXpRewardNotice] = useState<XpRewardNotice | null>(null);
   const [oneTimeOfferModal, setOneTimeOfferModal] = useState<OneTimeOfferModalState | null>(null);
@@ -763,6 +766,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setIsSubscribed(active);
       setSubscriptionError(null);
       if (active) {
+        setSubscriptionCelebrationPending(true);
         tiktokService.trackSubscribe({ placement: 'subscription_paywall_if_needed' });
       }
       return active;
@@ -803,6 +807,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
         await refreshSubscription();
         setIsSubscribed(true);
+        setSubscriptionCelebrationPending(true);
         setSubscriptionError(null);
         return true;
       }
@@ -837,6 +842,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
           await refreshSubscription();
           setIsSubscribed(true);
+          setSubscriptionCelebrationPending(true);
           setSubscriptionError(null);
           tiktokService.trackSubscribe({ placement: 'normal_paywall' });
           return true;
@@ -849,6 +855,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
             await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
             await refreshSubscription();
             setIsSubscribed(true);
+            setSubscriptionCelebrationPending(true);
             setSubscriptionError(null);
             return true;
           }
@@ -872,6 +879,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     return active;
   }, [isSubscribed, presentOneTimeOfferModal, refreshSubscription]);
 
+  const consumeSubscriptionCelebration = useCallback(() => {
+    setSubscriptionCelebrationPending(false);
+  }, []);
+
   const openSubscriptionManagement = useCallback(async () => {
     await revenueCatService.presentCustomerCenter();
     await refreshSubscription();
@@ -889,6 +900,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     const fresh = defaultPayload();
     subscriptionResetLockedRef.current = true;
     setIsSubscribed(Platform.OS === 'web');
+    setSubscriptionCelebrationPending(false);
     setSubscriptionError(null);
     setXpRewardNotice(null);
     setPayload(fresh);
@@ -910,6 +922,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       subscriptionHydrated,
       subscriptionConfigured,
       isSubscribed,
+      subscriptionCelebrationPending,
       subscriptionError,
       xpRewardNotice,
       completeOnboarding,
@@ -931,6 +944,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentSubscriptionPaywall,
       presentOneTimeOffer,
       requestSubscriptionAccess,
+      consumeSubscriptionCelebration,
       openSubscriptionManagement,
       dismissXpRewardNotice,
       resetAppData,
@@ -941,6 +955,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       subscriptionHydrated,
       subscriptionConfigured,
       isSubscribed,
+      subscriptionCelebrationPending,
       subscriptionError,
       xpRewardNotice,
       completeOnboarding,
@@ -961,6 +976,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentSubscriptionPaywall,
       presentOneTimeOffer,
       requestSubscriptionAccess,
+      consumeSubscriptionCelebration,
       openSubscriptionManagement,
       dismissXpRewardNotice,
       resetAppData,

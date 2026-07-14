@@ -36,9 +36,10 @@ function makeParticles(count: number): Particle[] {
 
 type CelebrationOverlayProps = {
   visible: boolean;
+  showBadge?: boolean;
 };
 
-export function CelebrationOverlay({ visible }: CelebrationOverlayProps) {
+export function CelebrationOverlay({ visible, showBadge = true }: CelebrationOverlayProps) {
   const progress = useRef(new Animated.Value(0)).current;
   const ringScale = useRef(new Animated.Value(0)).current;
   const ringOpacity = useRef(new Animated.Value(0)).current;
@@ -162,38 +163,42 @@ export function CelebrationOverlay({ visible }: CelebrationOverlayProps) {
           );
         })}
 
-        <Animated.View
-          style={[
-            styles.ring,
-            {
-              opacity: ringOpacity,
-              transform: [{ scale: ringScale }],
-            },
-          ]}
-        />
+        {showBadge ? (
+          <>
+            <Animated.View
+              style={[
+                styles.ring,
+                {
+                  opacity: ringOpacity,
+                  transform: [{ scale: ringScale }],
+                },
+              ]}
+            />
 
-        <Animated.View
-          style={[
-            styles.checkBadge,
-            {
-              transform: [{ scale: checkScale }],
-            },
-          ]}
-        >
-          <CheckCircle2 size={76} stroke={colors.cocoa} strokeWidth={3} />
-        </Animated.View>
+            <Animated.View
+              style={[
+                styles.checkBadge,
+                {
+                  transform: [{ scale: checkScale }],
+                },
+              ]}
+            >
+              <CheckCircle2 size={76} stroke={colors.cocoa} strokeWidth={3} />
+            </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.label,
-            {
-              opacity: labelOpacity,
-              transform: [{ translateY: labelTranslateY }],
-            },
-          ]}
-        >
-          <Text style={styles.labelText}>PEACHES EARNED</Text>
-        </Animated.View>
+            <Animated.View
+              style={[
+                styles.label,
+                {
+                  opacity: labelOpacity,
+                  transform: [{ translateY: labelTranslateY }],
+                },
+              ]}
+            >
+              <Text style={styles.labelText}>PEACHES EARNED</Text>
+            </Animated.View>
+          </>
+        ) : null}
       </View>
     </View>
   );

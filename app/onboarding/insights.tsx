@@ -55,7 +55,7 @@ import {
 import { Text } from '../../components/AppText';
 
 import { BrandLockup } from '../../components/BrandLockup';
-import { Button } from '../../components/Button';
+import { Button, ButtonGlassRevealDelay } from '../../components/Button';
 import {
   AnimatedOnboardingOption,
   AnimatedOnboardingOptionIcon,
@@ -447,7 +447,9 @@ function FadeInStage({
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      {children}
+      <ButtonGlassRevealDelay delayMs={delay + 520}>
+        {children}
+      </ButtonGlassRevealDelay>
     </Animated.View>
   );
 }
