@@ -13,14 +13,15 @@ import {
   Weight,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useState } from 'react';
+import { ComponentType, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   View,
 } from 'react-native';
-import { Text, TextInput } from '../../components/AppText';
+import { AppTextInputRef, Text, TextInput } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import {
@@ -97,6 +98,7 @@ export default function Quiz() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const nameInputRef = useRef<AppTextInputRef>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -161,7 +163,12 @@ export default function Quiz() {
                   </Text>
                 </View>
 
-                <View className="mt-6 min-h-[176px] justify-center">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Name input"
+                  onPressIn={() => nameInputRef.current?.focus()}
+                  className="mt-6 min-h-[176px] justify-center"
+                >
                   <View
                     className="min-h-[142px] flex-row flex-wrap content-center items-center"
                     pointerEvents="none"
@@ -170,7 +177,7 @@ export default function Quiz() {
                   </View>
 
                   <TextInput
-                    accessibilityLabel="Name input"
+                    ref={nameInputRef}
                     autoCapitalize="words"
                     autoCorrect={false}
                     caretHidden
@@ -190,7 +197,7 @@ export default function Quiz() {
                     selectionColor={colors.raspberry}
                   />
 
-                </View>
+                </Pressable>
 
                 <View className="flex-1" />
 
