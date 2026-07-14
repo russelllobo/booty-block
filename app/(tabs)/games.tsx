@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { ArrowDown, Play, Sparkles, Trophy, X } from 'lucide-react-native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
@@ -50,6 +50,7 @@ const PIPE_GAP = 152;
 const PIPE_SPACING = 210;
 const PIPE_SPEED = 4.2;
 const COUNTDOWN_START = 3;
+const PREVIEW_HEIGHT = 380;
 
 function makePipe(id: number, x: number, height: number): Pipe {
   const minGapY = 88;
@@ -68,7 +69,7 @@ function makeInitialPipes(width: number, height: number) {
 }
 
 function makePreviewPipes(width: number) {
-  return [makePipe(1, Math.max(180, width * 0.58), 360)];
+  return [makePipe(1, Math.max(180, width * 0.6), PREVIEW_HEIGHT)];
 }
 
 function calculateDepthFromPose(depth: number, visible: boolean, fallback: number) {
@@ -88,31 +89,109 @@ function FlappyScene({
   pipes: Pipe[];
 }) {
   const groundY = height - 28;
+  const skylineY = Math.max(120, groundY - 72);
+  const birdCenterY = birdY + BIRD_SIZE / 2;
 
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
       <Defs>
         <SvgLinearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
-          <Stop offset="0" stopColor="#7AD7FF" />
-          <Stop offset="1" stopColor="#FFF1F6" />
+          <Stop offset="0" stopColor="#71C8FF" />
+          <Stop offset="0.55" stopColor="#B8E8FF" />
+          <Stop offset="1" stopColor="#FFE1DB" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="sunGlow" x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor="#FFF7B2" />
+          <Stop offset="1" stopColor="#FFB46E" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="pipe" x1="0" x2="1" y1="0" y2="0">
+          <Stop offset="0" stopColor="#321626" />
+          <Stop offset="0.56" stopColor="#5A2944" />
+          <Stop offset="1" stopColor="#2B1422" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="pipeCap" x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor="#FF7EB6" />
+          <Stop offset="1" stopColor="#D92D79" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="peach" x1="0" x2="1" y1="0" y2="1">
+          <Stop offset="0" stopColor="#FFCC86" />
+          <Stop offset="0.52" stopColor="#FF8E9E" />
+          <Stop offset="1" stopColor="#F65383" />
         </SvgLinearGradient>
       </Defs>
       <Rect width={width} height={height} fill="url(#sky)" />
-      <Circle cx={width - 54} cy={58} r={26} fill="#FFE56F" />
-      <Path d={`M0 ${groundY} C ${width * 0.2} ${groundY - 18}, ${width * 0.42} ${groundY + 8}, ${width * 0.68} ${groundY - 12} S ${width * 0.9} ${groundY + 6}, ${width} ${groundY - 8} L ${width} ${height} L 0 ${height} Z`} fill="#BFF7D3" />
+      <Circle cx={width - 48} cy={54} r={43} fill="#FFF7B2" opacity={0.2} />
+      <Circle cx={width - 48} cy={54} r={29} fill="url(#sunGlow)" />
+      <Circle cx={width - 57} cy={45} r={8} fill="#FFFFFF" opacity={0.34} />
+
+      <G opacity={0.78}>
+        <Ellipse cx={Math.max(58, width * 0.18)} cy={70} rx={35} ry={10} fill="#FFFFFF" />
+        <Circle cx={Math.max(47, width * 0.18 - 12)} cy={65} r={13} fill="#FFFFFF" />
+        <Circle cx={Math.max(69, width * 0.18 + 10)} cy={63} r={16} fill="#FFFFFF" />
+        <Ellipse cx={Math.max(190, width * 0.54)} cy={126} rx={27} ry={8} fill="#FFFFFF" opacity={0.76} />
+        <Circle cx={Math.max(180, width * 0.54 - 9)} cy={121} r={10} fill="#FFFFFF" opacity={0.76} />
+      </G>
+
+      <Path
+        d={`M0 ${skylineY + 28} C ${width * 0.14} ${skylineY - 18}, ${width * 0.31} ${skylineY + 18}, ${width * 0.47} ${skylineY - 20} S ${width * 0.72} ${skylineY + 12}, ${width} ${skylineY - 10} L ${width} ${groundY} L 0 ${groundY} Z`}
+        fill="#B9B5ED"
+        opacity={0.72}
+      />
+      <Path
+        d={`M0 ${groundY - 40} C ${width * 0.2} ${groundY - 77}, ${width * 0.34} ${groundY - 17}, ${width * 0.53} ${groundY - 55} S ${width * 0.82} ${groundY - 18}, ${width} ${groundY - 48} L ${width} ${groundY} L 0 ${groundY} Z`}
+        fill="#FFB7D2"
+      />
+      <Path
+        d={`M0 ${groundY - 16} C ${width * 0.19} ${groundY - 42}, ${width * 0.43} ${groundY + 4}, ${width * 0.68} ${groundY - 24} S ${width * 0.9} ${groundY - 2}, ${width} ${groundY - 18} L ${width} ${height} L 0 ${height} Z`}
+        fill="#8DE6B1"
+      />
+      <Path
+        d={`M0 ${groundY + 3} C ${width * 0.24} ${groundY - 10}, ${width * 0.48} ${groundY + 16}, ${width * 0.72} ${groundY + 1} S ${width * 0.9} ${groundY + 12}, ${width} ${groundY + 4}`}
+        fill="none"
+        stroke="#D6FFD9"
+        strokeWidth={5}
+        opacity={0.72}
+      />
       {pipes.map((pipe) => (
         <Fragment key={pipe.id}>
-          <Rect x={pipe.x} y={0} width={PIPE_WIDTH} height={pipe.gapY} rx={13} fill="#3A1F2C" opacity={0.94} />
-          <Rect x={pipe.x - 8} y={pipe.gapY - 18} width={PIPE_WIDTH + 16} height={24} rx={12} fill="#7D5A67" />
-          <Rect x={pipe.x} y={pipe.gapY + PIPE_GAP} width={PIPE_WIDTH} height={height - pipe.gapY - PIPE_GAP} rx={13} fill="#3A1F2C" opacity={0.94} />
-          <Rect x={pipe.x - 8} y={pipe.gapY + PIPE_GAP - 6} width={PIPE_WIDTH + 16} height={24} rx={12} fill="#7D5A67" />
+          <Rect x={pipe.x + 7} y={0} width={PIPE_WIDTH} height={pipe.gapY} rx={15} fill="#26101D" opacity={0.2} />
+          <Rect x={pipe.x} y={-12} width={PIPE_WIDTH} height={pipe.gapY + 12} rx={15} fill="url(#pipe)" />
+          <Rect x={pipe.x + 8} y={0} width={10} height={Math.max(0, pipe.gapY - 18)} rx={5} fill="#FFFFFF" opacity={0.09} />
+          <Rect x={pipe.x - 9} y={pipe.gapY - 20} width={PIPE_WIDTH + 18} height={29} rx={14} fill="#9D1D59" opacity={0.24} />
+          <Rect x={pipe.x - 9} y={pipe.gapY - 23} width={PIPE_WIDTH + 18} height={27} rx={13} fill="url(#pipeCap)" />
+          <Rect x={pipe.x + 2} y={pipe.gapY - 18} width={PIPE_WIDTH - 4} height={5} rx={2.5} fill="#FFFFFF" opacity={0.28} />
+          <Circle cx={pipe.x + 4} cy={pipe.gapY - 9} r={3} fill="#FFD5E7" opacity={0.82} />
+          <Circle cx={pipe.x + PIPE_WIDTH - 4} cy={pipe.gapY - 9} r={3} fill="#FFD5E7" opacity={0.82} />
+
+          <Rect x={pipe.x + 7} y={pipe.gapY + PIPE_GAP} width={PIPE_WIDTH} height={height - pipe.gapY - PIPE_GAP} rx={15} fill="#26101D" opacity={0.2} />
+          <Rect x={pipe.x} y={pipe.gapY + PIPE_GAP} width={PIPE_WIDTH} height={height - pipe.gapY - PIPE_GAP + 12} rx={15} fill="url(#pipe)" />
+          <Rect x={pipe.x + 8} y={pipe.gapY + PIPE_GAP + 20} width={10} height={Math.max(0, height - pipe.gapY - PIPE_GAP - 20)} rx={5} fill="#FFFFFF" opacity={0.09} />
+          <Rect x={pipe.x - 9} y={pipe.gapY + PIPE_GAP - 5} width={PIPE_WIDTH + 18} height={29} rx={14} fill="#9D1D59" opacity={0.24} />
+          <Rect x={pipe.x - 9} y={pipe.gapY + PIPE_GAP - 8} width={PIPE_WIDTH + 18} height={27} rx={13} fill="url(#pipeCap)" />
+          <Rect x={pipe.x + 2} y={pipe.gapY + PIPE_GAP - 3} width={PIPE_WIDTH - 4} height={5} rx={2.5} fill="#FFFFFF" opacity={0.28} />
+          <Circle cx={pipe.x + 4} cy={pipe.gapY + PIPE_GAP + 6} r={3} fill="#FFD5E7" opacity={0.82} />
+          <Circle cx={pipe.x + PIPE_WIDTH - 4} cy={pipe.gapY + PIPE_GAP + 6} r={3} fill="#FFD5E7" opacity={0.82} />
         </Fragment>
       ))}
-      <Circle cx={72} cy={birdY + BIRD_SIZE / 2} r={BIRD_SIZE / 2} fill="#FF8FBE" />
-      <Circle cx={82} cy={birdY + 15} r={6} fill="#FFFFFF" />
-      <Circle cx={84} cy={birdY + 15} r={2.5} fill="#3A1F2C" />
-      <Path d={`M52 ${birdY + 24} C 30 ${birdY + 12}, 30 ${birdY + 42}, 54 ${birdY + 34}`} fill="#E91E73" opacity={0.9} />
-      <Path d={`M94 ${birdY + 24} L116 ${birdY + 14} L108 ${birdY + 33} Z`} fill="#FFE56F" />
+
+      <G>
+        <Ellipse cx={72} cy={birdCenterY + 5} rx={25} ry={20} fill="#3A1F2C" opacity={0.15} />
+        <Path d={`M52 ${birdCenterY + 1} C 31 ${birdCenterY - 14}, 27 ${birdCenterY + 17}, 54 ${birdCenterY + 13}`} fill="#E73A79" />
+        <Path d={`M48 ${birdCenterY + 2} C 37 ${birdCenterY - 5}, 36 ${birdCenterY + 8}, 50 ${birdCenterY + 10}`} fill="#FFB4D0" opacity={0.62} />
+        <Circle cx={72} cy={birdCenterY} r={BIRD_SIZE / 2} fill="url(#peach)" />
+        <Path d={`M66 ${birdCenterY - 20} C 65 ${birdCenterY - 29}, 73 ${birdCenterY - 34}, 78 ${birdCenterY - 25}`} fill="none" stroke="#5A2944" strokeWidth={3.5} strokeLinecap="round" />
+        <Path d={`M74 ${birdCenterY - 24} C 82 ${birdCenterY - 31}, 92 ${birdCenterY - 27}, 89 ${birdCenterY - 20} C 83 ${birdCenterY - 18}, 78 ${birdCenterY - 20}, 74 ${birdCenterY - 24} Z`} fill="#67C98A" />
+        <Path d={`M53 ${birdCenterY - 8} C 65 ${birdCenterY - 13}, 80 ${birdCenterY - 13}, 92 ${birdCenterY - 7} L 91 ${birdCenterY - 1} C 78 ${birdCenterY - 6}, 64 ${birdCenterY - 6}, 53 ${birdCenterY - 1} Z`} fill="#FFF4B8" />
+        <Path d={`M83 ${birdCenterY - 6} L95 ${birdCenterY - 11} L91 ${birdCenterY + 1} Z`} fill="#FFF4B8" />
+        <Circle cx={80} cy={birdCenterY + 1} r={6} fill="#FFFFFF" />
+        <Circle cx={82} cy={birdCenterY + 1} r={2.6} fill="#3A1F2C" />
+        <Circle cx={81.2} cy={birdCenterY} r={0.8} fill="#FFFFFF" />
+        <Path d={`M92 ${birdCenterY + 7} L111 ${birdCenterY + 1} L104 ${birdCenterY + 13} Z`} fill="#FFD45E" />
+        <Path d={`M69 ${birdCenterY + 10} C 75 ${birdCenterY + 15}, 82 ${birdCenterY + 14}, 85 ${birdCenterY + 10}`} fill="none" stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
+        <Circle cx={61} cy={birdCenterY + 7} r={4.5} fill="#FFCFBE" opacity={0.65} />
+        <Path d={`M61 ${birdCenterY + 19} L58 ${birdCenterY + 25}`} stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
+        <Path d={`M78 ${birdCenterY + 19} L81 ${birdCenterY + 25}`} stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
+      </G>
     </Svg>
   );
 }
@@ -452,7 +531,7 @@ export default function Games() {
   }
 
   return (
-    <Screen scroll={!gameActive} flush={gameActive} backgroundColor={gameActive ? '#7AD7FF' : undefined}>
+    <Screen scroll={!gameActive} flush={gameActive} backgroundColor={gameActive ? '#71C8FF' : undefined}>
       {gameActive ? (
         <Animated.View
           className="flex-1"
@@ -571,8 +650,8 @@ export default function Games() {
               >
                 <FlappyScene
                   width={Math.max(size.width, 1)}
-                  height={360}
-                  birdY={mapDepthToBirdY(0.48, 360, BIRD_SIZE)}
+                  height={PREVIEW_HEIGHT}
+                  birdY={mapDepthToBirdY(0.42, PREVIEW_HEIGHT, BIRD_SIZE)}
                   pipes={previewPipes}
                 />
               </Animated.View>
@@ -585,8 +664,13 @@ export default function Games() {
                 <Trophy size={14} stroke={colors.white} strokeWidth={2.5} />
                 <Text style={styles.bestBadgeText}>Best {bestScore}</Text>
               </View>
+              <View style={styles.controlBadge}>
+                <Sparkles size={13} stroke={colors.cocoa} strokeWidth={2.6} />
+                <Text style={styles.controlBadgeText}>SQUAT CONTROLLED</Text>
+              </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>Flappy Squat</Text>
+                <Text style={styles.heroSubtitle}>Lower your body. Thread the gap.</Text>
                 <View style={styles.heroAction}>
                   <Button
                     label={status === 'ended' ? 'Play again' : 'Play'}
@@ -659,12 +743,37 @@ const styles = StyleSheet.create({
   },
   launcher: {
     borderRadius: 32,
+    elevation: 9,
+    shadowColor: colors.cherry,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.2,
+    shadowRadius: 26,
   },
   gameHero: {
-    backgroundColor: '#7AD7FF',
+    backgroundColor: '#71C8FF',
     borderRadius: 30,
-    height: 360,
+    borderColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 2,
+    height: PREVIEW_HEIGHT,
     overflow: 'hidden',
+  },
+  controlBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 247, 178, 0.92)',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 5,
+    left: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    position: 'absolute',
+    top: 16,
+  },
+  controlBadgeText: {
+    color: colors.cocoa,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.45,
   },
   heroCopy: {
     bottom: 20,
@@ -676,10 +785,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   heroSubtitle: {
-    color: 'rgba(255,255,255,0.86)',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 15,
-    fontWeight: '700',
-    marginTop: 3,
+    fontWeight: '800',
+    marginTop: 4,
+    textShadowColor: 'rgba(58,31,44,0.45)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   heroTitle: {
     color: colors.white,
@@ -687,6 +799,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -1.3,
     lineHeight: 39,
+    textShadowColor: 'rgba(58,31,44,0.48)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 9,
   },
   posePreview: {
     position: 'absolute',
@@ -698,7 +813,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.72)',
-    backgroundColor: '#7AD7FF',
+    backgroundColor: '#71C8FF',
   },
   scoreContainer: {
     alignItems: 'center',

@@ -31,6 +31,8 @@ import { getBootyProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const HOLD_TO_UNLOCK_MS = 920;
+const LOCKED_HOME_GRADIENT = ['#FFF1F6', '#FFF9F3', '#FFD6E7'] as const;
+const UNLOCKED_HOME_GRADIENT = ['#DDFBE7', '#F4FFF1', '#A8EFC2'] as const;
 
 type UnlockAction = 'spend' | 'earn';
 
@@ -499,7 +501,10 @@ export default function Home() {
   }
 
   return (
-    <Screen>
+    <Screen
+      backgroundColor={showUnlockedState ? '#DDFBE7' : '#FFF1F6'}
+      backgroundGradient={showUnlockedState ? UNLOCKED_HOME_GRADIENT : LOCKED_HOME_GRADIENT}
+    >
       <Header
         title="BootyBlock"
         logo
@@ -660,7 +665,7 @@ export default function Home() {
               disabled={showUnlockedState}
               onPressIn={startUnlockHold}
               onPressOut={cancelUnlockHold}
-              className="p-7"
+              className={showUnlockedState ? 'px-7 py-6' : 'p-7'}
             >
               {!showUnlockedState ? (
                 <Animated.View
@@ -668,20 +673,12 @@ export default function Home() {
                   style={[styles.holdFill, { height: holdFillHeight }]}
                 />
               ) : null}
-              {showUnlockedState ? (
-                <View className="mb-5 flex-row justify-end">
-                  <View className="rounded-full bg-white/45 px-4 py-2">
-                    <Text className="text-xs font-black uppercase tracking-[1.2px] text-cocoa">
-                      Unlocked window
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-
               <View className="items-center">
                 <View
-                  className={`h-20 w-20 items-center justify-center rounded-[28px] ${
-                    showUnlockedState ? 'bg-white/60' : 'bg-white/15'
+                  className={`items-center justify-center ${
+                    showUnlockedState
+                      ? 'h-16 w-16 rounded-[22px] bg-white/60'
+                      : 'h-20 w-20 rounded-[28px] bg-white/15'
                   }`}
                 >
                   {showUnlockedState ? (
@@ -690,25 +687,33 @@ export default function Home() {
                     <Lock size={38} stroke={colors.white} strokeWidth={3} />
                   )}
                 </View>
-                <Text className={`mt-4 text-5xl font-bold ${showUnlockedState ? 'text-cocoa' : 'text-white'}`}>
+                <Text
+                  className={`${showUnlockedState ? 'mt-3 text-[40px] leading-[44px] text-cocoa' : 'mt-4 text-5xl text-white'} font-bold`}
+                  style={styles.homeStatusText}
+                >
                   {status}
                 </Text>
-                {showUnlockedState ? (
-                  <Text className="mt-2 text-base font-bold text-mink">Remaining time</Text>
-                ) : null}
               </View>
 
-              <View className={`mt-6 rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
+              <View className={`${showUnlockedState ? 'mt-5' : 'mt-6'} rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
                 <Text className={`text-xs font-black uppercase tracking-[1.4px] ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
                   {showUnlockedState ? 'Remaining time' : 'Peaches'}
                 </Text>
                 {showUnlockedState ? (
-                  <Text
-                    className="mt-1 text-4xl font-black tabular-nums text-cocoa"
+                  <View
+                    accessible
                     accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
+                    style={styles.homeCountdown}
                   >
-                    {formatBankDuration(usageWindowSeconds)}
-                  </Text>
+                    <NativeRollingNumber
+                      value={formatBankDuration(usageWindowSeconds)}
+                      color={colors.cocoa}
+                      countsDown
+                      fontSize={36}
+                      fontWeight="900"
+                      style={styles.homeCountdownNumber}
+                    />
+                  </View>
                 ) : (
                   <View className="mt-1 flex-row items-center gap-2">
                     <PeachIcon size={38} />
@@ -782,6 +787,20 @@ const styles = StyleSheet.create({
   unlockSelectorValue: {
     height: 82,
     width: 130,
+  },
+  homeStatusText: {
+    maxWidth: '100%',
+    textAlign: 'center',
+  },
+  homeCountdown: {
+    alignItems: 'flex-start',
+    height: 48,
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  homeCountdownNumber: {
+    height: 48,
+    width: 190,
   },
   xpCard: {
     shadowColor: colors.cherry,

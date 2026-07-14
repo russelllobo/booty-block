@@ -1,9 +1,14 @@
 import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
-import { PropsWithChildren, useEffect, useRef } from 'react';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Background = 'light' | string;
+
+type BackgroundState = {
+  background: Background;
+  gradient?: LinearGradientProps['colors'];
+};
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -12,7 +17,11 @@ type ScreenProps = PropsWithChildren<{
   backgroundGradient?: LinearGradientProps['colors'];
 }>;
 
-let lastBackground: Background = 'light';
+let lastBackgroundState: BackgroundState = { background: 'light' };
+
+function backgroundKey({ background, gradient }: BackgroundState) {
+  return `${background}:${gradient?.join(',') ?? ''}`;
+}
 
 function BackgroundLayer({
   background,
@@ -43,18 +52,48 @@ export function Screen({
   backgroundGradient,
 }: ScreenProps) {
   const background: Background = backgroundColor ?? 'light';
-  const previousBackground = useRef(lastBackground).current;
-  const previousOpacity = useRef(new Animated.Value(previousBackground === background ? 0 : 1)).current;
+  const requestedBackground = { background, gradient: backgroundGradient };
+  const requestedBackgroundKey = backgroundKey(requestedBackground);
+  const initialPreviousBackground = useRef(
+    backgroundKey(lastBackgroundState) === requestedBackgroundKey ? null : lastBackgroundState,
+  ).current;
+  const [currentBackground, setCurrentBackground] = useState<BackgroundState>(requestedBackground);
+  const [previousBackground, setPreviousBackground] = useState<BackgroundState | null>(
+    initialPreviousBackground,
+  );
+  const currentBackgroundRef = useRef(requestedBackground);
+  const mountedRef = useRef(false);
+  const previousOpacity = useRef(new Animated.Value(initialPreviousBackground ? 1 : 0)).current;
 
   useEffect(() => {
-    lastBackground = background;
-    previousOpacity.setValue(previousBackground === background ? 0 : 1);
-    Animated.timing(previousOpacity, {
+    const previous = mountedRef.current ? currentBackgroundRef.current : initialPreviousBackground;
+
+    if (mountedRef.current) {
+      setPreviousBackground(previous);
+      setCurrentBackground(requestedBackground);
+      previousOpacity.setValue(1);
+    }
+
+    mountedRef.current = true;
+    currentBackgroundRef.current = requestedBackground;
+    lastBackgroundState = requestedBackground;
+
+    if (!previous) {
+      previousOpacity.setValue(0);
+      return;
+    }
+
+    const animation = Animated.timing(previousOpacity, {
       toValue: 0,
-      duration: 360,
+      duration: 500,
       useNativeDriver: true,
-    }).start();
-  }, [background, previousBackground, previousOpacity]);
+    });
+    animation.start(({ finished }) => {
+      if (finished) setPreviousBackground(null);
+    });
+
+    return () => animation.stop();
+  }, [initialPreviousBackground, previousOpacity, requestedBackgroundKey]);
 
   const content = (
     <SafeAreaView className="flex-1" style={{ flex: 1 }}>
@@ -64,13 +103,21 @@ export function Screen({
 
   return (
     <View className="flex-1" style={{ flex: 1 }}>
-      <BackgroundLayer background={background} gradient={backgroundGradient} />
-      <Animated.View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { opacity: previousOpacity }]}
-      >
-        <BackgroundLayer background={previousBackground} />
-      </Animated.View>
+      <BackgroundLayer
+        background={currentBackground.background}
+        gradient={currentBackground.gradient}
+      />
+      {previousBackground ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { opacity: previousOpacity }]}
+        >
+          <BackgroundLayer
+            background={previousBackground.background}
+            gradient={previousBackground.gradient}
+          />
+        </Animated.View>
+      ) : null}
       {scroll ? (
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} showsVerticalScrollIndicator={false}>
           {content}
