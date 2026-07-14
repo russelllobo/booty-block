@@ -45,6 +45,7 @@ type GameResultNotice = {
 const BEST_SCORE_KEY = 'bootyblock:flappy-squat-best';
 const GAME_TICK_MS = 40;
 const BIRD_SIZE = 42;
+const MASCOT_RENDER_SIZE = 64;
 const PIPE_WIDTH = 68;
 const PIPE_GAP = 152;
 const PIPE_SPACING = 210;
@@ -77,6 +78,101 @@ function calculateDepthFromPose(depth: number, visible: boolean, fallback: numbe
   return clamp(depth, 0, 1);
 }
 
+function FlappyPeachMascot({
+  centerX,
+  centerY,
+  motionFrame,
+}: {
+  centerX: number;
+  centerY: number;
+  motionFrame: number;
+}) {
+  const scale = MASCOT_RENDER_SIZE / 240;
+  const wingWave = (Math.sin(motionFrame * 0.9) + 1) / 2;
+  const hoverWave = Math.sin(motionFrame * 0.14);
+  const farWingRotation = 15 - wingWave * 34;
+  const nearWingRotation = 24 - wingWave * 44;
+  const farWingScaleY = 0.9 + wingWave * 0.16;
+  const nearWingScaleY = 0.88 + wingWave * 0.16;
+  const leafRotation = -3 + ((hoverWave + 1) / 2) * 7;
+  const blinkFrame = motionFrame % 84;
+  const eyeScaleY = blinkFrame >= 80 && blinkFrame <= 81 ? 0.08 : 1;
+  const spriteX = centerX - 120 * scale;
+  const spriteY = centerY - 120 * scale + hoverWave * 1.1;
+
+  return (
+    <G transform={`translate(${spriteX} ${spriteY}) scale(${scale})`}>
+      <Ellipse cx={121} cy={207} rx={47} ry={8} fill="#4B2036" opacity={0.12} />
+
+      <G transform={`translate(105 126) rotate(${farWingRotation}) scale(1 ${farWingScaleY}) translate(-105 -126)`}>
+        <Path
+          d="M105 108C95 80 70 62 53 72C42 79 48 95 61 104C44 99 31 107 34 120C38 133 60 132 81 126Z"
+          fill="url(#mascotWingFill)"
+          stroke="#4B2036"
+          strokeWidth={6}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M54 79C69 91 80 103 94 117M42 115C59 116 75 119 88 122"
+          fill="none"
+          stroke="#F2A4B7"
+          strokeWidth={4}
+          strokeLinecap="round"
+          opacity={0.72}
+        />
+      </G>
+
+      <Path
+        d="M120 62C97 39 63 48 51 79C38 113 51 153 80 181C93 194 107 201 122 203C138 199 152 188 164 171C186 142 199 107 188 79C179 56 162 46 144 48C134 49 126 54 120 62Z"
+        fill="url(#mascotPeachBody)"
+        stroke="#4B2036"
+        strokeWidth={7}
+        strokeLinejoin="round"
+      />
+      <Path d="M120 66C109 78 106 94 107 110" fill="none" stroke="#C93F6E" strokeWidth={5} strokeLinecap="round" opacity={0.7} />
+      <Path d="M120 66C131 78 134 92 133 105" fill="none" stroke="#C93F6E" strokeWidth={5} strokeLinecap="round" opacity={0.3} />
+      <Ellipse cx={88} cy={91} rx={23} ry={31} fill="url(#mascotPeachGlow)" transform="rotate(-22 88 91)" />
+
+      <Path d="M119 61C117 49 119 38 126 28" fill="none" stroke="#4B2036" strokeWidth={7} strokeLinecap="round" />
+      <G transform={`translate(126 50) rotate(${leafRotation}) translate(-126 -50)`}>
+        <Path
+          d="M126 45C138 24 164 24 178 39C165 57 144 62 126 50Z"
+          fill="url(#mascotLeafFill)"
+          stroke="#4B2036"
+          strokeWidth={6}
+          strokeLinejoin="round"
+        />
+        <Path d="M132 48C146 42 156 38 168 38" fill="none" stroke="#D6FFD9" strokeWidth={3.5} strokeLinecap="round" opacity={0.82} />
+      </G>
+
+      <G transform={`translate(113 130) rotate(${nearWingRotation}) scale(1 ${nearWingScaleY}) translate(-113 -130)`}>
+        <Path
+          d="M112 112C88 95 55 96 46 112C39 124 51 135 68 136C52 143 47 157 58 165C72 176 96 153 113 133Z"
+          fill="url(#mascotWingFill)"
+          stroke="#4B2036"
+          strokeWidth={6}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M51 114C70 116 87 122 104 130M61 160C76 149 90 139 106 133"
+          fill="none"
+          stroke="#F2A4B7"
+          strokeWidth={4}
+          strokeLinecap="round"
+          opacity={0.72}
+        />
+      </G>
+
+      <G transform={`translate(153 116) scale(1 ${eyeScaleY}) translate(-153 -116)`}>
+        <Ellipse cx={153} cy={116} rx={10} ry={13} fill="#3A1F2C" />
+        <Circle cx={150} cy={111} r={3.3} fill="#FFFFFF" />
+      </G>
+      <Path d="M143 99C150 95 158 96 163 100" fill="none" stroke="#7F294F" strokeWidth={4} strokeLinecap="round" opacity={0.65} />
+      <Path d="M151 145C157 151 168 149 172 142" fill="none" stroke="#7F294F" strokeWidth={5} strokeLinecap="round" />
+    </G>
+  );
+}
+
 function FlappyScene({
   width,
   height,
@@ -91,6 +187,15 @@ function FlappyScene({
   const groundY = height - 28;
   const skylineY = Math.max(120, groundY - 72);
   const birdCenterY = birdY + BIRD_SIZE / 2;
+  const [mascotMotionFrame, setMascotMotionFrame] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMascotMotionFrame((current) => (current + 1) % 840);
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
@@ -113,10 +218,22 @@ function FlappyScene({
           <Stop offset="0" stopColor="#FF7EB6" />
           <Stop offset="1" stopColor="#D92D79" />
         </SvgLinearGradient>
-        <SvgLinearGradient id="peach" x1="0" x2="1" y1="0" y2="1">
-          <Stop offset="0" stopColor="#FFCC86" />
-          <Stop offset="0.52" stopColor="#FF8E9E" />
-          <Stop offset="1" stopColor="#F65383" />
+        <SvgLinearGradient id="mascotPeachBody" x1="65" x2="177" y1="48" y2="198" gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#FFD08A" />
+          <Stop offset="0.48" stopColor="#FF8F9F" />
+          <Stop offset="1" stopColor="#F25383" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="mascotPeachGlow" x1="78" x2="118" y1="67" y2="136" gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#FFF3CE" stopOpacity={0.9} />
+          <Stop offset="1" stopColor="#FFF3CE" stopOpacity={0} />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="mascotWingFill" x1="0" x2="1" y1="0" y2="1">
+          <Stop offset="0" stopColor="#FFFBE3" />
+          <Stop offset="1" stopColor="#FFD7DB" />
+        </SvgLinearGradient>
+        <SvgLinearGradient id="mascotLeafFill" x1="109" x2="177" y1="35" y2="67" gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#8CE0A8" />
+          <Stop offset="1" stopColor="#48AE74" />
         </SvgLinearGradient>
       </Defs>
       <Rect width={width} height={height} fill="url(#sky)" />
@@ -174,24 +291,7 @@ function FlappyScene({
         </Fragment>
       ))}
 
-      <G>
-        <Ellipse cx={72} cy={birdCenterY + 5} rx={25} ry={20} fill="#3A1F2C" opacity={0.15} />
-        <Path d={`M52 ${birdCenterY + 1} C 31 ${birdCenterY - 14}, 27 ${birdCenterY + 17}, 54 ${birdCenterY + 13}`} fill="#E73A79" />
-        <Path d={`M48 ${birdCenterY + 2} C 37 ${birdCenterY - 5}, 36 ${birdCenterY + 8}, 50 ${birdCenterY + 10}`} fill="#FFB4D0" opacity={0.62} />
-        <Circle cx={72} cy={birdCenterY} r={BIRD_SIZE / 2} fill="url(#peach)" />
-        <Path d={`M66 ${birdCenterY - 20} C 65 ${birdCenterY - 29}, 73 ${birdCenterY - 34}, 78 ${birdCenterY - 25}`} fill="none" stroke="#5A2944" strokeWidth={3.5} strokeLinecap="round" />
-        <Path d={`M74 ${birdCenterY - 24} C 82 ${birdCenterY - 31}, 92 ${birdCenterY - 27}, 89 ${birdCenterY - 20} C 83 ${birdCenterY - 18}, 78 ${birdCenterY - 20}, 74 ${birdCenterY - 24} Z`} fill="#67C98A" />
-        <Path d={`M53 ${birdCenterY - 8} C 65 ${birdCenterY - 13}, 80 ${birdCenterY - 13}, 92 ${birdCenterY - 7} L 91 ${birdCenterY - 1} C 78 ${birdCenterY - 6}, 64 ${birdCenterY - 6}, 53 ${birdCenterY - 1} Z`} fill="#FFF4B8" />
-        <Path d={`M83 ${birdCenterY - 6} L95 ${birdCenterY - 11} L91 ${birdCenterY + 1} Z`} fill="#FFF4B8" />
-        <Circle cx={80} cy={birdCenterY + 1} r={6} fill="#FFFFFF" />
-        <Circle cx={82} cy={birdCenterY + 1} r={2.6} fill="#3A1F2C" />
-        <Circle cx={81.2} cy={birdCenterY} r={0.8} fill="#FFFFFF" />
-        <Path d={`M92 ${birdCenterY + 7} L111 ${birdCenterY + 1} L104 ${birdCenterY + 13} Z`} fill="#FFD45E" />
-        <Path d={`M69 ${birdCenterY + 10} C 75 ${birdCenterY + 15}, 82 ${birdCenterY + 14}, 85 ${birdCenterY + 10}`} fill="none" stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
-        <Circle cx={61} cy={birdCenterY + 7} r={4.5} fill="#FFCFBE" opacity={0.65} />
-        <Path d={`M61 ${birdCenterY + 19} L58 ${birdCenterY + 25}`} stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
-        <Path d={`M78 ${birdCenterY + 19} L81 ${birdCenterY + 25}`} stroke="#8C294E" strokeWidth={2.5} strokeLinecap="round" />
-      </G>
+      <FlappyPeachMascot centerX={72} centerY={birdCenterY} motionFrame={mascotMotionFrame} />
     </Svg>
   );
 }
