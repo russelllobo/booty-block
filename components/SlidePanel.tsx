@@ -75,7 +75,6 @@ export function SlidePanel({
     opacity: interpolate(progress.value, [0, 0.72, 1], [0.12, 0.94, 1]),
     transform: [
       { translateX: (1 - progress.value) * distance * transitionDirection.value },
-      { translateY: (1 - progress.value) * 6 },
       { scale: interpolate(progress.value, [0, 1], [0.985, 1]) },
     ],
   }));
@@ -84,7 +83,6 @@ export function SlidePanel({
     opacity: interpolate(progress.value, [0, 0.82, 1], [1, 0.18, 0]),
     transform: [
       { translateX: progress.value * distance * -0.32 * transitionDirection.value },
-      { translateY: progress.value * -3 },
       { scale: interpolate(progress.value, [0, 1], [1, 0.992]) },
     ],
   }));
