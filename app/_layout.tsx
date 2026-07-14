@@ -26,8 +26,7 @@ import { tiktokService } from '../lib/services/tiktok';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
 
 const onboardingScreenOptions = {
-  animation: 'fade',
-  animationDuration: 260,
+  animation: 'none',
   gestureEnabled: false,
 } as const;
 
@@ -190,7 +189,6 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
-              <Stack.Screen name="onboarding/permissions" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />

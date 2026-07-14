@@ -12,7 +12,7 @@ import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors, shadow } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -100,10 +100,7 @@ function TimeSlider({
   }
 
   return (
-    <View
-      className="rounded-[32px] border border-white/80 bg-white/85 px-6 pb-6 pt-7"
-      style={shadow}
-    >
+    <View className="px-6 pb-6 pt-7">
       <View style={styles.sliderFrame}>
         <View pointerEvents="none" style={styles.valueLabel}>
           <View style={styles.valueRow}>

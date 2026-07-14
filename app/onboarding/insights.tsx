@@ -946,7 +946,7 @@ function ProjectionWarningSlide({
       <View className="flex-1 justify-between pb-1 pt-1">
         <View className="px-10">
           <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
-            At your current rate, you'll spend{' '}
+            You'll spend{' '}
             <Text style={{ color: resultOrange }}>{currentDays} days</Text> on your phone over the next year
           </Text>
 
@@ -968,7 +968,7 @@ function ProjectionWarningSlide({
           </Text>
 
           <Text className="mt-7 max-w-[320px] text-center text-[21px] font-bold leading-8 text-white">
-            of your life looking down at your phone.{'\n'}Yep, you read this right.
+            of your life looking down at your phone. Yep, you read this right.
           </Text>
         </View>
 
@@ -2290,15 +2290,15 @@ export default function Insights() {
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         {choosingApps || choosingReasons || choosingFeelings || choosingTried ? (
           <View className="flex-1">
-            <Text className="text-base font-bold leading-6 text-mink">
-              {choosingApps
-                ? "Let's find the main time sinks."
-                : choosingReasons
-                  ? 'Now the habit behind the habit.'
-                  : choosingFeelings
-                    ? "Let's zoom in."
-                    : "You said these apps make you insecure, so I'd like to ask:"}
-            </Text>
+            {!choosingTried ? (
+              <Text className="text-base font-bold leading-6 text-mink">
+                {choosingApps
+                  ? "Let's find the main time sinks."
+                  : choosingReasons
+                    ? 'Now the habit behind the habit.'
+                    : "Let's zoom in."}
+              </Text>
+            ) : null}
             <Text className="mt-1 text-[28px] font-bold leading-[33px] text-cocoa">
               {choosingApps
                 ? 'Which apps take most of your time?'

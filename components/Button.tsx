@@ -1,17 +1,21 @@
 import * as Haptics from 'expo-haptics';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { LucideIcon } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Text } from './AppText';
 import Animated, {
+  Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
   ReduceMotion,
 } from 'react-native-reanimated';
 
 import { colors, shadow } from '../constants/theme';
+import { useSlideTransitionLayer } from './SlidePanel';
 
 type ButtonProps = {
   label: string;
@@ -39,20 +43,37 @@ const GLASS_AVAILABLE = (() => {
 })();
 
 export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
+  const transitionLayer = useSlideTransitionLayer();
   const isPrimary = variant === 'primary';
   const isSecondary = variant === 'secondary';
   const isOutline = variant === 'outline';
   const inert = disabled || loading;
-  const useGlass = !isPrimary && GLASS_AVAILABLE;
+  const useGlass = GLASS_AVAILABLE && (!isPrimary || transitionLayer !== null);
 
   const press = useSharedValue(0);
+  const contentProgress = useSharedValue(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [glassMaterial, setGlassMaterial] = useState<'clear' | 'regular'>('regular');
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    contentProgress.value = 0;
+    contentProgress.value = withTiming(1, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
+
+    if (!useGlass) return;
+    setGlassMaterial('clear');
+    const frame = requestAnimationFrame(() => setGlassMaterial('regular'));
+    return () => cancelAnimationFrame(frame);
+  }, [contentProgress, disabled, label, loading, useGlass]);
 
   const primaryStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: press.value * DEPTH }],
@@ -61,6 +82,25 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   const flatStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - press.value * 0.04 }],
   }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentProgress.value,
+    transform: [{ scale: interpolate(contentProgress.value, [0, 1], [0.985, 1]) }],
+  }));
+
+  const stationaryStyle = useAnimatedStyle(() => {
+    if (!transitionLayer) return {};
+    if (transitionLayer.role === 'outgoing') return { opacity: 0 };
+
+    const parentTranslateX =
+      (1 - transitionLayer.progress.value)
+      * transitionLayer.distance
+      * transitionLayer.direction.value;
+
+    return {
+      transform: [{ translateX: -parentTranslateX }],
+    };
+  }, [transitionLayer]);
 
   function handlePressIn() {
     press.value = withSpring(1, { stiffness: 500, damping: 30, reduceMotion: ReduceMotion.System });
@@ -86,10 +126,24 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
 
   const contentColor = foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry);
   const glassStyle: 'clear' | 'regular' = variant === 'ghost' ? 'clear' : 'regular';
-  const glassTint = isSecondary ? 'rgba(255,255,255,0.55)' : undefined;
+  const glassTint = isPrimary
+    ? 'rgba(233,30,115,0.72)'
+    : isSecondary
+      ? 'rgba(255,255,255,0.55)'
+      : undefined;
 
   const buttonContent = (
-    <>
+    <Animated.View
+      style={[
+        {
+          alignItems: 'center',
+          flexDirection: 'row',
+          gap: 8,
+          justifyContent: 'center',
+        },
+        contentStyle,
+      ]}
+    >
       {loading ? <ActivityIndicator color={contentColor} /> : null}
       {!loading && Icon && iconPosition === 'left' ? (
         <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
@@ -105,14 +159,18 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
       {!loading && Icon && iconPosition === 'right' ? (
         <Icon size={20} stroke={contentColor} strokeWidth={2.4} />
       ) : null}
-    </>
+    </Animated.View>
   );
 
   const surface = (
-    <Animated.View style={[isPrimary ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.6 } : null]}>
+    <Animated.View style={[isPrimary && !useGlass ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.6 } : null]}>
       {useGlass ? (
         <GlassView
-          glassEffectStyle={glassStyle}
+          glassEffectStyle={{
+            style: glassMaterial === 'clear' ? 'clear' : glassStyle,
+            animate: true,
+            animationDuration: 0.24,
+          }}
           tintColor={glassTint}
           isInteractive
           style={{ borderRadius: 9999, minHeight: size === 'large' ? 72 : 56 }}
@@ -161,27 +219,29 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
     </Animated.View>
   );
 
-  if (!isPrimary) {
-    return surface;
+  let result: ReactNode = surface;
+  if (isPrimary && !useGlass) {
+    result = (
+      <View style={{ position: 'relative', marginBottom: DEPTH }}>
+        {!inert ? (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: DEPTH,
+              bottom: -DEPTH,
+              left: 0,
+              right: 0,
+              borderRadius: 9999,
+              backgroundColor: colors.cherry,
+            }}
+          />
+        ) : null}
+        {surface}
+      </View>
+    );
   }
 
-  return (
-    <View style={{ position: 'relative', marginBottom: DEPTH }}>
-      {!inert ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: DEPTH,
-            bottom: -DEPTH,
-            left: 0,
-            right: 0,
-            borderRadius: 9999,
-            backgroundColor: colors.cherry,
-          }}
-        />
-      ) : null}
-      {surface}
-    </View>
-  );
+  if (!transitionLayer) return result;
+  return <Animated.View style={stationaryStyle}>{result}</Animated.View>;
 }

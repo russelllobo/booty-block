@@ -1,4 +1,4 @@
-import { ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, ReactNode, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
   Easing,
   interpolate,
@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 
 export type SlideDirection = 'forward' | 'back';
 
@@ -22,6 +23,19 @@ type SlidePanelProps = {
 const TRANSITION_DURATION = 260;
 const TRANSITION_EASING = Easing.bezier(0.22, 1, 0.36, 1);
 
+type SlideTransitionLayer = {
+  role: 'incoming' | 'outgoing';
+  progress: SharedValue<number>;
+  direction: SharedValue<1 | -1>;
+  distance: number;
+};
+
+const SlideTransitionContext = createContext<SlideTransitionLayer | null>(null);
+
+export function useSlideTransitionLayer() {
+  return useContext(SlideTransitionContext);
+}
+
 export function useStepDirection(step: number): SlideDirection {
   const prevRef = useRef(step);
   const dir: SlideDirection = step >= prevRef.current ? 'forward' : 'back';
@@ -34,16 +48,30 @@ export function useStepDirection(step: number): SlideDirection {
 export function SlidePanel({
   stepKey,
   direction = 'forward',
-  distance = 28,
+  distance = 44,
+  animateOnMount = false,
   children,
 }: SlidePanelProps) {
   const reduceMotion = useReducedMotion();
   const progress = useSharedValue(1);
+  const firstRender = useRef(true);
   const previousKey = useRef(stepKey);
   const latestChildren = useRef(children);
   const outgoingChildren = useRef<ReactNode>(null);
   const transitionDirection = useSharedValue<1 | -1>(direction === 'back' ? -1 : 1);
   const [showOutgoing, setShowOutgoing] = useState(false);
+  const incomingLayer = useMemo<SlideTransitionLayer>(() => ({
+    role: 'incoming',
+    progress,
+    direction: transitionDirection,
+    distance,
+  }), [distance, progress, transitionDirection]);
+  const outgoingLayer = useMemo<SlideTransitionLayer>(() => ({
+    role: 'outgoing',
+    progress,
+    direction: transitionDirection,
+    distance,
+  }), [distance, progress, transitionDirection]);
 
   const stepChanged = !Object.is(previousKey.current, stepKey);
   if (stepChanged) {
@@ -53,7 +81,11 @@ export function SlidePanel({
   latestChildren.current = children;
 
   useLayoutEffect(() => {
-    if (!stepChanged || reduceMotion) {
+    const isFirstRender = firstRender.current;
+    firstRender.current = false;
+    const shouldAnimate = stepChanged || (isFirstRender && animateOnMount);
+
+    if (!shouldAnimate || reduceMotion) {
       progress.value = 1;
       setShowOutgoing(false);
       return;
@@ -69,13 +101,11 @@ export function SlidePanel({
         if (finished) runOnJS(setShowOutgoing)(false);
       },
     );
-  }, [direction, progress, reduceMotion, stepKey, transitionDirection]);
+  }, [animateOnMount, direction, progress, reduceMotion, stepKey, transitionDirection]);
 
   const incomingStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.72, 1], [0.12, 0.94, 1]),
     transform: [
       { translateX: (1 - progress.value) * distance * transitionDirection.value },
-      { scale: interpolate(progress.value, [0, 1], [0.985, 1]) },
     ],
   }));
 
@@ -83,7 +113,6 @@ export function SlidePanel({
     opacity: interpolate(progress.value, [0, 0.82, 1], [1, 0.18, 0]),
     transform: [
       { translateX: progress.value * distance * -0.32 * transitionDirection.value },
-      { scale: interpolate(progress.value, [0, 1], [1, 0.992]) },
     ],
   }));
 
@@ -91,11 +120,15 @@ export function SlidePanel({
     <Animated.View style={{ flex: 1 }}>
       {showOutgoing ? (
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', inset: 0 }, outgoingStyle]}>
-          {outgoingChildren.current}
+          <SlideTransitionContext.Provider value={outgoingLayer}>
+            {outgoingChildren.current}
+          </SlideTransitionContext.Provider>
         </Animated.View>
       ) : null}
       <Animated.View style={[{ flex: 1 }, incomingStyle]}>
-        {children}
+        <SlideTransitionContext.Provider value={incomingLayer}>
+          {children}
+        </SlideTransitionContext.Provider>
       </Animated.View>
     </Animated.View>
   );

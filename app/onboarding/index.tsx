@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { Asset } from 'expo-asset';
 import { ArrowRight, Star } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,7 +20,6 @@ const TAP_RESET_MS = 1200;
 const SQUATTING_DEMO_ASPECT_RATIO = 394 / 648;
 const squattingDemo = require('../../assets/onboarding/squatting-cut.gif');
 const squattingPoster = require('../../assets/onboarding/squatting-poster.jpg');
-const slideTwoArtwork = require('../../assets/onboarding/slide-two.jpg');
 
 export default function Onboarding() {
   const { height } = useWindowDimensions();
@@ -29,7 +27,6 @@ export default function Onboarding() {
   const posthog = usePostHog();
   const skipTapCountRef = useRef(0);
   const skipTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const slideTwoPreloadRef = useRef<Promise<unknown> | null>(null);
   const demoHeight = Math.min(500, Math.max(340, height * 0.54));
 
   useOnboardingStepAnalytics(
@@ -61,25 +58,9 @@ export default function Onboarding() {
     }, TAP_RESET_MS);
   }, [completeOnboarding]);
 
-  const preloadSlideTwo = useCallback(() => {
-    if (!slideTwoPreloadRef.current) {
-      const source = Image.resolveAssetSource(slideTwoArtwork);
-      slideTwoPreloadRef.current = Promise.all([
-        Asset.loadAsync(slideTwoArtwork),
-        source?.uri ? Image.prefetch(source.uri) : Promise.resolve(false),
-      ]).catch(() => undefined);
-    }
-
-    return slideTwoPreloadRef.current;
-  }, []);
-
   const handleGetStarted = useCallback(() => {
-    router.push('/onboarding/permissions');
+    router.push('/onboarding/quiz');
   }, []);
-
-  useEffect(() => {
-    void preloadSlideTwo();
-  }, [preloadSlideTwo]);
 
   useEffect(() => {
     return () => {
