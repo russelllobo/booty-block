@@ -127,7 +127,9 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   const contentColor = foregroundColor ?? (isPrimary || isOutline ? colors.white : colors.raspberry);
   const glassStyle: 'clear' | 'regular' = variant === 'ghost' ? 'clear' : 'regular';
   const glassTint = isPrimary
-    ? 'rgba(233,30,115,0.72)'
+    ? inert
+      ? 'rgba(233,30,115,0.38)'
+      : 'rgba(233,30,115,0.92)'
     : isSecondary
       ? 'rgba(255,255,255,0.55)'
       : undefined;
@@ -163,7 +165,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   );
 
   const surface = (
-    <Animated.View style={[isPrimary && !useGlass ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.6 } : null]}>
+    <Animated.View style={[isPrimary && !useGlass ? primaryStyle : flatStyle, useGlass && inert ? { opacity: 0.48 } : null]}>
       {useGlass ? (
         <GlassView
           glassEffectStyle={{
@@ -173,7 +175,20 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
           }}
           tintColor={glassTint}
           isInteractive
-          style={{ borderRadius: 9999, minHeight: size === 'large' ? 72 : 56 }}
+          style={{
+            borderRadius: 9999,
+            minHeight: size === 'large' ? 72 : 56,
+            borderWidth: isPrimary ? 1 : 0,
+            borderColor: isPrimary
+              ? inert
+                ? 'rgba(255,255,255,0.16)'
+                : 'rgba(255,255,255,0.42)'
+              : 'transparent',
+            shadowColor: isPrimary ? colors.raspberry : undefined,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: isPrimary && !inert ? 0.28 : 0,
+            shadowRadius: 20,
+          }}
         >
           <Pressable
             accessibilityRole="button"
