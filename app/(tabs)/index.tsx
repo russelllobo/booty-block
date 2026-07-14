@@ -224,7 +224,6 @@ export default function Home() {
     outputRange: ['0%', '100%'],
   });
   const promptContentStyle = {
-    opacity: unlockPromptProgress,
     transform: [
       {
         translateY: unlockPromptProgress.interpolate({
@@ -235,7 +234,6 @@ export default function Home() {
     ],
   };
   const selectorStyle = {
-    opacity: unlockSelectorProgress,
     transform: [
       {
         translateY: unlockSelectorProgress.interpolate({

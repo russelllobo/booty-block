@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Flappy Squat peach mascot</title>
+  <desc id="desc">A smiling peach with blinking eyes and animated cream wings.</desc>
+
+  <defs>
+    <linearGradient id="peachBody" x1="58" y1="49" x2="176" y2="199" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD08A"/>
+      <stop offset="0.48" stop-color="#FF8F9F"/>
+      <stop offset="1" stop-color="#F25383"/>
+    </linearGradient>
+    <linearGradient id="peachGlow" x1="88" y1="73" x2="132" y2="139" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3CE" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFF3CE" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="wingFill" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFBE3"/>
+      <stop offset="1" stop-color="#FFD7DB"/>
+    </linearGradient>
+    <linearGradient id="leafFill" x1="104" y1="35" x2="171" y2="68" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CE0A8"/>
+      <stop offset="1" stop-color="#48AE74"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#4B2036" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+
+  <style>
+    #mascot {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: hover 1.15s ease-in-out infinite alternate;
+    }
+    #wing-left {
+      transform-box: fill-box;
+      transform-origin: right center;
+      animation: flap-left 0.34s cubic-bezier(.45,.02,.55,.98) infinite alternate;
+    }
+    #wing-right {
+      transform-box: fill-box;
+      transform-origin: left center;
+      animation: flap-right 0.34s cubic-bezier(.45,.02,.55,.98) infinite alternate;
+    }
+    #eyes {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: blink 4.2s ease-in-out infinite;
+    }
+    #leaf {
+      transform-box: fill-box;
+      transform-origin: left bottom;
+      animation: leaf-bob 1.15s ease-in-out infinite alternate;
+    }
+    @keyframes hover {
+      from { transform: translateY(3px) rotate(-1deg); }
+      to { transform: translateY(-4px) rotate(1deg); }
+    }
+    @keyframes flap-left {
+      from { transform: rotate(22deg) scaleY(0.9); }
+      to { transform: rotate(-18deg) scaleY(1.05); }
+    }
+    @keyframes flap-right {
+      from { transform: rotate(-22deg) scaleY(0.9); }
+      to { transform: rotate(18deg) scaleY(1.05); }
+    }
+    @keyframes blink {
+      0%, 44%, 48%, 100% { transform: scaleY(1); }
+      46% { transform: scaleY(0.08); }
+    }
+    @keyframes leaf-bob {
+      from { transform: rotate(-3deg); }
+      to { transform: rotate(4deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #mascot, #wing-left, #wing-right, #eyes, #leaf { animation: none; }
+    }
+  </style>
+
+  <g id="mascot" filter="url(#softShadow)">
+    <ellipse cx="120" cy="207" rx="47" ry="8" fill="#4B2036" opacity="0.12"/>
+
+    <g id="wing-left">
+      <path d="M69 106C49 87 24 87 23 104C22 115 35 120 48 118C31 124 27 137 37 144C47 151 62 139 74 125Z" fill="url(#wingFill)" stroke="#4B2036" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M29 104C43 104 53 111 64 121M39 139C50 132 60 128 70 123" fill="none" stroke="#F2A4B7" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    </g>
+
+    <g id="wing-right">
+      <path d="M171 106C191 87 216 87 217 104C218 115 205 120 192 118C209 124 213 137 203 144C193 151 178 139 166 125Z" fill="url(#wingFill)" stroke="#4B2036" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M211 104C197 104 187 111 176 121M201 139C190 132 180 128 170 123" fill="none" stroke="#F2A4B7" stroke-width="4" stroke-linecap="round" opacity="0.72"/>
+    </g>
+
+    <path d="M120 62C96 42 65 52 57 80C48 110 64 149 89 176C101 189 112 198 120 204C128 198 139 189 151 176C176 149 192 110 183 80C175 52 144 42 120 62Z" fill="url(#peachBody)" stroke="#4B2036" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M120 66C108 78 105 96 106 111" fill="none" stroke="#C93F6E" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+    <path d="M120 66C132 78 135 96 134 111" fill="none" stroke="#C93F6E" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+    <ellipse cx="91" cy="92" rx="24" ry="32" fill="url(#peachGlow)" transform="rotate(-23 91 92)"/>
+
+    <path d="M119 61C117 49 119 38 126 28" fill="none" stroke="#4B2036" stroke-width="7" stroke-linecap="round"/>
+    <g id="leaf">
+      <path d="M126 45C137 24 163 24 177 39C164 57 143 62 126 50Z" fill="url(#leafFill)" stroke="#4B2036" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M132 48C145 42 155 38 167 38" fill="none" stroke="#D6FFD9" stroke-width="3.5" stroke-linecap="round" opacity="0.82"/>
+    </g>
+
+    <g id="eyes">
+      <ellipse cx="96" cy="125" rx="9" ry="12" fill="#3A1F2C"/>
+      <ellipse cx="144" cy="125" rx="9" ry="12" fill="#3A1F2C"/>
+      <circle cx="93" cy="121" r="3" fill="#FFFFFF"/>
+      <circle cx="141" cy="121" r="3" fill="#FFFFFF"/>
+    </g>
+
+    <ellipse cx="80" cy="146" rx="12" ry="7" fill="#FFCDD0" opacity="0.72"/>
+    <ellipse cx="160" cy="146" rx="12" ry="7" fill="#FFCDD0" opacity="0.72"/>
+    <path d="M108 146C112 153 128 153 132 146" fill="none" stroke="#7F294F" stroke-width="5" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -664,18 +664,14 @@ export default function Games() {
                 <Trophy size={14} stroke={colors.white} strokeWidth={2.5} />
                 <Text style={styles.bestBadgeText}>Best {bestScore}</Text>
               </View>
-              <View style={styles.controlBadge}>
-                <Sparkles size={13} stroke={colors.cocoa} strokeWidth={2.6} />
-                <Text style={styles.controlBadgeText}>SQUAT CONTROLLED</Text>
-              </View>
               <View style={styles.heroCopy}>
                 <Text style={styles.heroTitle}>Flappy Squat</Text>
-                <Text style={styles.heroSubtitle}>Lower your body. Thread the gap.</Text>
                 <View style={styles.heroAction}>
                   <Button
                     label={status === 'ended' ? 'Play again' : 'Play'}
                     icon={Play}
                     onPress={startGame}
+                    forceGlass
                   />
                 </View>
               </View>
@@ -757,24 +753,6 @@ const styles = StyleSheet.create({
     height: PREVIEW_HEIGHT,
     overflow: 'hidden',
   },
-  controlBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 247, 178, 0.92)',
-    borderRadius: 18,
-    flexDirection: 'row',
-    gap: 5,
-    left: 16,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    position: 'absolute',
-    top: 16,
-  },
-  controlBadgeText: {
-    color: colors.cocoa,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.45,
-  },
   heroCopy: {
     bottom: 20,
     left: 20,
@@ -783,15 +761,6 @@ const styles = StyleSheet.create({
   },
   heroAction: {
     marginTop: 18,
-  },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 4,
-    textShadowColor: 'rgba(58,31,44,0.45)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
   },
   heroTitle: {
     color: colors.white,
