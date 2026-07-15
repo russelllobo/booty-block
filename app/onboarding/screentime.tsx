@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowUp, LockKeyhole } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../../components/AppText';
 import { usePostHog } from 'posthog-react-native';
@@ -34,6 +34,7 @@ export default function ScreenTime() {
   const dialogHeight = dialogWidth * (682 / 938);
   const dialogTopGap = Math.min(92, Math.max(56, height * 0.085));
   const arrowBounce = useRef(new Animated.Value(0)).current;
+  const requestInFlight = useRef(false);
   const [permissionStep, setPermissionStep] = useState<PermissionStep>(
     approved ? 'notifications' : 'screentime',
   );
@@ -81,20 +82,39 @@ export default function ScreenTime() {
     return () => animation.stop();
   }, [arrowBounce, permissionStep]);
 
-  async function request() {
+  const request = useCallback(async () => {
+    if (requestInFlight.current) {
+      return;
+    }
     if (approved) {
       setPermissionStep('notifications');
       return;
     }
+    requestInFlight.current = true;
     captureAnalytics(posthog, 'screen_time_permission_started');
     setLoading(true);
-    const status = await requestScreenTime();
-    setLoading(false);
-    captureAnalytics(posthog, 'screen_time_permission_finished', screenTimeStatusProperties(status));
-    if (status === 'approved') {
-      setPermissionStep('notifications');
+    try {
+      const status = await requestScreenTime();
+      captureAnalytics(posthog, 'screen_time_permission_finished', screenTimeStatusProperties(status));
+      if (status === 'approved') {
+        setPermissionStep('notifications');
+      }
+    } finally {
+      requestInFlight.current = false;
+      setLoading(false);
     }
-  }
+  }, [approved, posthog, requestScreenTime]);
+
+  useEffect(() => {
+    if (permissionStep !== 'screentime' || screenTimeStatus !== 'notDetermined') {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      void request();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [permissionStep, request, screenTimeStatus]);
 
   function back() {
     if (permissionStep === 'notifications') {

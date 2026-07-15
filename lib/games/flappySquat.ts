@@ -5,6 +5,8 @@ const CONTROLLER_SQUAT_RANGE = 0.4;
 const CONTROLLER_STANDING_DEAD_ZONE = 0.025;
 const CONTROLLER_RESPONSE_CURVE = 1.12;
 const BIRD_TOP_PADDING = 18;
+const FULL_SQUAT_KNEE_ANGLE = 95;
+const SQUAT_CALIBRATION_COMPLETION = 0.94;
 
 export type FlappySquatRewardInput = {
   score: number;
@@ -32,6 +34,45 @@ export function normalizePoseDepth(depth: number, standingDepth: number) {
   const usableRange = CONTROLLER_SQUAT_RANGE - CONTROLLER_STANDING_DEAD_ZONE;
   const linearDepth = clamp(movement / usableRange, 0, 1);
   return Math.pow(linearDepth, CONTROLLER_RESPONSE_CURVE);
+}
+
+export function normalizeCalibratedPoseDepth(
+  depth: number,
+  standingDepth: number,
+  lowestSquatDepth: number,
+) {
+  const calibratedRange = lowestSquatDepth - standingDepth;
+  if (!Number.isFinite(calibratedRange) || calibratedRange <= 0) return 0;
+  return clamp((depth - standingDepth) / calibratedRange, 0, 1);
+}
+
+export function calculateSquatCalibrationProgress({
+  depth,
+  standingDepth,
+  kneeAngle,
+  standingKneeAngle,
+  complete = false,
+}: {
+  depth: number;
+  standingDepth: number;
+  kneeAngle: number;
+  standingKneeAngle: number;
+  complete?: boolean;
+}) {
+  if (complete) return 1;
+
+  const depthRange = Math.max(0.01, 1 - standingDepth);
+  const depthProgress = clamp((depth - standingDepth) / depthRange, 0, 1);
+  const kneeRange = standingKneeAngle - FULL_SQUAT_KNEE_ANGLE;
+  const kneeProgress = kneeAngle > 0 && kneeRange > 0
+    ? clamp((standingKneeAngle - kneeAngle) / kneeRange, 0, 1)
+    : 0;
+
+  return Math.max(depthProgress, kneeProgress);
+}
+
+export function isSquatCalibrationComplete(progress: number, nativeBottomDetected: boolean) {
+  return nativeBottomDetected || clamp(progress, 0, 1) >= SQUAT_CALIBRATION_COMPLETION;
 }
 
 export function smoothDepth(previous: number, next: number, factor = 0.2) {

@@ -14,10 +14,13 @@ import { Header } from '../../components/Header';
 import { PoseOverlay } from '../../components/PoseOverlay';
 import { Screen } from '../../components/Screen';
 import {
+  calculateSquatCalibrationProgress,
   calculateFlappySquatReward,
   clamp,
   FLAPPY_SQUAT_GAME_ID,
+  isSquatCalibrationComplete,
   mapDepthToBirdY,
+  normalizeCalibratedPoseDepth,
   smoothDepth,
 } from '../../lib/games/flappySquat';
 import { usePoseSession } from '../../lib/services/pose';
@@ -34,7 +37,14 @@ type Pipe = {
   passed: boolean;
 };
 
-type GameStatus = 'idle' | 'countdown' | 'playing' | 'ended';
+type GameStatus =
+  | 'idle'
+  | 'calibratingStanding'
+  | 'calibratingSquat'
+  | 'calibratingReturn'
+  | 'countdown'
+  | 'playing'
+  | 'ended';
 
 type GameResultNotice = {
   score: number;
@@ -47,11 +57,22 @@ const GAME_TICK_MS = 40;
 const BIRD_SIZE = 42;
 const MASCOT_RENDER_SIZE = 64;
 const PIPE_WIDTH = 68;
-const PIPE_GAP = 152;
-const PIPE_SPACING = 210;
+const PIPE_GAP = 190;
+const PIPE_SPACING = 300;
 const PIPE_SPEED = 4.2;
 const COUNTDOWN_START = 3;
+const STANDING_CALIBRATION_SAMPLES = 2;
+const RETURN_STANDING_SAMPLES = 5;
+const MIN_CALIBRATION_RANGE = 0.12;
+const STARTING_POSE_THRESHOLD = 0.16;
 const PREVIEW_HEIGHT = 380;
+
+function median(values: number[]) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) return (sorted[middle - 1] + sorted[middle]) / 2;
+  return sorted[middle];
+}
 
 function makePipe(id: number, x: number, height: number): Pipe {
   const minGapY = 88;
@@ -316,6 +337,15 @@ export default function Games() {
   const [hasMovedLower, setHasMovedLower] = useState(false);
   const depthRef = useRef(0.5);
   const latestDepthRef = useRef(0.5);
+  const rawDepthRef = useRef(0);
+  const standingDepthRef = useRef(0);
+  const standingKneeAngleRef = useRef(168);
+  const lowestSquatDepthRef = useRef(1);
+  const standingSamplesRef = useRef<number[]>([]);
+  const standingKneeSamplesRef = useRef<number[]>([]);
+  const squatSamplesRef = useRef<number[]>([]);
+  const squatProgressMaxRef = useRef(0);
+  const returnStandingSamplesRef = useRef<number[]>([]);
   const scoreRef = useRef(0);
   const pipeIdRef = useRef(4);
   const gameStartedAtRef = useRef(0);
@@ -326,7 +356,8 @@ export default function Games() {
   const scoreScale = useRef(new Animated.Value(1)).current;
   const scoreFlash = useRef(new Animated.Value(0)).current;
   const resultNoticeProgress = useRef(new Animated.Value(0)).current;
-  const gameActive = status === 'countdown' || status === 'playing';
+  const calibrationFillProgress = useRef(new Animated.Value(0)).current;
+  const gameActive = status !== 'idle' && status !== 'ended';
   const nativePoseActive = gameActive && Boolean(permission?.granted);
   const pose = usePoseSession({
     target: 999,
@@ -336,13 +367,36 @@ export default function Games() {
     restartAfterNativeCount: false,
   });
   const rawDepth = calculateDepthFromPose(pose.metrics.depth, pose.visible, simulatedDepth);
-  // Native pose depth is already calibrated from standing (0) to a full
-  // squat (1). Re-normalizing it against a second standing sample can flatten
-  // the entire input range and leave the bird pinned in place.
-  latestDepthRef.current = rawDepth;
+  rawDepthRef.current = rawDepth;
+  const calibratedDepth = normalizeCalibratedPoseDepth(
+    rawDepth,
+    standingDepthRef.current,
+    lowestSquatDepthRef.current,
+  );
+  latestDepthRef.current = calibratedDepth;
   const birdY = mapDepthToBirdY(depthRef.current, size.height, BIRD_SIZE);
   const canPlay = subscriptionHydrated && isSubscribed;
   const bodyVisible = Platform.OS === 'web' || pose.visible;
+  const currentSquatCalibrationProgress = calculateSquatCalibrationProgress({
+    depth: rawDepth,
+    standingDepth: standingDepthRef.current,
+    kneeAngle: pose.metrics.kneeAngle,
+    standingKneeAngle: standingKneeAngleRef.current,
+    complete: status === 'calibratingReturn',
+  });
+  if (status === 'calibratingSquat') {
+    squatProgressMaxRef.current = Math.max(
+      squatProgressMaxRef.current,
+      currentSquatCalibrationProgress,
+    );
+  }
+  const squatCalibrationProgress = status === 'calibratingReturn'
+    ? 1
+    : squatProgressMaxRef.current;
+  const showStartOverlay = (status === 'calibratingStanding' && !bodyVisible)
+    || status === 'calibratingSquat'
+    || status === 'calibratingReturn'
+    || status === 'countdown';
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -454,6 +508,113 @@ export default function Games() {
     setStatus('playing');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const target = status === 'calibratingReturn'
+      ? 1
+      : status === 'calibratingSquat'
+        ? squatCalibrationProgress
+        : 0;
+    const animation = Animated.timing(calibrationFillProgress, {
+      toValue: target,
+      duration: status === 'calibratingReturn' ? 90 : 110,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [calibrationFillProgress, squatCalibrationProgress, status]);
+
+  useEffect(() => {
+    if (status !== 'calibratingStanding') return;
+
+    if (!bodyVisible) {
+      standingSamplesRef.current = [];
+      standingKneeSamplesRef.current = [];
+      return;
+    }
+
+    const stableStandingPose = Platform.OS === 'web' || pose.phase === 'standing';
+    if (!stableStandingPose) {
+      standingSamplesRef.current = [];
+      standingKneeSamplesRef.current = [];
+      return;
+    }
+
+    standingSamplesRef.current.push(rawDepthRef.current);
+    if (pose.metrics.kneeAngle > 0) {
+      standingKneeSamplesRef.current.push(pose.metrics.kneeAngle);
+    }
+    if (standingSamplesRef.current.length < STANDING_CALIBRATION_SAMPLES) return;
+
+    standingDepthRef.current = median(
+      standingSamplesRef.current.slice(-STANDING_CALIBRATION_SAMPLES),
+    );
+    if (standingKneeSamplesRef.current.length > 0) {
+      standingKneeAngleRef.current = median(standingKneeSamplesRef.current);
+    }
+    squatSamplesRef.current = [];
+    squatProgressMaxRef.current = 0;
+    setStatus('calibratingSquat');
+  }, [bodyVisible, pose.metrics.depth, pose.metrics.kneeAngle, pose.phase, status]);
+
+  useEffect(() => {
+    if (status !== 'calibratingSquat') return;
+
+    if (!bodyVisible) {
+      squatSamplesRef.current = [];
+      return;
+    }
+
+    squatSamplesRef.current.push(rawDepthRef.current);
+    const lowestDepth = Math.max(...squatSamplesRef.current);
+    const nativeBottomDetected = pose.phase === 'bottom'
+      || (Platform.OS === 'web' && rawDepthRef.current >= 0.75);
+    const reachedBottom = isSquatCalibrationComplete(
+      currentSquatCalibrationProgress,
+      nativeBottomDetected,
+    );
+
+    if (!reachedBottom) return;
+
+    lowestSquatDepthRef.current = Math.min(
+      1,
+      Math.max(lowestDepth, standingDepthRef.current + MIN_CALIBRATION_RANGE),
+    );
+    squatProgressMaxRef.current = 1;
+    depthRef.current = 1;
+    returnStandingSamplesRef.current = [];
+    setStatus('calibratingReturn');
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  }, [bodyVisible, currentSquatCalibrationProgress, pose.metrics.depth, pose.metrics.kneeAngle, pose.phase, status]);
+
+  useEffect(() => {
+    if (status !== 'calibratingReturn') return;
+
+    if (!bodyVisible) {
+      returnStandingSamplesRef.current = [];
+      return;
+    }
+
+    const returnedToTop = normalizeCalibratedPoseDepth(
+      rawDepthRef.current,
+      standingDepthRef.current,
+      lowestSquatDepthRef.current,
+    ) <= STARTING_POSE_THRESHOLD;
+
+    const stableStandingPose = Platform.OS === 'web' || pose.phase === 'standing';
+    if (!returnedToTop || !stableStandingPose) {
+      returnStandingSamplesRef.current = [];
+      return;
+    }
+
+    returnStandingSamplesRef.current.push(rawDepthRef.current);
+    if (returnStandingSamplesRef.current.length < RETURN_STANDING_SAMPLES) return;
+
+    depthRef.current = 0;
+    setCountdown(COUNTDOWN_START);
+    setStatus('countdown');
+  }, [bodyVisible, pose.metrics.depth, pose.phase, status]);
 
   useEffect(() => {
     if (status !== 'countdown') return;
@@ -602,9 +763,19 @@ export default function Games() {
     }
 
     endedRef.current = false;
-    // Keep the mascot near the top while the countdown runs, matching the
-    // standing position used when play begins.
+    // Calibrate every round so this player's standing and lowest squat poses
+    // become the exact top and bottom of the bird's track.
     depthRef.current = 0;
+    latestDepthRef.current = 0;
+    standingDepthRef.current = 0;
+    standingKneeAngleRef.current = 168;
+    lowestSquatDepthRef.current = 1;
+    standingSamplesRef.current = [];
+    standingKneeSamplesRef.current = [];
+    squatSamplesRef.current = [];
+    squatProgressMaxRef.current = 0;
+    returnStandingSamplesRef.current = [];
+    calibrationFillProgress.setValue(0);
     gameStartedAtRef.current = 0;
     pipeIdRef.current = 4;
     scoreRef.current = 0;
@@ -613,8 +784,8 @@ export default function Games() {
     setCountdown(COUNTDOWN_START);
     setHasMovedLower(false);
     setResultNotice(null);
-    setStatus('countdown');
-  }, [canPlay, permission?.granted, requestPermission, requestSubscriptionAccess, size.height, size.width]);
+    setStatus('calibratingStanding');
+  }, [calibrationFillProgress, canPlay, permission?.granted, requestPermission, requestSubscriptionAccess, size.height, size.width]);
 
   const previewPipes = makePreviewPipes(Math.max(size.width, 320));
 
@@ -709,15 +880,34 @@ export default function Games() {
           >
             <X size={22} stroke={colors.white} strokeWidth={2.5} />
           </Pressable>
-          {status === 'countdown' ? (
+          {showStartOverlay ? (
             <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-8">
-              <View className="min-w-[280px] items-center rounded-[30px] bg-cocoa/50 px-8 py-8">
+              <View style={styles.calibrationPrompt}>
+                {bodyVisible && (status === 'calibratingSquat' || status === 'calibratingReturn') ? (
+                  <Animated.View
+                    style={[
+                      styles.calibrationFill,
+                      {
+                        height: calibrationFillProgress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      },
+                    ]}
+                  />
+                ) : null}
                 <Text
-                  className={bodyVisible
-                    ? 'text-[116px] font-black leading-[122px] text-white'
-                    : 'text-center text-[58px] font-black leading-[64px] tracking-tight text-white'}
+                  style={status === 'countdown' && bodyVisible
+                    ? styles.countdownNumber
+                    : styles.calibrationPromptText}
                 >
-                  {bodyVisible ? countdown : 'STEP BACK'}
+                  {!bodyVisible
+                    ? 'STEP BACK'
+                    : status === 'calibratingSquat'
+                      ? 'SQUAT COMPLETELY DOWN'
+                      : status === 'calibratingReturn'
+                        ? 'STAND BACK UP'
+                        : countdown}
                 </Text>
               </View>
             </View>
@@ -838,6 +1028,47 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  calibrationFill: {
+    backgroundColor: colors.lime,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  calibrationPrompt: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(58,31,44,0.58)',
+    borderRadius: 30,
+    height: 220,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    paddingHorizontal: 22,
+    width: 280,
+  },
+  calibrationPromptText: {
+    color: colors.white,
+    fontSize: 43,
+    fontWeight: '900',
+    letterSpacing: -1.2,
+    lineHeight: 47,
+    maxWidth: 250,
+    textAlign: 'center',
+    textShadowColor: 'rgba(58,31,44,0.62)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+    zIndex: 1,
+  },
+  countdownNumber: {
+    color: colors.white,
+    fontSize: 116,
+    fontWeight: '900',
+    lineHeight: 122,
+    textAlign: 'center',
+    textShadowColor: 'rgba(58,31,44,0.62)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 9,
+    zIndex: 1,
   },
   launcher: {
     borderRadius: 32,
