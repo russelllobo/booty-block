@@ -5,8 +5,9 @@ const CONTROLLER_SQUAT_RANGE = 0.4;
 const CONTROLLER_STANDING_DEAD_ZONE = 0.025;
 const CONTROLLER_RESPONSE_CURVE = 1.12;
 const BIRD_TOP_PADDING = 18;
-const FULL_SQUAT_KNEE_ANGLE = 95;
-const SQUAT_CALIBRATION_COMPLETION = 0.94;
+const FULL_SQUAT_DEPTH = 0.72;
+const FULL_SQUAT_KNEE_ANGLE = 105;
+const SQUAT_CALIBRATION_COMPLETION = 0.96;
 
 export type FlappySquatRewardInput = {
   score: number;
@@ -61,18 +62,22 @@ export function calculateSquatCalibrationProgress({
 }) {
   if (complete) return 1;
 
-  const depthRange = Math.max(0.01, 1 - standingDepth);
+  const depthRange = Math.max(0.01, FULL_SQUAT_DEPTH - standingDepth);
   const depthProgress = clamp((depth - standingDepth) / depthRange, 0, 1);
   const kneeRange = standingKneeAngle - FULL_SQUAT_KNEE_ANGLE;
-  const kneeProgress = kneeAngle > 0 && kneeRange > 0
+  const hasReliableKneeAngle = kneeAngle > 0 && kneeRange > 0;
+  const kneeProgress = hasReliableKneeAngle
     ? clamp((standingKneeAngle - kneeAngle) / kneeRange, 0, 1)
     : 0;
 
-  return Math.max(depthProgress, kneeProgress);
+  // Both the hip drop and knee bend must show a deep squat. Taking the more
+  // advanced signal made a noisy knee angle fill the calibration at the top
+  // of the movement and made the whole controller range far too sensitive.
+  return hasReliableKneeAngle ? Math.min(depthProgress, kneeProgress) : depthProgress;
 }
 
-export function isSquatCalibrationComplete(progress: number, nativeBottomDetected: boolean) {
-  return nativeBottomDetected || clamp(progress, 0, 1) >= SQUAT_CALIBRATION_COMPLETION;
+export function isSquatCalibrationComplete(progress: number) {
+  return clamp(progress, 0, 1) >= SQUAT_CALIBRATION_COMPLETION;
 }
 
 export function smoothDepth(previous: number, next: number, factor = 0.2) {

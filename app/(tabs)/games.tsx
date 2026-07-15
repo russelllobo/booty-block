@@ -61,8 +61,8 @@ const PIPE_GAP = 190;
 const PIPE_SPACING = 300;
 const PIPE_SPEED = 4.2;
 const COUNTDOWN_START = 3;
-const STANDING_CALIBRATION_SAMPLES = 2;
-const RETURN_STANDING_SAMPLES = 5;
+const STANDING_CALIBRATION_SAMPLES = 1;
+const RETURN_STANDING_SAMPLES = 1;
 const MIN_CALIBRATION_RANGE = 0.12;
 const STARTING_POSE_THRESHOLD = 0.16;
 const PREVIEW_HEIGHT = 380;
@@ -387,13 +387,13 @@ export default function Games() {
   if (status === 'calibratingSquat') {
     squatProgressMaxRef.current = Math.max(
       squatProgressMaxRef.current,
-      currentSquatCalibrationProgress,
+      Math.min(currentSquatCalibrationProgress, 0.98),
     );
   }
   const squatCalibrationProgress = status === 'calibratingReturn'
     ? 1
     : squatProgressMaxRef.current;
-  const showStartOverlay = (status === 'calibratingStanding' && !bodyVisible)
+  const showStartOverlay = status === 'calibratingStanding'
     || status === 'calibratingSquat'
     || status === 'calibratingReturn'
     || status === 'countdown';
@@ -568,12 +568,7 @@ export default function Games() {
 
     squatSamplesRef.current.push(rawDepthRef.current);
     const lowestDepth = Math.max(...squatSamplesRef.current);
-    const nativeBottomDetected = pose.phase === 'bottom'
-      || (Platform.OS === 'web' && rawDepthRef.current >= 0.75);
-    const reachedBottom = isSquatCalibrationComplete(
-      currentSquatCalibrationProgress,
-      nativeBottomDetected,
-    );
+    const reachedBottom = isSquatCalibrationComplete(currentSquatCalibrationProgress);
 
     if (!reachedBottom) return;
 
@@ -903,6 +898,8 @@ export default function Games() {
                 >
                   {!bodyVisible
                     ? 'STEP BACK'
+                    : status === 'calibratingStanding'
+                      ? 'STAND STRAIGHT'
                     : status === 'calibratingSquat'
                       ? 'SQUAT COMPLETELY DOWN'
                       : status === 'calibratingReturn'

@@ -42,9 +42,9 @@ describe('flappy squat game logic', () => {
       standingKneeAngle: 168,
     })).toBe(0);
     expect(calculateSquatCalibrationProgress({
-      depth: 0.5,
+      depth: 0.36,
       standingDepth: 0,
-      kneeAngle: 132,
+      kneeAngle: 136.5,
       standingKneeAngle: 168,
     })).toBeCloseTo(0.5);
     expect(calculateSquatCalibrationProgress({
@@ -56,10 +56,24 @@ describe('flappy squat game logic', () => {
     })).toBe(1);
   });
 
-  it('advances as soon as the progress bar is visually complete', () => {
-    expect(isSquatCalibrationComplete(0.93, false)).toBe(false);
-    expect(isSquatCalibrationComplete(0.94, false)).toBe(true);
-    expect(isSquatCalibrationComplete(0.2, true)).toBe(true);
+  it('requires a genuinely deep squat instead of trusting an early native bottom phase', () => {
+    expect(isSquatCalibrationComplete(0.95)).toBe(false);
+    expect(isSquatCalibrationComplete(0.96)).toBe(true);
+  });
+
+  it('uses the less advanced body signal so a shallow bend cannot fill calibration', () => {
+    expect(calculateSquatCalibrationProgress({
+      depth: 0.18,
+      standingDepth: 0,
+      kneeAngle: 105,
+      standingKneeAngle: 168,
+    })).toBeCloseTo(0.25);
+    expect(calculateSquatCalibrationProgress({
+      depth: 0.72,
+      standingDepth: 0,
+      kneeAngle: 150,
+      standingKneeAngle: 168,
+    })).toBeCloseTo(18 / 63);
   });
 
   it('smooths depth toward the next pose sample', () => {
