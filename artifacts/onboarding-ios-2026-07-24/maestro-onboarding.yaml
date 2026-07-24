@@ -1,0 +1,225 @@
+appId: com.bootyblock.app
+name: BootyBlock complete iOS onboarding capture
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "End my scroll habit"
+    timeout: 30000
+- takeScreenshot: "01-welcome"
+- tapOn: "End my scroll habit"
+
+- extendedWaitUntil:
+    visible: "What should we call you?"
+    timeout: 10000
+- takeScreenshot: "02-profile-name"
+- tapOn: "Name input"
+- inputText: "Russ"
+- hideKeyboard
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "What goals do you want to.*"
+    timeout: 10000
+- takeScreenshot: "03-goals"
+- tapOn: "Reduce screen time"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "How much time do you spend.*"
+    timeout: 10000
+- takeScreenshot: "04-current-daily-screen-time"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "How much time would you like.*"
+    timeout: 10000
+- takeScreenshot: "05-goal-daily-screen-time"
+- tapOn: "Build my plan"
+
+- extendedWaitUntil:
+    visible: "Which apps take most of your time?"
+    timeout: 10000
+- takeScreenshot: "06-time-sink-apps"
+- tapOn: "TikTok"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "What usually makes it hard to quit?"
+    timeout: 10000
+- takeScreenshot: "07-habit-friction"
+- tapOn: "Addictive app design"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "How does using these apps.*"
+    timeout: 10000
+- takeScreenshot: "08-usage-feelings"
+- tapOn: "Mentally Drained"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "09-current-state"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "How old are you?"
+    timeout: 10000
+- takeScreenshot: "10-age-range"
+- tapOn: "18-24"
+- tapOn: "Continue"
+
+- takeScreenshot: "11-calculating-projection"
+- extendedWaitUntil:
+    visible: "You're higher than average"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "12-result-comparison"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "13-projection-warning"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "14-reclaimed-time"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "What have you already tried?"
+    timeout: 10000
+- takeScreenshot: "15-previous-methods"
+- tapOn: "Nothing yet"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "See how Bootyblock works"
+    timeout: 10000
+- takeScreenshot: "16-method-feedback"
+- tapOn: "See how Bootyblock works"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "17-replacement-science"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "18-exercise-link"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+- takeScreenshot: "19-scroll-unlock"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Set Routine"
+    timeout: 10000
+- takeScreenshot: "20-routine-reminder"
+- tapOn: "Set Routine"
+
+- extendedWaitUntil:
+    visible: "Put your phone on the floor"
+    timeout: 10000
+- takeScreenshot: "21-setup-phone"
+- tapOn: "Next"
+
+- extendedWaitUntil:
+    visible: "Step back and squat"
+    timeout: 10000
+- takeScreenshot: "22-setup-squat"
+- tapOn: "Next"
+
+- extendedWaitUntil:
+    visible: "Tips for better detection"
+    timeout: 10000
+- takeScreenshot: "23-setup-tips"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Calibration"
+    timeout: 10000
+- takeScreenshot: "24-calibration-squat-check"
+- tapOn: "Allow camera"
+- tapOn:
+    text: "Allow"
+    optional: true
+- extendedWaitUntil:
+    visible: "Try later"
+    timeout: 15000
+- tapOn: "Try later"
+
+- extendedWaitUntil:
+    visible: "How often do you currently exercise?"
+    timeout: 10000
+- takeScreenshot: "25-exercise-frequency"
+- tapOn: "Never"
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Finish setting up Booty Block"
+    timeout: 10000
+- takeScreenshot: "26-finish-setup-intro"
+- tapOn: "Finish setup"
+
+- extendedWaitUntil:
+    visible: "Connect Bootyblock to Screen Time.*"
+    timeout: 15000
+- takeScreenshot: "27-screen-time-permission"
+- tapOn:
+    text: "Continue"
+    optional: true
+- tapOn:
+    text: "Allow"
+    optional: true
+
+- extendedWaitUntil:
+    visible: "Allow Bootyblock to send you notifications"
+    timeout: 20000
+- takeScreenshot: "28-notification-permission"
+- tapOn: "Continue"
+- tapOn:
+    text: "Allow"
+    optional: true
+
+- extendedWaitUntil:
+    visible: "Forming your booty plan"
+    timeout: 10000
+- takeScreenshot: "29-calculating-wellbeing-plan"
+
+- extendedWaitUntil:
+    visible: "Your booty building journey starts now!"
+    timeout: 15000
+- takeScreenshot: "30-first-week-wellbeing-plan"
+- tapOn: "Start building my booty"
+
+- waitForAnimationToEnd
+- takeScreenshot: "31-subscription-paywall"
+- tapOn:
+    point: "92%,7%"
+- waitForAnimationToEnd
+- takeScreenshot: "32-one-time-offer-paywall"
+- tapOn: "I'd rather pay full price"
+
+- waitForAnimationToEnd
+- takeScreenshot: "33-home-screen"
+- tapOn:
+    text: "Choose blocked apps"
+    index: 0
+
+- extendedWaitUntil:
+    visible: "Choose your blocked apps"
+    timeout: 15000
+- takeScreenshot: "34-blocked-apps-picker"

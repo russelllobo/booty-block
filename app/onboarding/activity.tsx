@@ -57,7 +57,10 @@ export default function Activity() {
 
   return (
     <Screen scroll={false}>
-      <OnboardingProgress step={22} onBack={() => router.back()} />
+      <OnboardingProgress
+        step={ONBOARDING_STEPS.exerciseFrequency.index}
+        onBack={() => router.back()}
+      />
 
       <SlidePanel animateOnMount>
         <View className="flex-1">

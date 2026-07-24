@@ -135,7 +135,10 @@ export default function ScreenTime() {
       ) : (
         <>
           <StatusBar style="dark" animated />
-          <OnboardingProgress step={24} onBack={back} />
+          <OnboardingProgress
+            step={ONBOARDING_STEPS.screenTimePermission.index}
+            onBack={back}
+          />
 
           <SlidePanel stepKey={permissionStep} direction={direction} animateOnMount>
             <View className="flex-1">

@@ -4,7 +4,7 @@ import DateTimePicker, {
 import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   AppWindow,
   BadgeAlert,
@@ -65,7 +65,11 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
-import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import {
+  HIDDEN_ONBOARDING_STEPS,
+  ONBOARDING_STEP_TOTAL,
+  ONBOARDING_STEPS,
+} from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Choice = {
@@ -97,10 +101,10 @@ const routineGlassBorder = 'rgba(255, 255, 255, 0.28)';
 const DEFAULT_ROUTINE_REMINDER = { hour: 12, minute: 55 };
 const AnimatedText = Animated.createAnimatedComponent(Text);
 const insightStepMetadata = {
-  1: ONBOARDING_STEPS.timeSinkApps,
-  2: ONBOARDING_STEPS.habitFriction,
-  3: ONBOARDING_STEPS.usageFeelings,
-  4: ONBOARDING_STEPS.currentState,
+  1: HIDDEN_ONBOARDING_STEPS.timeSinkApps,
+  2: HIDDEN_ONBOARDING_STEPS.habitFriction,
+  3: HIDDEN_ONBOARDING_STEPS.usageFeelings,
+  4: HIDDEN_ONBOARDING_STEPS.currentState,
   5: ONBOARDING_STEPS.ageRange,
   6: ONBOARDING_STEPS.calculatingProjection,
   7: ONBOARDING_STEPS.resultComparison,
@@ -2175,15 +2179,31 @@ function RoutineReminderSlide({
 }
 
 export default function Insights() {
+  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
+  const parsedPreviewStep = Number(previewStep);
+  const initialStep =
+    Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 15
+      ? parsedPreviewStep
+      : 5;
   const { ageRange, dailyScreenTimeGoalHours, dailyScreenTimeHours, setAgeRange } =
     useBootyblock();
   const posthog = usePostHog();
-  const [step, setStep] = useState(1);
-  const [selectedApps, setSelectedApps] = useState<string[]>([]);
-  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
-  const [selectedFeelings, setSelectedFeelings] = useState<string[]>([]);
-  const [selectedTried, setSelectedTried] = useState<string[]>([]);
-  const [selectedAgeRange, setSelectedAgeRange] = useState('');
+  const [step, setStep] = useState(initialStep);
+  const [selectedApps, setSelectedApps] = useState<string[]>(
+    previewStep ? ['TikTok'] : [],
+  );
+  const [selectedReasons, setSelectedReasons] = useState<string[]>(
+    previewStep ? ['Addictive app design'] : [],
+  );
+  const [selectedFeelings, setSelectedFeelings] = useState<string[]>(
+    previewStep ? ['Mentally Drained'] : [],
+  );
+  const [selectedTried, setSelectedTried] = useState<string[]>(
+    previewStep ? ['Nothing yet'] : [],
+  );
+  const [selectedAgeRange, setSelectedAgeRange] = useState(
+    previewStep ? '18-24' : '',
+  );
   const direction = useStepDirection(step);
   const stepMetadata = insightStepMetadata[step as keyof typeof insightStepMetadata];
   const completeCalculating = useCallback(() => setStep(7), []);
@@ -2210,7 +2230,7 @@ export default function Insights() {
     step !== 14 &&
     step !== 15;
 
-  const progressStep = step + 5;
+  const progressStep = previewStep ? step + 8 : stepMetadata.index;
   const choosingApps = step === 1;
   const choosingReasons = step === 2;
   const choosingFeelings = step === 3;
@@ -2243,7 +2263,7 @@ export default function Insights() {
   );
 
   useOnboardingStepAnalytics(
-    posthog,
+    previewStep ? null : posthog,
     '/onboarding/insights',
     stepMetadata.key,
     stepMetadata.title,
@@ -2269,6 +2289,11 @@ export default function Insights() {
   }
 
   function back() {
+    if (!previewStep && step === 5) {
+      router.back();
+      return;
+    }
+
     if (step > 1) {
       setStep((current) => current - 1);
       return;

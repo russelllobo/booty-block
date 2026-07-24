@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BootyBlock Onboarding</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: #111;
+      }
+
+      body {
+        margin: 0;
+        padding: 12px;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 6px;
+        }
+
+        main {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="grid"></main>
+    <script>
+      const grid = document.querySelector('#grid');
+
+      async function refresh() {
+        const response = await fetch(`/manifest.json?t=${Date.now()}`, { cache: 'no-store' });
+        const manifest = await response.json();
+        const fragment = document.createDocumentFragment();
+
+        manifest.screenshots.forEach(({ filename }) => {
+          const image = document.createElement('img');
+          image.src = `screens/${filename}?v=${manifest.revision}`;
+          image.alt = '';
+          image.loading = 'eager';
+          image.decoding = 'async';
+          fragment.appendChild(image);
+        });
+
+        grid.replaceChildren(fragment);
+      }
+
+      const events = new EventSource('/events');
+      events.onmessage = refresh;
+      refresh();
+    </script>
+  </body>
+</html>

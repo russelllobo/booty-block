@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   BedDouble,
   BriefcaseBusiness,
@@ -33,7 +33,11 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
-import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import {
+  HIDDEN_ONBOARDING_STEPS,
+  ONBOARDING_STEP_TOTAL,
+  ONBOARDING_STEPS,
+} from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Goal = {
@@ -58,7 +62,7 @@ const goals: Goal[] = [
 const FOCUSED_BOTTOM_PADDING = 132;
 const quizStepMetadata = {
   1: ONBOARDING_STEPS.profileName,
-  2: ONBOARDING_STEPS.goals,
+  2: HIDDEN_ONBOARDING_STEPS.goals,
 } as const;
 
 const NAME_LETTER_STYLE = {
@@ -72,7 +76,10 @@ const NAME_LETTER_STYLE = {
 
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
-    <OnboardingProgress step={step + 1} onBack={back} />
+    <OnboardingProgress
+      step={step === 1 ? ONBOARDING_STEPS.profileName.index : 6}
+      onBack={back}
+    />
   );
 }
 
@@ -93,17 +100,19 @@ function NameDisplay({ name }: { name: string }) {
 }
 
 export default function Quiz() {
+  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
+  const initialStep = previewStep === '2' ? 2 : 1;
   const { setOnboardingGoals, setProfileName } = useBootyblock();
   const posthog = usePostHog();
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
+  const [step, setStep] = useState(initialStep);
+  const [name, setName] = useState(previewStep ? 'Russ' : '');
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const nameInputRef = useRef<AppTextInputRef>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
   useOnboardingStepAnalytics(
-    posthog,
+    previewStep ? null : posthog,
     '/onboarding/quiz',
     stepMetadata.key,
     stepMetadata.title,
@@ -125,6 +134,17 @@ export default function Quiz() {
     } else {
       router.back();
     }
+  }
+
+  function continueFromName() {
+    if (previewStep) {
+      setStep(2);
+      return;
+    }
+
+    setProfileName(name);
+    setOnboardingGoals([]);
+    router.push('/onboarding/usage');
   }
 
   return (
@@ -186,7 +206,7 @@ export default function Quiz() {
                     returnKeyType="next"
                     value={name}
                     onChangeText={setName}
-                    onSubmitEditing={() => name.trim() && setStep(2)}
+                    onSubmitEditing={() => name.trim() && continueFromName()}
                     className="absolute inset-0 text-[1px] text-transparent"
                     style={{
                       includeFontPadding: false,
@@ -202,7 +222,7 @@ export default function Quiz() {
                 <View className="flex-1" />
 
                 <View className="pt-5">
-                  <Button label="Continue" disabled={!name.trim()} onPress={() => setStep(2)} />
+                  <Button label="Continue" disabled={!name.trim()} onPress={continueFromName} />
                 </View>
               </View>
             </ScrollView>

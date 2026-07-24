@@ -10,7 +10,7 @@ import Animated, {
 
 import { colors } from '../constants/theme';
 
-export const ONBOARDING_TOTAL = 28;
+export const ONBOARDING_TOTAL = 31;
 
 let lastStep = 0;
 

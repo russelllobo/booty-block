@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ArrowRight, CheckCircle2, Lightbulb, Shirt, Smartphone, } from 'lucide-react-native';
@@ -155,7 +155,13 @@ function DemoStage({
 }
 
 export default function Setup() {
-  const [step, setStep] = useState(0);
+  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
+  const parsedPreviewStep = Number(previewStep);
+  const initialStep =
+    Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 0 && parsedPreviewStep < slides.length
+      ? parsedPreviewStep
+      : 0;
+  const [step, setStep] = useState(initialStep);
   const posthog = usePostHog();
   const { height } = useWindowDimensions();
   const direction = useStepDirection(step);
@@ -192,7 +198,7 @@ export default function Setup() {
   return (
     <Screen scroll={false} backgroundColor={setupBackground} backgroundGradient={setupGradient}>
       <StatusBar style="light" animated />
-      <OnboardingProgress step={19 + step} onBack={back} dark />
+      <OnboardingProgress step={slide.analyticsStep.index} onBack={back} dark />
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         <View className="flex-1">

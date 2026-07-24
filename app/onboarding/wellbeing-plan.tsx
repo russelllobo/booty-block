@@ -318,7 +318,12 @@ export default function WellbeingPlan() {
   return (
     <Screen scroll={false} backgroundColor={background} backgroundGradient={gradient}>
       <StatusBar style="light" animated />
-      <OnboardingProgress step={27} onBack={() => router.back()} showBar={false} dark />
+      <OnboardingProgress
+        step={ONBOARDING_STEPS.firstWeekWellbeingPlan.index}
+        onBack={() => router.back()}
+        showBar={false}
+        dark
+      />
 
       <SlidePanel animateOnMount>
         <View className="flex-1">

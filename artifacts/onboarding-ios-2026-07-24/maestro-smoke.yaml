@@ -1,0 +1,6 @@
+appId: com.bootyblock.app
+name: BootyBlock iOS onboarding smoke
+---
+- tapOn: "Bootyblock"
+- waitForAnimationToEnd
+- takeScreenshot: onboarding-launch

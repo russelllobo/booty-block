@@ -117,7 +117,12 @@ export default function CalculatingPlan() {
   return (
     <Screen scroll={false} backgroundColor={background} backgroundGradient={gradient}>
       <StatusBar style="light" animated />
-      <OnboardingProgress step={26} onBack={() => router.back()} showBar={false} dark />
+      <OnboardingProgress
+        step={ONBOARDING_STEPS.calculatingWellbeingPlan.index}
+        onBack={() => router.back()}
+        showBar={false}
+        dark
+      />
 
       <SlidePanel animateOnMount>
         <View className="flex-1 items-center px-9 pb-1 pt-1" style={{ paddingTop: 104 }}>

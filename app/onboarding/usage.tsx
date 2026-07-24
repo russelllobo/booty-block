@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -14,7 +14,11 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
-import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import {
+  HIDDEN_ONBOARDING_STEPS,
+  ONBOARDING_STEP_TOTAL,
+  ONBOARDING_STEPS,
+} from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const CURRENT_MIN_HOURS = 2;
@@ -23,7 +27,7 @@ const GOAL_MIN_HOURS = 0.5;
 const SLIDER_STEP = 0.5;
 const usageStepMetadata = {
   1: ONBOARDING_STEPS.currentDailyScreenTime,
-  2: ONBOARDING_STEPS.goalDailyScreenTime,
+  2: HIDDEN_ONBOARDING_STEPS.goalDailyScreenTime,
 } as const;
 
 function formatHours(value: number) {
@@ -53,8 +57,8 @@ function halfOfCurrentHours(currentHours: number) {
   return Math.max(GOAL_MIN_HOURS, currentHours / 2);
 }
 
-function UsageHeader({ step, back }: { step: number; back: () => void }) {
-  return <OnboardingProgress step={step + 3} onBack={back} />;
+function UsageHeader({ progressStep, back }: { progressStep: number; back: () => void }) {
+  return <OnboardingProgress step={progressStep} onBack={back} />;
 }
 
 function TimeSlider({
@@ -174,6 +178,7 @@ function TimeSlider({
 }
 
 export default function Usage() {
+  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
   const { profileName, dailyScreenTimeHours, setUsageTargets } =
     useBootyblock();
   const posthog = usePostHog();
@@ -181,7 +186,7 @@ export default function Usage() {
     CURRENT_MAX_HOURS,
     Math.max(CURRENT_MIN_HOURS, dailyScreenTimeHours),
   );
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(previewStep === '2' ? 2 : 1);
   const [currentHours, setCurrentHours] = useState(initialCurrentHours);
   const [goalHours, setGoalHours] = useState(halfOfCurrentHours(initialCurrentHours));
   const direction = useStepDirection(step);
@@ -193,7 +198,7 @@ export default function Usage() {
   const sliderMaximum = isGoal ? Math.max(GOAL_MIN_HOURS, currentHours) : CURRENT_MAX_HOURS;
 
   useOnboardingStepAnalytics(
-    posthog,
+    previewStep ? null : posthog,
     '/onboarding/usage',
     stepMetadata.key,
     stepMetadata.title,
@@ -211,8 +216,16 @@ export default function Usage() {
 
   function continueFlow() {
     if (!isGoal) {
-      setGoalHours(halfOfCurrentHours(currentHours));
-      setStep(2);
+      const nextGoalHours = halfOfCurrentHours(currentHours);
+      setGoalHours(nextGoalHours);
+
+      if (previewStep) {
+        setStep(2);
+        return;
+      }
+
+      setUsageTargets(currentHours, nextGoalHours);
+      router.push('/onboarding/insights');
       return;
     }
 
@@ -222,7 +235,10 @@ export default function Usage() {
 
   return (
     <Screen scroll={false}>
-      <UsageHeader step={step} back={back} />
+      <UsageHeader
+        progressStep={previewStep ? step + 6 : stepMetadata.index}
+        back={back}
+      />
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         <View className="flex-1">

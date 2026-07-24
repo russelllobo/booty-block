@@ -38,7 +38,12 @@ export default function FinishSetup() {
       backgroundColor={finishBackground}
       backgroundGradient={finishGradient}
     >
-      <OnboardingProgress step={23} onBack={() => router.back()} showBar={false} dark />
+      <OnboardingProgress
+        step={ONBOARDING_STEPS.finishSetupIntro.index}
+        onBack={() => router.back()}
+        showBar={false}
+        dark
+      />
 
       <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">

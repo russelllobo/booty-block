@@ -112,7 +112,12 @@ export function NotificationPermissionContent({
   return (
     <>
       <StatusBar style="light" animated />
-      <OnboardingProgress step={25} onBack={onBack} showBar={false} dark />
+      <OnboardingProgress
+        step={ONBOARDING_STEPS.notificationPermission.index}
+        onBack={onBack}
+        showBar={false}
+        dark
+      />
 
       <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">

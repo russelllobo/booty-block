@@ -211,6 +211,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="onboarding/index" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/welcome" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/quiz" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/usage" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
