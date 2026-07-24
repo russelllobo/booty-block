@@ -1,15 +1,21 @@
 import {
+  Children,
   forwardRef,
   ReactNode,
   useCallback,
   useImperativeHandle,
   useRef,
+  useState,
 } from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
-import PagerView, {
-  PagerViewOnPageScrollEvent,
-  PagerViewOnPageSelectedEvent,
-} from 'react-native-pager-view';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { SharedValue } from 'react-native-reanimated';
 
 export type StoryPagerHandle = {
@@ -25,17 +31,14 @@ type StoryPagerProps = {
 
 export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
   function StoryPager({ children, onPageSelected, progress, style }, forwardedRef) {
-    const pagerRef = useRef<PagerView>(null);
-    const handlePageScroll = useCallback(
-      (event: PagerViewOnPageScrollEvent) => {
-        progress.value =
-          event.nativeEvent.position + event.nativeEvent.offset;
-      },
-      [progress],
-    );
-    const handlePageSelected = useCallback(
-      (event: PagerViewOnPageSelectedEvent) => {
-        onPageSelected(event.nativeEvent.position);
+    const scrollRef = useRef<ScrollView>(null);
+    const selectedPageRef = useRef(0);
+    const [pageWidth, setPageWidth] = useState(0);
+    const reportSelectedPage = useCallback(
+      (page: number) => {
+        if (selectedPageRef.current === page) return;
+        selectedPageRef.current = page;
+        onPageSelected(page);
       },
       [onPageSelected],
     );
@@ -44,25 +47,65 @@ export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
       forwardedRef,
       () => ({
         setPage: (page) => {
-          onPageSelected(page);
-          pagerRef.current?.setPage(page);
+          reportSelectedPage(page);
+          scrollRef.current?.scrollTo({ x: page * pageWidth, animated: true });
         },
       }),
-      [onPageSelected],
+      [pageWidth, reportSelectedPage],
+    );
+
+    const handleScroll = useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (pageWidth <= 0) return;
+        const nextProgress = event.nativeEvent.contentOffset.x / pageWidth;
+        const nearestPage = Math.round(nextProgress);
+        progress.value = nextProgress;
+
+        if (Math.abs(nextProgress - nearestPage) < 0.01) {
+          reportSelectedPage(nearestPage);
+        }
+      },
+      [pageWidth, progress, reportSelectedPage],
+    );
+
+    const handleScrollEnd = useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (pageWidth <= 0) return;
+        reportSelectedPage(
+          Math.round(event.nativeEvent.contentOffset.x / pageWidth),
+        );
+      },
+      [pageWidth, reportSelectedPage],
     );
 
     return (
-      <PagerView
-        ref={pagerRef}
-        initialPage={0}
-        offscreenPageLimit={3}
-        onPageScroll={handlePageScroll}
-        onPageSelected={handlePageSelected}
-        overdrag
+      <View
         style={style}
+        onLayout={(event) => setPageWidth(event.nativeEvent.layout.width)}
       >
-        {children}
-      </PagerView>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          bounces={false}
+          onMomentumScrollEnd={handleScrollEnd}
+          onScrollEndDrag={handleScrollEnd}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          showsHorizontalScrollIndicator={false}
+          style={styles.scroll}
+        >
+          {Children.map(children, (child) => (
+            <View style={{ width: pageWidth }}>{child}</View>
+          ))}
+        </ScrollView>
+      </View>
     );
   },
 );
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+});
