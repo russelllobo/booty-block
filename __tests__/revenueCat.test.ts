@@ -29,7 +29,11 @@ jest.mock('react-native-purchases-ui', () => ({
   },
 }));
 
-import { hasActiveEntitlement, REVENUECAT_ENTITLEMENT_ID } from '../lib/services/revenueCat';
+import {
+  getPaywallOfferingDiagnostics,
+  hasActiveEntitlement,
+  REVENUECAT_ENTITLEMENT_ID,
+} from '../lib/services/revenueCat';
 
 function customerInfoWithActiveEntitlement(entitlement: Record<string, unknown>) {
   return {
@@ -53,5 +57,40 @@ describe('hasActiveEntitlement', () => {
 
   it('returns false when RevenueCat has no active entitlement for Bootyblock Pro', () => {
     expect(hasActiveEntitlement({ entitlements: { active: {} } } as never)).toBe(false);
+  });
+});
+
+describe('getPaywallOfferingDiagnostics', () => {
+  it('records the products and localized prices that RevenueCat resolved on device', () => {
+    const diagnostics = getPaywallOfferingDiagnostics({
+      identifier: 'default',
+      availablePackages: [
+        {
+          identifier: '$rc_monthly',
+          product: {
+            identifier: 'bootyblock_monthly',
+            priceString: '£9.99',
+            currencyCode: 'GBP',
+          },
+        },
+        {
+          identifier: '$rc_annual',
+          product: {
+            identifier: 'bootyblock_yearly',
+            priceString: '£49.99',
+            currencyCode: 'GBP',
+          },
+        },
+      ],
+    } as never);
+
+    expect(diagnostics).toEqual({
+      offeringIdentifier: 'default',
+      packageCount: 2,
+      packageIdentifiers: ['$rc_monthly', '$rc_annual'],
+      productIdentifiers: ['bootyblock_monthly', 'bootyblock_yearly'],
+      priceStrings: ['£9.99', '£49.99'],
+      currencyCodes: ['GBP'],
+    });
   });
 });

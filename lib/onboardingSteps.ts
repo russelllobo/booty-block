@@ -1,4 +1,4 @@
-export const ONBOARDING_STEP_TOTAL = 31;
+export const ONBOARDING_STEP_TOTAL = 34;
 
 export const ONBOARDING_STEPS = {
   welcome: {
@@ -151,10 +151,25 @@ export const ONBOARDING_STEPS = {
     title: 'Your first-week wellbeing plan',
     index: 30,
   },
+  subscriptionPaywall: {
+    key: 'subscription_paywall',
+    title: 'Bootyblock Pro paywall',
+    index: 31,
+  },
+  oneTimeOfferPaywall: {
+    key: 'one_time_offer_paywall',
+    title: 'Bootyblock Pro one-time offer',
+    index: 32,
+  },
+  homeScreen: {
+    key: 'home_screen',
+    title: 'Home',
+    index: 33,
+  },
   blockedAppsPicker: {
     key: 'blocked_apps_picker',
     title: 'Blocked apps',
-    index: 31,
+    index: 34,
   },
 } as const;
 

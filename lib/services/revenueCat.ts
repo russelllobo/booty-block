@@ -46,6 +46,16 @@ export type PaywallAccessResult = {
   active: boolean;
   cancelled: boolean;
   result: PAYWALL_RESULT;
+  offering?: PaywallOfferingDiagnostics;
+};
+
+export type PaywallOfferingDiagnostics = {
+  offeringIdentifier: string;
+  packageCount: number;
+  packageIdentifiers: string[];
+  productIdentifiers: string[];
+  priceStrings: string[];
+  currencyCodes: string[];
 };
 
 function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
@@ -58,6 +68,21 @@ function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
 
 function hasAvailablePackages(offering: PurchasesOffering | null | undefined) {
   return (offering?.availablePackages?.length ?? 0) > 0;
+}
+
+export function getPaywallOfferingDiagnostics(
+  offering: PurchasesOffering,
+): PaywallOfferingDiagnostics {
+  const packages = offering.availablePackages;
+
+  return {
+    offeringIdentifier: offering.identifier,
+    packageCount: packages.length,
+    packageIdentifiers: packages.map((item) => item.identifier),
+    productIdentifiers: packages.map((item) => item.product.identifier),
+    priceStrings: packages.map((item) => item.product.priceString),
+    currencyCodes: [...new Set(packages.map((item) => item.product.currencyCode))],
+  };
 }
 
 async function getOfferingByIdentifier(identifier: string, missingMessage: string) {
@@ -172,9 +197,13 @@ export const revenueCatService = {
     };
   },
 
-  async presentPaywallWithResult(): Promise<PaywallAccessResult> {
+  async presentPaywallWithResult(
+    onOfferingResolved?: (diagnostics: PaywallOfferingDiagnostics) => void,
+  ): Promise<PaywallAccessResult> {
     assertConfigured();
     const offering = await getNormalPaywallOffering();
+    const offeringDiagnostics = getPaywallOfferingDiagnostics(offering);
+    onOfferingResolved?.(offeringDiagnostics);
     const result = await RevenueCatUI.presentPaywall({
       offering,
       displayCloseButton: true,
@@ -186,6 +215,7 @@ export const revenueCatService = {
         active: hasActiveEntitlement(customerInfo),
         cancelled: false,
         result,
+        offering: offeringDiagnostics,
       };
     }
 
@@ -193,6 +223,7 @@ export const revenueCatService = {
       active: false,
       cancelled: result === PAYWALL_RESULT.CANCELLED,
       result,
+      offering: offeringDiagnostics,
     };
   },
 
@@ -202,6 +233,7 @@ export const revenueCatService = {
       REVENUECAT_ONE_TIME_OFFERING_ID,
       `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
     );
+    const offeringDiagnostics = getPaywallOfferingDiagnostics(offering);
 
     const result = await RevenueCatUI.presentPaywall({
       offering,
@@ -214,6 +246,7 @@ export const revenueCatService = {
         active: hasActiveEntitlement(customerInfo),
         cancelled: false,
         result,
+        offering: offeringDiagnostics,
       };
     }
 
@@ -221,6 +254,7 @@ export const revenueCatService = {
       active: false,
       cancelled: result === PAYWALL_RESULT.CANCELLED,
       result,
+      offering: offeringDiagnostics,
     };
   },
 

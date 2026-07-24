@@ -283,7 +283,7 @@ export default function WellbeingPlan() {
     completeOnboarding,
     dailyScreenTimeHours,
     dailyScreenTimeGoalHours,
-    requestSubscriptionAccess,
+    requestOnboardingSubscriptionAccess,
   } = useBootyblock();
   const [starting, setStarting] = useState(false);
   const goalHours = dailyScreenTimeGoalHours;
@@ -305,9 +305,11 @@ export default function WellbeingPlan() {
 
     setStarting(true);
     try {
+      const subscriptionStatus = await requestOnboardingSubscriptionAccess();
+      if (subscriptionStatus === 'unavailable') return;
+
       await completeOnboarding();
-      await requestSubscriptionAccess();
-      router.replace('/(tabs)');
+      router.replace({ pathname: '/(tabs)', params: { onboardingArrival: '1' } });
     } finally {
       setStarting(false);
     }

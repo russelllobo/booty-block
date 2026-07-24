@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePostHog } from 'posthog-react-native';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Modal, Platform, Pressable, StyleSheet } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
@@ -8,7 +9,14 @@ import {
   PEACHES_PER_MINUTE,
   PEACHES_PER_SQUAT,
 } from '../../constants/bootyblock';
-import { hasActiveEntitlement, revenueCatService } from '../services/revenueCat';
+import { captureAnalytics, trackOnboardingStepViewed } from '../analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../onboardingSteps';
+import {
+  getPaywallOfferingDiagnostics,
+  hasActiveEntitlement,
+  revenueCatService,
+  type PaywallOfferingDiagnostics,
+} from '../services/revenueCat';
 import {
   screenTimeService,
   ScreenTimeSelectionSummary,
@@ -110,11 +118,63 @@ type BootyblockState = {
   presentSubscriptionPaywall: (options?: { force?: boolean }) => Promise<boolean>;
   presentOneTimeOffer: () => Promise<boolean>;
   requestSubscriptionAccess: () => Promise<boolean>;
+  requestOnboardingSubscriptionAccess: () => Promise<SubscriptionAccessStatus>;
   consumeSubscriptionCelebration: () => void;
   openSubscriptionManagement: () => Promise<void>;
   dismissXpRewardNotice: () => void;
   resetAppData: () => Promise<void>;
 };
+
+type SubscriptionAccessOptions = {
+  analyticsFlow?: 'onboarding';
+};
+
+export type SubscriptionAccessStatus = 'active' | 'declined' | 'unavailable';
+
+type SubscriptionAccessOutcome = {
+  active: boolean;
+  status: SubscriptionAccessStatus;
+};
+
+function offeringAnalyticsProperties(diagnostics: PaywallOfferingDiagnostics) {
+  return {
+    offering_id: diagnostics.offeringIdentifier,
+    package_count: diagnostics.packageCount,
+    package_ids: diagnostics.packageIdentifiers.join('|'),
+    product_ids: diagnostics.productIdentifiers.join('|'),
+    localized_prices: diagnostics.priceStrings.join('|'),
+    currency_codes: diagnostics.currencyCodes.join('|'),
+  };
+}
+
+function errorAnalyticsProperties(error: unknown) {
+  const details = error && typeof error === 'object'
+    ? error as Record<string, unknown>
+    : {};
+  const userInfo = details.userInfo && typeof details.userInfo === 'object'
+    ? details.userInfo as Record<string, unknown>
+    : {};
+  const message = error instanceof Error
+    ? error.message
+    : typeof details.message === 'string'
+      ? details.message
+      : String(error);
+
+  return {
+    error_code: details.code == null ? 'unknown' : String(details.code),
+    readable_error_code:
+      typeof userInfo.readableErrorCode === 'string'
+        ? userInfo.readableErrorCode
+        : typeof details.readableErrorCode === 'string'
+          ? details.readableErrorCode
+          : 'unknown',
+    error_message: message.slice(0, 500),
+    underlying_error_message:
+      typeof details.underlyingErrorMessage === 'string'
+        ? details.underlyingErrorMessage.slice(0, 500)
+        : '',
+  };
+}
 
 const STORAGE_KEY = 'bootyblock:v1';
 const RESET_SUBSCRIPTION_STATE_KEY = 'bootyblock:subscription-reset';
@@ -196,6 +256,7 @@ type OneTimeOfferModalState = {
 };
 
 export function BootyblockProvider({ children }: PropsWithChildren) {
+  const posthog = usePostHog();
   const [hydrated, setHydrated] = useState(false);
   const [payload, setPayload] = useState(defaultPayload);
   const [subscriptionHydrated, setSubscriptionHydrated] = useState(Platform.OS === 'web');
@@ -205,7 +266,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [xpRewardNotice, setXpRewardNotice] = useState<XpRewardNotice | null>(null);
   const [oneTimeOfferModal, setOneTimeOfferModal] = useState<OneTimeOfferModalState | null>(null);
-  const accessRequestRef = useRef<Promise<boolean> | null>(null);
+  const accessRequestRef = useRef<Promise<SubscriptionAccessOutcome> | null>(null);
   const payloadRef = useRef(payload);
   const subscriptionResetLockedRef = useRef(false);
 
@@ -792,8 +853,30 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, [isSubscribed]);
 
-  const presentOneTimeOfferModal = useCallback(async () => {
+  const presentOneTimeOfferModal = useCallback(async (analyticsFlow?: SubscriptionAccessOptions['analyticsFlow']) => {
+    const startedAt = Date.now();
+    captureAnalytics(posthog, 'revenuecat_paywall_attempted', {
+      placement: 'one_time_offer',
+      analytics_flow: analyticsFlow ?? 'in_app',
+    });
     const offering = await revenueCatService.getOneTimeOfferPaywallOffering();
+    const diagnostics = getPaywallOfferingDiagnostics(offering);
+    captureAnalytics(posthog, 'revenuecat_offering_resolved', {
+      placement: 'one_time_offer',
+      analytics_flow: analyticsFlow ?? 'in_app',
+      duration_ms: Date.now() - startedAt,
+      ...offeringAnalyticsProperties(diagnostics),
+    });
+    if (analyticsFlow === 'onboarding') {
+      trackOnboardingStepViewed(
+        posthog,
+        '/onboarding/one-time-offer-paywall',
+        ONBOARDING_STEPS.oneTimeOfferPaywall.key,
+        ONBOARDING_STEPS.oneTimeOfferPaywall.title,
+        ONBOARDING_STEPS.oneTimeOfferPaywall.index,
+        ONBOARDING_STEP_TOTAL,
+      );
+    }
     tiktokService.trackPaywallViewed({
       content_id: 'bootyblock_one_time_offer_yearly',
       content_name: 'Bootyblock Pro One-Time Offer',
@@ -801,10 +884,19 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       value: 29.99,
     });
 
-    return new Promise<boolean>((resolve) => {
+    const active = await new Promise<boolean>((resolve) => {
       setOneTimeOfferModal({ offering, resolve });
     });
-  }, []);
+    captureAnalytics(posthog, 'revenuecat_paywall_result', {
+      placement: 'one_time_offer',
+      analytics_flow: analyticsFlow ?? 'in_app',
+      result: active ? 'ACTIVE' : 'DECLINED',
+      active,
+      duration_ms: Date.now() - startedAt,
+      ...offeringAnalyticsProperties(diagnostics),
+    });
+    return active;
+  }, [posthog]);
 
   const presentOneTimeOffer = useCallback(async () => {
     if (hasSubscriptionAccess(isSubscribed)) return true;
@@ -837,21 +929,75 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, [isSubscribed, presentOneTimeOfferModal, refreshSubscription]);
 
-  const requestSubscriptionAccess = useCallback(async () => {
-    if (hasSubscriptionAccess(isSubscribed)) return true;
+  const requestSubscriptionAccessOutcome = useCallback(async (
+    options?: SubscriptionAccessOptions,
+  ): Promise<SubscriptionAccessOutcome> => {
+    if (hasSubscriptionAccess(isSubscribed)) {
+      return { active: true, status: 'active' };
+    }
     if (accessRequestRef.current) return accessRequestRef.current;
 
     const request = (async () => {
-      if (Platform.OS === 'web') return true;
+      if (Platform.OS === 'web') {
+        return { active: true, status: 'active' } as SubscriptionAccessOutcome;
+      }
 
       if (!revenueCatService.configured) {
         setSubscriptionConfigured(false);
         setSubscriptionError('RevenueCat is not configured yet.');
-        return false;
+        captureAnalytics(posthog, 'revenuecat_paywall_error', {
+          placement: 'normal_paywall',
+          analytics_flow: options?.analyticsFlow ?? 'in_app',
+          error_stage: 'configuration',
+          error_code: 'not_configured',
+          error_message: 'RevenueCat is not configured yet.',
+        });
+        if (options?.analyticsFlow === 'onboarding') {
+          Alert.alert(
+            'Subscription unavailable',
+            'The subscription screen could not be opened. Please try again—your setup has been kept.',
+          );
+        }
+        return { active: false, status: 'unavailable' } as SubscriptionAccessOutcome;
       }
 
+      const startedAt = Date.now();
+      let activePlacement = 'normal_paywall';
+      let errorStage = 'offering';
+
       try {
-        const outcome = await revenueCatService.presentPaywallWithResult();
+        if (options?.analyticsFlow === 'onboarding') {
+          trackOnboardingStepViewed(
+            posthog,
+            '/onboarding/subscription-paywall',
+            ONBOARDING_STEPS.subscriptionPaywall.key,
+            ONBOARDING_STEPS.subscriptionPaywall.title,
+            ONBOARDING_STEPS.subscriptionPaywall.index,
+            ONBOARDING_STEP_TOTAL,
+          );
+        }
+        captureAnalytics(posthog, 'revenuecat_paywall_attempted', {
+          placement: activePlacement,
+          analytics_flow: options?.analyticsFlow ?? 'in_app',
+        });
+        const outcome = await revenueCatService.presentPaywallWithResult((diagnostics) => {
+          errorStage = 'presentation';
+          captureAnalytics(posthog, 'revenuecat_offering_resolved', {
+            placement: activePlacement,
+            analytics_flow: options?.analyticsFlow ?? 'in_app',
+            duration_ms: Date.now() - startedAt,
+            ...offeringAnalyticsProperties(diagnostics),
+          });
+        });
+        captureAnalytics(posthog, 'revenuecat_paywall_result', {
+          placement: activePlacement,
+          analytics_flow: options?.analyticsFlow ?? 'in_app',
+          result: String(outcome.result),
+          active: outcome.active,
+          cancelled: outcome.cancelled,
+          duration_ms: Date.now() - startedAt,
+          ...(outcome.offering ? offeringAnalyticsProperties(outcome.offering) : {}),
+        });
 
         if (outcome.active) {
           subscriptionResetLockedRef.current = false;
@@ -861,11 +1007,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           setSubscriptionCelebrationPending(true);
           setSubscriptionError(null);
           tiktokService.trackSubscribe({ placement: 'normal_paywall' });
-          return true;
+          return { active: true, status: 'active' } as SubscriptionAccessOutcome;
         }
 
         if (outcome.cancelled) {
-          const offerActive = await presentOneTimeOfferModal();
+          activePlacement = 'one_time_offer';
+          errorStage = 'offering';
+          const offerActive = await presentOneTimeOfferModal(options?.analyticsFlow);
           if (offerActive) {
             subscriptionResetLockedRef.current = false;
             await AsyncStorage.removeItem(RESET_SUBSCRIPTION_STATE_KEY);
@@ -873,27 +1021,54 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
             setIsSubscribed(true);
             setSubscriptionCelebrationPending(true);
             setSubscriptionError(null);
-            return true;
+            return { active: true, status: 'active' } as SubscriptionAccessOutcome;
           }
 
-          return false;
+          return { active: false, status: 'declined' } as SubscriptionAccessOutcome;
         }
 
-        setSubscriptionError('Subscription was not completed. Please try again.');
-        return false;
+        const message = `RevenueCat returned ${String(outcome.result)} before the subscription flow completed.`;
+        setSubscriptionError(message);
+        Alert.alert(
+          'Subscription unavailable',
+          'The subscription screen could not be opened. Please try again—your setup has been kept.',
+        );
+        return { active: false, status: 'unavailable' } as SubscriptionAccessOutcome;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not show the subscription paywall.';
         setSubscriptionError(message);
-        Alert.alert('Subscription unavailable', message);
-        return false;
+        captureAnalytics(posthog, 'revenuecat_paywall_error', {
+          placement: activePlacement,
+          analytics_flow: options?.analyticsFlow ?? 'in_app',
+          error_stage: errorStage,
+          duration_ms: Date.now() - startedAt,
+          ...errorAnalyticsProperties(error),
+        });
+        Alert.alert(
+          'Subscription unavailable',
+          options?.analyticsFlow === 'onboarding'
+            ? 'The subscription screen could not be opened. Please try again—your setup has been kept.'
+            : message,
+        );
+        return { active: false, status: 'unavailable' } as SubscriptionAccessOutcome;
       }
     })();
 
     accessRequestRef.current = request;
-    const active = await request;
-    accessRequestRef.current = null;
-    return active;
-  }, [isSubscribed, presentOneTimeOfferModal, refreshSubscription]);
+    try {
+      return await request;
+    } finally {
+      accessRequestRef.current = null;
+    }
+  }, [isSubscribed, posthog, presentOneTimeOfferModal, refreshSubscription]);
+
+  const requestSubscriptionAccess = useCallback(async () => (
+    await requestSubscriptionAccessOutcome()
+  ).active, [requestSubscriptionAccessOutcome]);
+
+  const requestOnboardingSubscriptionAccess = useCallback(async () => (
+    await requestSubscriptionAccessOutcome({ analyticsFlow: 'onboarding' })
+  ).status, [requestSubscriptionAccessOutcome]);
 
   const consumeSubscriptionCelebration = useCallback(() => {
     setSubscriptionCelebrationPending(false);
@@ -960,6 +1135,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentSubscriptionPaywall,
       presentOneTimeOffer,
       requestSubscriptionAccess,
+      requestOnboardingSubscriptionAccess,
       consumeSubscriptionCelebration,
       openSubscriptionManagement,
       dismissXpRewardNotice,
@@ -992,6 +1168,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       presentSubscriptionPaywall,
       presentOneTimeOffer,
       requestSubscriptionAccess,
+      requestOnboardingSubscriptionAccess,
       consumeSubscriptionCelebration,
       openSubscriptionManagement,
       dismissXpRewardNotice,

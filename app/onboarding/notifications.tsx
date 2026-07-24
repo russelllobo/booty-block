@@ -14,6 +14,8 @@ import { SlidePanel } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import { syncRoutineReminderNotification } from '../../lib/services/routineReminder';
+import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const notificationBackground = '#07070A';
 const notificationGradient = ['#3A0F26', '#07070A'] as const;
@@ -28,6 +30,7 @@ export function NotificationPermissionContent({
   onComplete = () => router.replace('/onboarding/calculating'),
 }: NotificationPermissionContentProps) {
   const posthog = usePostHog();
+  const { routineReminderTime } = useBootyblock();
   const [loading, setLoading] = useState(false);
   const { height, width } = useWindowDimensions();
   const promptRowWidth = Math.min(width - 40, 360);
@@ -87,6 +90,13 @@ export function NotificationPermissionContent({
           status: result.status,
           granted: result.granted,
         });
+        if (result.granted) {
+          await syncRoutineReminderNotification(routineReminderTime).catch((error) => {
+            if (__DEV__) {
+              console.warn('Unable to schedule the daily routine reminder', error);
+            }
+          });
+        }
       } else {
         captureAnalytics(posthog, 'notification_permission_finished', {
           status: 'web_skipped',

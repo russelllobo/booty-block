@@ -2,6 +2,7 @@ import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Flame, Lock, Unlock, X } from 'lucide-react-native';
+import { usePostHog } from 'posthog-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -27,6 +28,8 @@ import {
   PEACHES_PER_SQUAT,
 } from '../../constants/bootyblock';
 import { colors } from '../../constants/theme';
+import { trackOnboardingStepViewed } from '../../lib/analytics';
+import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { getBootyProgress } from '../../lib/progression';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
@@ -98,7 +101,11 @@ function remainingTimeAccessibilityLabel(totalSeconds: number) {
 }
 
 export default function Home() {
-  const params = useLocalSearchParams<{ openUnlock?: '1' | 'spend' }>();
+  const params = useLocalSearchParams<{
+    onboardingArrival?: '1';
+    openUnlock?: '1' | 'spend';
+  }>();
+  const posthog = usePostHog();
   const {
     peachBalance,
     usageWindowSeconds,
@@ -137,6 +144,19 @@ export default function Home() {
     [unlockHistory, currentStreak, bonusXp],
   );
   const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
+
+  useEffect(() => {
+    if (params.onboardingArrival !== '1') return;
+
+    trackOnboardingStepViewed(
+      posthog,
+      '/home',
+      ONBOARDING_STEPS.homeScreen.key,
+      ONBOARDING_STEPS.homeScreen.title,
+      ONBOARDING_STEPS.homeScreen.index,
+      ONBOARDING_STEP_TOTAL,
+    );
+  }, [params.onboardingArrival, posthog]);
 
   useEffect(() => {
     syncUsageWindow();

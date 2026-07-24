@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="1320" height="2868" viewBox="0 0 1320 2868">
+  <defs>
+    <filter id="button-shadow" x="-20%" y="-50%" width="140%" height="220%">
+      <feDropShadow dx="0" dy="18" stdDeviation="25" flood-color="#AF1555" flood-opacity="0.28"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="34" flood-color="#FF4F9B" flood-opacity="0.42"/>
+    </filter>
+    <filter id="logo-shadow" x="-40%" y="-30%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#7D5A67" flood-opacity="0.18"/>
+    </filter>
+    <linearGradient id="button-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF3D8E"/>
+      <stop offset="0.52" stop-color="#E91E73"/>
+      <stop offset="1" stop-color="#C91862"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Native Screen Time shield background from lib/services/screenTime.ts -->
+  <rect width="1320" height="2868" fill="#FFF1F6"/>
+
+  <!-- iPhone status area -->
+  <text x="116" y="126" font-family="SF Pro Display" font-size="52" font-weight="600"
+    letter-spacing="-1.2" fill="#3A1F2C">9:41</text>
+  <!-- Exact SF Symbol paths reused by the lock-screen simulator -->
+  <svg x="982" y="63" width="76" height="76" viewBox="0 0 32 32">
+    <path d="M4.25 25.5c-1.1 0-1.75-.65-1.75-1.75v-3.5c0-1.1.65-1.75 1.75-1.75h1.5c1.1 0 1.75.65 1.75 1.75v3.5c0 1.1-.65 1.75-1.75 1.75h-1.5Zm7.5 0c-1.1 0-1.75-.65-1.75-1.75v-8.5c0-1.1.65-1.75 1.75-1.75h1.5c1.1 0 1.75.65 1.75 1.75v8.5c0 1.1-.65 1.75-1.75 1.75h-1.5Zm7.5 0c-1.1 0-1.75-.65-1.75-1.75v-13.5c0-1.1.65-1.75 1.75-1.75h1.5c1.1 0 1.75.65 1.75 1.75v13.5c0 1.1-.65 1.75-1.75 1.75h-1.5Zm7.5 0c-1.1 0-1.75-.65-1.75-1.75v-18.5c0-1.1.65-1.75 1.75-1.75h1.5c1.1 0 1.75.65 1.75 1.75v18.5c0 1.1-.65 1.75-1.75 1.75h-1.5Z" fill="#3A1F2C"/>
+  </svg>
+  <svg x="1066" y="65" width="72" height="72" viewBox="0 0 32 32">
+    <path transform="matrix(0.8139998850349557, 0, 0, 0.8139998850349557, -1.1916294544671042, 25.17021745484692)" d="M5.17-13.17C5.53-12.80 6.11-12.81 6.48-13.20C10.36-17.31 15.42-19.47 21.13-19.47C26.84-19.47 31.94-17.30 35.80-13.19C36.16-12.83 36.72-12.83 37.08-13.22L39.28-15.44C39.63-15.77 39.63-16.23 39.34-16.56C35.52-21.30 28.42-24.61 21.13-24.61C13.83-24.61 6.72-21.30 2.89-16.56C2.61-16.23 2.63-15.77 2.95-15.44ZM11.75-6.69C12.16-6.30 12.70-6.34 13.09-6.77C15.03-8.84 18.08-10.27 21.13-10.25C24.22-10.27 27.27-8.80 29.23-6.70C29.59-6.31 30.11-6.31 30.50-6.70L32.98-9.11C33.31-9.42 33.34-9.86 33.06-10.20C30.56-13.19 26.03-15.28 21.13-15.28C16.22-15.28 11.70-13.19 9.20-10.20C8.91-9.86 8.94-9.44 9.27-9.11ZM21.14 2.08C21.55 2.08 21.91 1.89 22.55 1.28L26.41-2.44C26.72-2.75 26.78-3.22 26.50-3.56C25.34-5.03 23.33-6.13 21.14-6.13C18.89-6.13 16.83-4.97 15.67-3.42C15.47-3.13 15.58-2.73 15.88-2.44L19.73 1.28C20.38 1.89 20.73 2.08 21.14 2.08Z" fill="#3A1F2C"/>
+  </svg>
+  <!-- Battery matches the simulator's CSS implementation: 80% fill, soft shell, and cap. -->
+  <g transform="translate(1154 81)">
+    <rect x="0" y="0" width="84" height="40" rx="13" fill="#3A1F2C" fill-opacity="0.34"/>
+    <rect x="0" y="0" width="67.2" height="40" rx="13" fill="#3A1F2C"/>
+    <rect x="84" y="12" width="7" height="16" rx="3.5" fill="#3A1F2C" fill-opacity="0.34"/>
+  </g>
+
+  <!-- Content mirrors the current ManagedSettings shield configuration -->
+  <g filter="url(#logo-shadow)">
+    <image href="file:///home/russ/Documents/Projects/booty%20block/assets/logo.png"
+      xlink:href="file:///home/russ/Documents/Projects/booty%20block/assets/logo.png" x="435" y="418" width="450" height="663"
+      preserveAspectRatio="xMidYMid meet"/>
+  </g>
+
+  <text x="660" y="1262" text-anchor="middle" font-family="SF Pro Rounded"
+    font-size="76" font-weight="700" letter-spacing="-2.2" fill="#3A1F2C">
+    <tspan x="660">Instagram can wait.</tspan>
+    <tspan x="660" dy="92">Glutes first.</tspan>
+  </text>
+
+  <text x="660" y="1518" text-anchor="middle" font-family="SF Pro Rounded"
+    font-size="48" font-weight="400" letter-spacing="-0.8" fill="#7D5A67">
+    <tspan x="660">Open BootyBlock, knock out your squats,</tspan>
+    <tspan x="660" dy="68">and earn this app back.</tspan>
+  </text>
+
+  <g filter="url(#button-shadow)">
+    <rect x="106" y="2334" width="1108" height="206" rx="103" fill="url(#button-gradient)"/>
+    <rect x="116" y="2344" width="1088" height="186" rx="93" fill="none"
+      stroke="#FF85B9" stroke-width="3" stroke-opacity="0.55"/>
+  </g>
+  <text x="660" y="2457" text-anchor="middle" font-family="SF Pro Rounded"
+    font-size="56" font-weight="600" letter-spacing="-1.1" fill="#FFFFFF">Open BootyBlock</text>
+
+  <rect x="485" y="2809" width="350" height="16" rx="8" fill="#3A1F2C"/>
+</svg>

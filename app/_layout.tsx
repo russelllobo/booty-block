@@ -21,6 +21,7 @@ import {
   POSTHOG_HOST,
   screenAnalytics,
 } from '../lib/analytics';
+import { syncRoutineReminderNotification } from '../lib/services/routineReminder';
 import { screenTimeService } from '../lib/services/screenTime';
 import { tiktokService } from '../lib/services/tiktok';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
@@ -31,6 +32,17 @@ const onboardingScreenOptions = {
 } as const;
 
 const FEEDBACK_DELETE_URL = 'mailto:r.lobo2003@gmail.com?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
+
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 if (Platform.OS !== 'web') {
   void SplashScreen.preventAutoHideAsync();
@@ -51,7 +63,17 @@ function LaunchSplashController() {
 }
 
 function NotificationObserver() {
-  const { onboardingComplete } = useBootyblock();
+  const { hydrated, onboardingComplete, routineReminderTime } = useBootyblock();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !hydrated) return;
+
+    void syncRoutineReminderNotification(routineReminderTime).catch((error) => {
+      if (__DEV__) {
+        console.warn('Unable to sync the daily routine reminder', error);
+      }
+    });
+  }, [hydrated, routineReminderTime]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
