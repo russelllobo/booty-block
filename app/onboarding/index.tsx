@@ -3,14 +3,7 @@ import { ArrowRight, Lock } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Reanimated, {
-  Extrapolation,
-  SharedValue,
-  interpolate,
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
@@ -207,10 +200,8 @@ export default function OnboardingStory() {
   }, []);
 
   return (
-    <Screen scroll={false} backgroundColor={colors.white}>
+    <Screen scroll={false}>
       <View style={styles.page}>
-        <StoryProgress current={step} progress={pageProgress} />
-
         <StoryPager
           ref={pagerRef}
           progress={pageProgress}
@@ -460,10 +451,11 @@ export default function OnboardingStory() {
 
         <View style={styles.buttonArea}>
           <Button
-            label={step === storySteps.length - 1 ? 'start building my glutes' : 'Continue'}
+            label={step === storySteps.length - 1 ? 'start building my glutes' : 'continue'}
             icon={ArrowRight}
             iconPosition="right"
             forceGlass
+            animateDisabledFade
             disabled={step === storySteps.length - 1 && !isSimpleFlowComplete}
             onPress={handleContinue}
           />
@@ -471,58 +463,6 @@ export default function OnboardingStory() {
       </View>
     </Screen>
   );
-}
-
-function StoryProgress({
-  current,
-  progress,
-}: {
-  current: number;
-  progress: SharedValue<number>;
-}) {
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: storySteps.length, now: current + 1 }}
-      style={styles.progress}
-    >
-      {storySteps.map((item, index) => (
-        <StoryProgressSegment
-          key={item.key}
-          index={index}
-          progress={progress}
-        />
-      ))}
-    </View>
-  );
-}
-
-function StoryProgressSegment({
-  index,
-  progress,
-}: {
-  index: number;
-  progress: SharedValue<number>;
-}) {
-  const animatedStyle = useAnimatedStyle(() => {
-    const distance = Math.min(Math.abs(progress.value - index), 1);
-
-    return {
-      backgroundColor: interpolateColor(
-        distance,
-        [0, 1],
-        [colors.raspberry, '#E8E2E4'],
-      ),
-      width: interpolate(
-        distance,
-        [0, 1],
-        [25, 6],
-        Extrapolation.CLAMP,
-      ),
-    };
-  });
-
-  return <Reanimated.View style={[styles.progressDot, animatedStyle]} />;
 }
 
 const styles = StyleSheet.create({
@@ -620,18 +560,6 @@ const styles = StyleSheet.create({
   },
   pagerPage: {
     flex: 1,
-  },
-  progress: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    paddingBottom: 22,
-    paddingTop: 2,
-  },
-  progressDot: {
-    borderRadius: 999,
-    height: 6,
   },
   replacementHeadline: {
     left: 0,

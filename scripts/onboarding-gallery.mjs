@@ -28,15 +28,13 @@ const galleryPort = 4173;
 const chromeBinary = '/usr/bin/google-chrome-beta';
 
 const captureWaits = {
-  calculatingProjection: 1100,
   currentState: 3000,
   exerciseLink: 2400,
+  lifetimeProjection: 3000,
   methodFeedback: 2200,
-  projectionWarning: 3000,
   reclaimedTime: 3000,
-  replacementScience: 2400,
-  resultComparison: 3400,
   scrollUnlock: 2800,
+  squatTimeTrade: 3000,
 };
 
 const specialTargets = {

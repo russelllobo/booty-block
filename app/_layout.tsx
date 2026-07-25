@@ -217,6 +217,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/insights" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/setup" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/calibration" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/routine-reminder" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/activity" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />

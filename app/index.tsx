@@ -1,12 +1,13 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 
-import { BrandLockup } from '../components/BrandLockup';
 import { colors } from '../constants/theme';
 import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
+
+const splashLogo = require('../assets/splash-icon.png');
 
 export default function Index() {
   const {
@@ -39,17 +40,19 @@ export default function Index() {
     subscriptionHydrated,
   ]);
 
-  if (!hydrated || !subscriptionHydrated) {
-    return <LoadingLockup />;
-  }
-
-  return <LoadingLockup />;
+  return <LaunchLogo />;
 }
 
-function LoadingLockup() {
+function LaunchLogo() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blush }}>
-      <BrandLockup height={42} label="BootyBlock logo" />
+      <Image
+        source={splashLogo}
+        resizeMode="contain"
+        fadeDuration={0}
+        accessibilityLabel="BootyBlock logo"
+        style={{ width: 160, height: 160 }}
+      />
     </View>
   );
 }

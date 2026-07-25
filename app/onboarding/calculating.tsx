@@ -8,12 +8,13 @@ import { Text } from '../../components/AppText';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+} from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
-
-const background = '#07070A';
-const gradient = ['#3A0F26', '#07070A'] as const;
 
 function FadeInStage({ children, delay }: { children: ReactNode; delay: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -115,13 +116,16 @@ export default function CalculatingPlan() {
   }, [progress]);
 
   return (
-    <Screen scroll={false} backgroundColor={background} backgroundGradient={gradient}>
-      <StatusBar style="light" animated />
+    <Screen
+      scroll={false}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
+    >
+      <StatusBar style="dark" animated />
       <OnboardingProgress
         step={ONBOARDING_STEPS.calculatingWellbeingPlan.index}
         onBack={() => router.back()}
         showBar={false}
-        dark
       />
 
       <SlidePanel animateOnMount>
@@ -140,7 +144,7 @@ export default function CalculatingPlan() {
 
                 <Text
                   className="mt-9 text-center text-[30px] font-black leading-[35px]"
-                  style={{ color: colors.white }}
+                  style={{ color: colors.cocoa }}
                 >
                   Forming your booty plan
                 </Text>
@@ -155,7 +159,7 @@ export default function CalculatingPlan() {
                 marginTop: 22,
                 borderRadius: 999,
                 overflow: 'hidden',
-                backgroundColor: 'rgba(255,255,255,0.42)',
+                backgroundColor: 'rgba(233, 30, 115, 0.16)',
               }}
             >
               <Animated.View
@@ -166,7 +170,7 @@ export default function CalculatingPlan() {
                     inputRange: [0, 1],
                     outputRange: ['0%', '100%'],
                   }),
-                  backgroundColor: colors.white,
+                  backgroundColor: colors.raspberry,
                 }}
               />
             </View>

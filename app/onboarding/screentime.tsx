@@ -9,7 +9,11 @@ import { usePostHog } from 'posthog-react-native';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+} from '../../constants/theme';
 import {
   captureAnalytics,
   screenTimeStatusProperties,
@@ -20,9 +24,6 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 import { NotificationPermissionContent } from './notifications';
 
 type PermissionStep = 'screentime' | 'notifications';
-
-const notificationBackground = '#07070A';
-const notificationGradient = ['#3A0F26', '#07070A'] as const;
 
 export default function ScreenTime() {
   const { screenTimeStatus, requestScreenTime } = useBootyblock();
@@ -127,8 +128,8 @@ export default function ScreenTime() {
   return (
     <Screen
       scroll={false}
-      backgroundColor={permissionStep === 'notifications' ? notificationBackground : undefined}
-      backgroundGradient={permissionStep === 'notifications' ? notificationGradient : undefined}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
     >
       {permissionStep === 'notifications' ? (
         <NotificationPermissionContent onBack={back} />

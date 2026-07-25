@@ -12,6 +12,9 @@ export const colors = {
   white: '#FFFFFF',
 };
 
+export const onboardingLightBackground = colors.blush;
+export const onboardingLightGradient = [colors.blush, colors.cream, colors.petal] as const;
+
 export const shadow = {
   shadowColor: colors.cherry,
   shadowOffset: { width: 0, height: 18 },

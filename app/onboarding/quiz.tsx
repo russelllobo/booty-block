@@ -32,7 +32,7 @@ import {
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
+import { colors, onboardingLightGradient } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import {
   HIDDEN_ONBOARDING_STEPS,
@@ -85,7 +85,7 @@ function GluteJourneyPreview({ name }: { name: string }) {
 
   return (
     <LinearGradient
-      colors={['#4A1734', '#260A1B', '#12050D']}
+      colors={onboardingLightGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.journeyCard}
@@ -225,7 +225,7 @@ export default function Quiz() {
                 </View>
 
                 <View className="mt-4">
-                  <Button label="Continue" disabled={!name.trim()} onPress={continueFromName} />
+                  <Button label="continue" disabled={!name.trim()} onPress={continueFromName} />
                 </View>
               </View>
             </ScrollView>
@@ -276,7 +276,7 @@ export default function Quiz() {
             </ScrollView>
 
             <Button
-              label="Continue"
+              label="continue"
               disabled={selectedGoals.length === 0}
               onPress={() => {
                 setProfileName(name);
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   journeyTitle: {
-    color: '#FFF8FB',
+    color: colors.cocoa,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.6,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   },
   journeyProgress: {
     marginTop: 2,
-    color: '#A58A97',
+    color: colors.mink,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 14,
@@ -351,9 +351,9 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 1,
     borderWidth: 1,
-    borderColor: 'rgba(255, 143, 190, 0.14)',
+    borderColor: 'rgba(233, 30, 115, 0.18)',
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.065)',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
   },
   journeyFooter: {
     marginTop: 11,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   journeyFooterText: {
-    color: '#A58A97',
+    color: colors.mink,
     fontSize: 13,
     fontWeight: '800',
   },

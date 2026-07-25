@@ -1,4 +1,4 @@
-export const ONBOARDING_STEP_TOTAL = 30;
+export const ONBOARDING_STEP_TOTAL = 28;
 
 export const HIDDEN_ONBOARDING_STEPS = {
   welcome: {
@@ -64,120 +64,110 @@ export const ONBOARDING_STEPS = {
     title: 'How much time do you spend on your phone every day?',
     index: 6,
   },
-  calculatingProjection: {
-    key: 'calculating_projection',
-    title: 'Calculating your projection',
+  lifetimeProjection: {
+    key: 'lifetime_projection',
+    title: 'Lifetime screen time projection',
     index: 7,
   },
-  resultComparison: {
-    key: 'result_comparison',
-    title: 'Your screen dependence score',
+  squatTimeTrade: {
+    key: 'squat_time_trade',
+    title: 'Trade screen time for squat time',
     index: 8,
-  },
-  projectionWarning: {
-    key: 'projection_warning',
-    title: 'Lifetime screen time projection',
-    index: 9,
   },
   reclaimedTime: {
     key: 'reclaimed_time',
-    title: 'Time you could reclaim',
-    index: 10,
+    title: 'Give years back to your body',
+    index: 9,
   },
   previousMethods: {
     key: 'previous_methods',
     title: 'What have you already tried?',
-    index: 11,
+    index: 10,
   },
   methodFeedback: {
     key: 'method_feedback',
     title: 'Why previous methods did not stick',
-    index: 12,
-  },
-  replacementScience: {
-    key: 'replacement_science',
-    title: 'Replacement beats restriction',
-    index: 13,
+    index: 11,
   },
   exerciseLink: {
     key: 'exercise_link',
     title: 'Exercise changes the reward loop',
-    index: 14,
+    index: 12,
   },
   scrollUnlock: {
     key: 'scroll_unlock',
     title: 'Squat to unlock scrolling',
-    index: 15,
-  },
-  routineReminder: {
-    key: 'routine_reminder',
-    title: 'Choose your daily reminder',
-    index: 16,
+    index: 13,
   },
   setupPhone: {
     key: 'setup_1',
     title: 'Put your phone on the floor',
-    index: 17,
+    index: 14,
   },
   setupSquat: {
     key: 'setup_2',
     title: 'Step back and squat',
-    index: 18,
+    index: 15,
   },
   setupTips: {
     key: 'setup_3',
     title: 'Tips for better detection',
-    index: 19,
+    index: 16,
   },
   calibrationSquatCheck: {
     key: 'calibration_squat_check',
     title: 'Do one squat',
-    index: 20,
+    index: 17,
+  },
+  routineReminder: {
+    key: 'routine_reminder',
+    title: 'Choose your daily reminder',
+    index: 18,
   },
   exerciseFrequency: {
     key: 'exercise_frequency',
     title: 'How often do you currently exercise?',
-    index: 21,
+    index: 19,
   },
   finishSetupIntro: {
     key: 'finish_setup_intro',
     title: 'Finish setting up Booty Block',
-    index: 22,
+    index: 20,
   },
   screenTimePermission: {
     key: 'screen_time_permission',
     title: 'Connect Bootyblock to Screen Time, Securely.',
-    index: 23,
+    index: 21,
   },
   notificationPermission: {
     key: 'notification_permission',
     title: 'Allow Bootyblock to send you notifications',
-    index: 24,
+    index: 22,
   },
   calculatingWellbeingPlan: {
     key: 'calculating_wellbeing_plan',
     title: 'Calculating your first-week plan',
-    index: 25,
+    index: 23,
   },
   firstWeekWellbeingPlan: {
     key: 'first_week_wellbeing_plan',
     title: 'Your first-week wellbeing plan',
-    index: 26,
+    index: 24,
   },
   subscriptionPaywall: {
     key: 'subscription_paywall',
     title: 'Bootyblock Pro paywall',
-    index: 27,
+    index: 25,
   },
   oneTimeOfferPaywall: {
     key: 'one_time_offer_paywall',
     title: 'Bootyblock Pro one-time offer',
-    index: 28,
+    index: 26,
   },
   homeScreen: {
     key: 'home_screen',
     title: 'Home',
-    index: 29,
+    index: 27,
   },
   blockedAppsPicker: {
     key: 'blocked_apps_picker',

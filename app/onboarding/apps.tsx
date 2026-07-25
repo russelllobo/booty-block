@@ -147,7 +147,7 @@ export default function Apps() {
 
             <View className="mt-auto">
               <Button
-                label={subscriptionGateBusy ? 'Opening paywall' : 'Continue'}
+                label={subscriptionGateBusy ? 'Opening paywall' : 'continue'}
                 icon={Check}
                 disabled={subscriptionGateBusy}
                 loading={subscriptionGateBusy}

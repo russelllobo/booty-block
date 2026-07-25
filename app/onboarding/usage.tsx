@@ -98,12 +98,12 @@ function TimeSlider({
           value={value}
           color={colors.cocoa}
           countsDown={rollDirection === 'down'}
-          fontSize={50}
+          fontSize={88}
           fontWeight="900"
           letterSpacing={0}
           style={styles.currentValue}
         />
-        <Text className="text-[11px] font-medium leading-[14px] text-mink">
+        <Text className="text-[15px] font-medium leading-[19px] text-mink">
           hours/day
         </Text>
       </View>
@@ -135,10 +135,10 @@ function TimeSlider({
       />
 
       <View className="flex-row justify-between px-0.5">
-        <Text className="text-[10px] font-medium leading-[13px] text-mink">
+        <Text className="text-[13px] font-medium leading-[17px] text-mink">
           {minimumValue}h
         </Text>
-        <Text className="text-[10px] font-medium leading-[13px] text-mink">
+        <Text className="text-[13px] font-medium leading-[17px] text-mink">
           {maximumValue}h
         </Text>
       </View>
@@ -235,7 +235,7 @@ export default function Usage() {
             </View>
 
             <Button
-              label="Continue"
+              label="continue"
               disabled={!selectedAgeRange}
               onPress={continueFlow}
             />
@@ -243,15 +243,18 @@ export default function Usage() {
         ) : (
           <View className="flex-1">
             <View style={{ marginTop: 75 }}>
-              <Text className="max-w-[330px] text-[22px] font-bold leading-[25px] text-cocoa">
-                how long are you on your{'\n'}phone each day?
+              <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
+                how long are you on your phone each day?
               </Text>
-              <Text className="mt-1 text-[11px] font-medium leading-[14px] text-mink">
+              <Text className="mt-1.5 text-[14px] font-medium leading-[18px] text-mink">
                 be honest
               </Text>
             </View>
 
-            <View className="flex-1 justify-center py-4">
+            <View
+              className="flex-1 justify-center py-4"
+              style={{ transform: [{ translateY: -24 }] }}
+            >
               <TimeSlider
                 value={currentHours}
                 minimumValue={CURRENT_MIN_HOURS}
@@ -277,11 +280,11 @@ export default function Usage() {
 const styles = StyleSheet.create({
   currentValueBlock: {
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   currentValue: {
-    height: 58,
-    width: 130,
+    height: 102,
+    width: 220,
   },
   currentSlider: {
     height: 36,

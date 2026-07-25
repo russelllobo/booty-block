@@ -11,14 +11,16 @@ import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+} from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-const background = '#07070A';
-const gradient = ['#3A0F26', '#07070A'] as const;
-const cyan = '#8CF6FF';
+const cyan = '#168FA3';
 const gold = '#FFD76A';
 const bootyblockLogo = require('../../assets/logo-small.png');
 const resultBeforeImage = require('../../assets/plan/result-before.jpeg');
@@ -112,12 +114,12 @@ function TimelineCard({
     <View className="flex-row gap-3">
       <View className="w-3 items-center">
         <View className="h-3 w-3 rounded-full" style={{ backgroundColor: accent }} />
-        {connector ? <View className="mt-1 w-0.5 flex-1 bg-white/18" /> : null}
+        {connector ? <View className="mt-1 w-0.5 flex-1 bg-cocoa/15" /> : null}
       </View>
       <View
         className={[
           'mb-4 min-h-[118px] rounded-[20px] border px-4 py-4',
-          highlighted ? 'border-cyan-300/70 bg-black/35' : 'border-white/14 bg-white/10',
+          highlighted ? 'border-cyan-700/30 bg-cyan-50/80' : 'border-cocoa/10 bg-white/70',
         ].join(' ')}
         style={cardPositionStyle}
       >
@@ -131,11 +133,11 @@ function TimelineCard({
             <Icon size={21} stroke={accent} strokeWidth={2.8} />
           </View>
           <View className="flex-1">
-            <Text className="text-[12px] font-black uppercase text-white">{day}</Text>
-            <Text className="mt-0.5 text-[17px] font-black leading-6 text-white">{title}</Text>
+            <Text className="text-[12px] font-black uppercase text-cocoa">{day}</Text>
+            <Text className="mt-0.5 text-[17px] font-black leading-6 text-cocoa">{title}</Text>
           </View>
         </View>
-        <Text className="mt-3 text-[14px] font-bold leading-5 text-white">{body}</Text>
+        <Text className="mt-3 text-[14px] font-bold leading-5 text-mink">{body}</Text>
       </View>
     </View>
   );
@@ -143,7 +145,7 @@ function TimelineCard({
 
 function ResultsPreview() {
   return (
-    <View className="mt-5 overflow-hidden rounded-[28px] border border-white/12 bg-white/10 p-3" style={styles.resultsCard}>
+    <View className="mt-5 overflow-hidden rounded-[28px] border border-cocoa/10 bg-white/70 p-3" style={styles.resultsCard}>
       <View style={styles.resultsCanvas}>
         <View style={[styles.resultPhoto, styles.resultPhotoBack]}>
           <Image source={resultBeforeImage} resizeMode="cover" style={styles.resultImage} />
@@ -152,7 +154,7 @@ function ResultsPreview() {
           <Image source={resultAfterImage} resizeMode="cover" style={styles.resultImage} />
         </View>
         <View style={styles.resultArrow}>
-          <ArrowRight size={20} stroke={background} strokeWidth={3} />
+          <ArrowRight size={20} stroke={colors.white} strokeWidth={3} />
         </View>
         <View style={styles.resultBadge}>
           <Text className="text-[11px] font-black uppercase text-white">First-week results</Text>
@@ -214,14 +216,14 @@ function TimeComparisonCard({
     <View className="flex-1 px-3 py-4">
       <View className="items-center">
         <View className="flex-row items-center justify-center gap-1.5">
-          <Text className="text-center text-[11px] font-black uppercase tracking-wide text-white/45">
+          <Text className="text-center text-[11px] font-black uppercase tracking-wide text-mink">
             {label}
           </Text>
           <Image source={bootyblockLogo} resizeMode="contain" style={styles.timeLogo} />
-          <Text className="text-[12px] font-black text-white">Bootyblock</Text>
+          <Text className="text-[12px] font-black text-cocoa">Bootyblock</Text>
         </View>
       </View>
-      <Text className="mt-4 text-[12px] font-semibold text-white/55">Daily average</Text>
+      <Text className="mt-4 text-[12px] font-semibold text-mink">Daily average</Text>
       <Text className="mt-1 text-[25px] font-black leading-[30px]" style={{ color: accent }}>
         {value}
       </Text>
@@ -244,7 +246,7 @@ function TimeDifferencePreview({
   const sharedMax = Math.max(...beforeValues, beforeHours, afterHours, 1);
 
   return (
-    <View className="mt-7 rounded-[28px] border border-white/12 bg-white/10 p-3">
+    <View className="mt-7 rounded-[28px] border border-cocoa/10 bg-white/70 p-3">
       <View className="flex-row items-stretch">
         <TimeComparisonCard
           label="Before"
@@ -267,7 +269,7 @@ function TimeDifferencePreview({
           <View style={styles.timeRepsIcon}>
             <Dumbbell size={14} stroke={colors.bubble} strokeWidth={2.8} />
           </View>
-          <Text className="text-[13px] font-black text-white">Booty-building reps</Text>
+          <Text className="text-[13px] font-black text-cocoa">Booty-building reps</Text>
         </View>
         <Text className="text-[14px] font-black" style={{ color: colors.bubble }}>
           {squatsThisWeek}+ squats
@@ -316,13 +318,16 @@ export default function WellbeingPlan() {
   }
 
   return (
-    <Screen scroll={false} backgroundColor={background} backgroundGradient={gradient}>
-      <StatusBar style="light" animated />
+    <Screen
+      scroll={false}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
+    >
+      <StatusBar style="dark" animated />
       <OnboardingProgress
         step={ONBOARDING_STEPS.firstWeekWellbeingPlan.index}
         onBack={() => router.back()}
         showBar={false}
-        dark
       />
 
       <SlidePanel animateOnMount>
@@ -340,7 +345,7 @@ export default function WellbeingPlan() {
                   ))}
                 </View>
 
-                <Text className="mt-5 text-center text-[31px] font-black leading-[36px] text-white">
+                <Text className="mt-5 text-center text-[31px] font-black leading-[36px] text-cocoa">
                   Your booty building journey starts now!
                 </Text>
               </View>
@@ -351,9 +356,9 @@ export default function WellbeingPlan() {
             </FadeInStage>
 
             <FadeInStage delay={240}>
-              <View className="mt-5 flex-row items-center justify-center gap-2 rounded-full border border-cyan-300/50 bg-cyan-300/10 px-5 py-3">
+              <View className="mt-5 flex-row items-center justify-center gap-2 rounded-full border border-cyan-700/20 bg-cyan-50/80 px-5 py-3">
                 <Sparkles size={15} stroke={cyan} strokeWidth={2.8} />
-                <Text className="text-center text-[15px] font-black text-white">
+                <Text className="text-center text-[15px] font-black text-cocoa">
                   You will feel differences by {projectionDate}
                 </Text>
               </View>
@@ -375,8 +380,8 @@ export default function WellbeingPlan() {
               <View className="mt-7">
                 <View className="items-center py-4">
                   <View className="flex-row items-center gap-2">
-                    <TimerReset size={20} stroke="rgba(255, 255, 255, 0.94)" strokeWidth={2.6} />
-                    <Text className="text-[20px] font-black text-white">7-Day Journey</Text>
+                    <TimerReset size={20} stroke={colors.raspberry} strokeWidth={2.6} />
+                    <Text className="text-[20px] font-black text-cocoa">7-Day Journey</Text>
                   </View>
                 </View>
                 <View className="mt-4">
@@ -429,13 +434,13 @@ export default function WellbeingPlan() {
             </FadeInStage>
 
             <FadeInStage delay={720}>
-              <View className="mt-7 rounded-[24px] border border-white/12 bg-white/10 px-5 py-5">
-                <Text className="text-center text-[18px] font-black leading-6 text-white">
+              <View className="mt-7 rounded-[24px] border border-cocoa/10 bg-white/70 px-5 py-5">
+                <Text className="text-center text-[18px] font-black leading-6 text-cocoa">
                   Join the girls choosing a better body-scroll balance
                 </Text>
-                <View className="mt-4 rounded-[20px] border border-white/10 bg-black/25 px-4 py-4">
+                <View className="mt-4 rounded-[20px] border border-cocoa/10 bg-petal/35 px-4 py-4">
                   <Quote size={22} stroke={colors.bubble} strokeWidth={2.4} />
-                  <Text className="mt-2 text-sm font-bold leading-5 text-white">
+                  <Text className="mt-2 text-sm font-bold leading-5 text-cocoa">
                     A week in, I was scrolling less at night and actually felt proud of the movement
                     I did.
                   </Text>
@@ -443,9 +448,9 @@ export default function WellbeingPlan() {
                     <View className="h-8 w-8 items-center justify-center rounded-full bg-petal">
                       <Heart size={15} stroke={colors.raspberry} fill={colors.petal} strokeWidth={2.5} />
                     </View>
-                    <Text className="text-[13px] font-black text-white">Georgia R.</Text>
-                    <View className="h-1 w-1 rounded-full bg-white/40" />
-                    <Text className="text-[13px] font-bold text-white">Bootyblock member</Text>
+                    <Text className="text-[13px] font-black text-cocoa">Georgia R.</Text>
+                    <View className="h-1 w-1 rounded-full bg-cocoa/30" />
+                    <Text className="text-[13px] font-bold text-mink">Bootyblock member</Text>
                   </View>
                 </View>
               </View>
@@ -454,7 +459,7 @@ export default function WellbeingPlan() {
             <View className="h-5" />
           </ScrollView>
 
-          <View className="border-t border-white/10 bg-black/20 pt-3">
+          <View className="border-t border-cocoa/10 bg-white/45 pt-3">
             <Button
               label="Start building my booty"
               icon={Dumbbell}
@@ -512,8 +517,8 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   resultPhoto: {
-    backgroundColor: background,
-    borderColor: 'rgba(255, 255, 255, 0.88)',
+    backgroundColor: colors.blush,
+    borderColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 3,
     borderRadius: 2,
     overflow: 'hidden',
@@ -539,7 +544,7 @@ const styles = StyleSheet.create({
   },
   sectionDivider: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: 'rgba(58, 31, 44, 0.14)',
     height: 1,
     marginTop: 24,
     width: '74%',
@@ -551,7 +556,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   timeGridLine: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(58, 31, 44, 0.10)',
     height: 1,
     left: 0,
     position: 'absolute',
@@ -576,7 +581,7 @@ const styles = StyleSheet.create({
   },
   timeComparisonDivider: {
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(58, 31, 44, 0.14)',
     marginVertical: 10,
     width: 1,
   },
@@ -590,7 +595,7 @@ const styles = StyleSheet.create({
   },
   timeRepsSummary: {
     alignItems: 'center',
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(58, 31, 44, 0.12)',
     borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',

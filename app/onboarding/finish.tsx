@@ -8,12 +8,13 @@ import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
+import {
+  onboardingLightBackground,
+  onboardingLightGradient,
+} from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
-
-const finishBackground = '#07070A';
-const finishGradient = ['#3A0F26', '#07070A'] as const;
 
 export default function FinishSetup() {
   const { profileName } = useBootyblock();
@@ -35,14 +36,13 @@ export default function FinishSetup() {
   return (
     <Screen
       scroll={false}
-      backgroundColor={finishBackground}
-      backgroundGradient={finishGradient}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
     >
       <OnboardingProgress
         step={ONBOARDING_STEPS.finishSetupIntro.index}
         onBack={() => router.back()}
         showBar={false}
-        dark
       />
 
       <SlidePanel animateOnMount>
@@ -50,7 +50,7 @@ export default function FinishSetup() {
           <View />
 
           <View className="px-2">
-            <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
+            <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
               {headline}
             </Text>
           </View>

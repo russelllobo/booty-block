@@ -29,6 +29,7 @@ type ButtonProps = {
   noOutline?: boolean;
   disableGlass?: boolean;
   forceGlass?: boolean;
+  animateDisabledFade?: boolean;
   pressDelayMs?: number;
   size?: 'default' | 'large';
 };
@@ -60,7 +61,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, disableGlass = false, forceGlass = false, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, disableGlass = false, forceGlass = false, animateDisabledFade = false, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
   const transitionLayer = useSlideTransitionLayer();
   const glassRevealDelayMs = useContext(GlassRevealDelayContext);
   const isPrimary = variant === 'primary';
@@ -71,6 +72,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
 
   const press = useSharedValue(0);
   const contentProgress = useSharedValue(1);
+  const disabledOpacity = useSharedValue(inert ? 0.48 : 1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [glassMaterial, setGlassMaterial] = useState<'clear' | 'regular'>('regular');
   const [glassGeneration, setGlassGeneration] = useState(0);
@@ -82,6 +84,8 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   }, []);
 
   useEffect(() => {
+    if (animateDisabledFade && useGlass) return;
+
     contentProgress.value = 0;
     contentProgress.value = withTiming(1, {
       duration: 220,
@@ -89,11 +93,25 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
       reduceMotion: ReduceMotion.System,
     });
 
-    if (!useGlass) return;
+  }, [animateDisabledFade, contentProgress, disabled, label, loading, useGlass]);
+
+  useEffect(() => {
+    if (!useGlass || animateDisabledFade) return;
+
     setGlassMaterial('clear');
     const frame = requestAnimationFrame(() => setGlassMaterial('regular'));
     return () => cancelAnimationFrame(frame);
-  }, [contentProgress, disabled, label, loading, useGlass]);
+  }, [animateDisabledFade, disabled, label, loading, useGlass]);
+
+  useEffect(() => {
+    if (!animateDisabledFade || !useGlass) return;
+
+    disabledOpacity.value = withTiming(inert ? 0.48 : 1, {
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
+  }, [animateDisabledFade, disabledOpacity, inert, useGlass]);
 
   useEffect(() => {
     if (!useGlass || glassRevealDelayMs === null) return;
@@ -114,6 +132,10 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   const contentStyle = useAnimatedStyle(() => ({
     opacity: contentProgress.value,
     transform: [{ scale: interpolate(contentProgress.value, [0, 1], [0.985, 1]) }],
+  }));
+
+  const disabledFadeStyle = useAnimatedStyle(() => ({
+    opacity: disabledOpacity.value,
   }));
 
   const stationaryStyle = useAnimatedStyle(() => {
@@ -196,7 +218,8 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
     <Animated.View
       style={[
         !useGlass ? (isPrimary ? primaryStyle : flatStyle) : null,
-        useGlass && inert ? { opacity: 0.48 } : null,
+        useGlass && animateDisabledFade ? disabledFadeStyle : null,
+        useGlass && !animateDisabledFade && inert ? { opacity: 0.48 } : null,
       ]}
     >
       {useGlass ? (

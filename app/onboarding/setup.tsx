@@ -11,7 +11,12 @@ import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors, shadow } from '../../constants/theme';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+  shadow,
+} from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS, OnboardingStep } from '../../lib/onboardingSteps';
 
@@ -31,26 +36,21 @@ type Tip = {
 const slides: SetupSlide[] = [
   {
     analyticsStep: ONBOARDING_STEPS.setupPhone,
-    eyebrow: 'Setup',
-    title: 'Put your phone on the floor',
-    body: 'Face the camera toward you in a well-lit area so Bootyblock can see your full body.',
+    title: 'put your phone on the floor',
+    body: 'face the camera toward you in a well-lit area so bootyblock can see your full body.',
     media: 'phone',
   },
   {
     analyticsStep: ONBOARDING_STEPS.setupSquat,
-    eyebrow: 'Squats',
-    title: 'Step back and squat',
-    body: 'Keep your whole body in frame, then do one clean squat to finish calibration.',
+    title: 'step back and squat',
+    body: 'keep your whole body in frame, then do one clean squat to finish calibration.',
     media: 'squat',
   },
   {
     analyticsStep: ONBOARDING_STEPS.setupTips,
-    title: 'Tips for better detection',
+    title: 'tips for better detection',
   },
 ];
-
-const setupBackground = '#07070A';
-const setupGradient = ['#3A0F26', '#07070A'] as const;
 
 const setupMedia = {
   phone: require('../../assets/onboarding/position-phone-floor.gif'),
@@ -58,16 +58,16 @@ const setupMedia = {
 };
 
 const tips: Tip[] = [
-  { icon: Smartphone, text: 'Make sure your whole body is fully in frame.' },
-  { icon: Lightbulb, text: 'Make sure the background is clear and well-lit.' },
-  { icon: Shirt, text: 'Tuck in shirts and pants that are too baggy.' },
+  { icon: Smartphone, text: 'make sure your whole body is fully in frame.' },
+  { icon: Lightbulb, text: 'make sure the background is clear and well-lit.' },
+  { icon: Shirt, text: 'tuck in shirts and pants that are too baggy.' },
 ];
 
 function SetupMedia({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
   return (
     <View
-      className="overflow-hidden rounded-[34px] border border-white/15 bg-black"
-      style={[{ height }, shadow]}
+      className="overflow-hidden rounded-[34px] border border-cocoa/10 bg-white/75"
+      style={[{ alignSelf: 'center', aspectRatio: 420 / 747, height }, shadow]}
     >
       <Image
         key={type}
@@ -87,11 +87,11 @@ function TipsPanel({ height }: { height: number }) {
       style={{ minHeight: height }}
     >
       {tips.map(({ icon: Icon, text }) => (
-        <View key={text} className="flex-row items-center gap-4 rounded-[24px] border border-white/10 bg-white/10 p-4">
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-white/12">
+        <View key={text} className="flex-row items-center gap-4 rounded-[24px] border border-cocoa/10 bg-white/70 p-4">
+          <View className="h-12 w-12 items-center justify-center rounded-full bg-petal/70">
             <Icon size={25} stroke={colors.raspberry} strokeWidth={2.4} />
           </View>
-          <Text className="flex-1 text-base font-bold leading-5 text-white">{text}</Text>
+          <Text className="flex-1 text-base font-bold leading-5 text-cocoa">{text}</Text>
         </View>
       ))}
     </View>
@@ -162,12 +162,66 @@ export default function Setup() {
       ? parsedPreviewStep
       : 0;
   const [step, setStep] = useState(initialStep);
+  const [introFinished, setIntroFinished] = useState(initialStep !== 0);
+  const introEntranceX = useRef(new Animated.Value(initialStep === 0 ? 72 : 0)).current;
+  const introTitleProgress = useRef(new Animated.Value(initialStep === 0 ? 0 : 1)).current;
+  const introContentProgress = useRef(new Animated.Value(initialStep === 0 ? 0 : 1)).current;
   const posthog = usePostHog();
   const { height } = useWindowDimensions();
   const direction = useStepDirection(step);
   const slide = slides[step];
   const isLast = step === slides.length - 1;
-  const mediaHeight = Math.min(430, Math.max(270, height * 0.48));
+  const mediaHeight = Math.min(470, Math.max(300, height * 0.56));
+  const tipsHeight = Math.min(430, Math.max(270, height * 0.48));
+  const isIntroSlide = step === 0;
+  const introTitleOffset = Math.max(190, height * 0.34);
+
+  useEffect(() => {
+    if (!isIntroSlide) {
+      introEntranceX.setValue(0);
+      introTitleProgress.setValue(1);
+      introContentProgress.setValue(1);
+      setIntroFinished(true);
+      return;
+    }
+
+    introEntranceX.setValue(72);
+    introTitleProgress.setValue(0);
+    introContentProgress.setValue(0);
+    setIntroFinished(false);
+
+    const entranceAnimation = Animated.timing(introEntranceX, {
+      toValue: 0,
+      duration: 440,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    const animation = Animated.sequence([
+      Animated.delay(900),
+      Animated.timing(introTitleProgress, {
+        toValue: 1,
+        duration: 560,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(introContentProgress, {
+        toValue: 1,
+        duration: 360,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    entranceAnimation.start();
+    animation.start(({ finished }) => {
+      if (finished) setIntroFinished(true);
+    });
+
+    return () => {
+      entranceAnimation.stop();
+      animation.stop();
+    };
+  }, [introContentProgress, introEntranceX, introTitleProgress, isIntroSlide]);
 
   useOnboardingStepAnalytics(
     posthog,
@@ -196,45 +250,120 @@ export default function Setup() {
   }
 
   return (
-    <Screen scroll={false} backgroundColor={setupBackground} backgroundGradient={setupGradient}>
-      <StatusBar style="light" animated />
-      <OnboardingProgress step={slide.analyticsStep.index} onBack={back} dark />
+    <Screen
+      scroll={false}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
+    >
+      <StatusBar style="dark" animated />
+      <Animated.View
+        pointerEvents={introFinished ? 'auto' : 'none'}
+        style={{ opacity: isIntroSlide ? introContentProgress : 1 }}
+      >
+        <OnboardingProgress step={slide.analyticsStep.index} onBack={back} />
+      </Animated.View>
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         <View className="flex-1">
-          <View className="mb-4">
+          <Animated.View
+            className="mb-4"
+            style={{
+              transform: [
+                { translateX: introEntranceX },
+                {
+                  translateY: introTitleProgress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [isIntroSlide ? introTitleOffset : 0, 0],
+                  }),
+                },
+              ],
+            }}
+          >
             {slide.eyebrow ? (
-              <Text className="text-center text-sm font-black uppercase tracking-[2px] text-white/50">
-                {slide.eyebrow}
-              </Text>
+              <Animated.View style={{ opacity: isIntroSlide ? introContentProgress : 1 }}>
+                <Text className="text-center text-sm font-black uppercase tracking-[2px] text-mink">
+                  {slide.eyebrow}
+                </Text>
+              </Animated.View>
             ) : null}
-            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-white">
-              {slide.title}
-            </Text>
-          </View>
 
-          <View className="flex-1 justify-center">
-            <DemoStage stepKey={step} direction={direction}>
-              {slide.media === 'phone' ? (
-                <SetupMedia type="phone" height={mediaHeight} />
-              ) : slide.media === 'squat' ? (
-                <SetupMedia type="squat" height={mediaHeight} />
-              ) : (
-                <TipsPanel height={mediaHeight} />
-              )}
-            </DemoStage>
-          </View>
+            <View className="mt-1 h-[33px]">
+              {isIntroSlide ? (
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      opacity: introTitleProgress.interpolate({
+                        inputRange: [0, 0.52, 0.78, 1],
+                        outputRange: [1, 1, 0, 0],
+                      }),
+                    },
+                  ]}
+                >
+                  <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
+                    lets try
+                  </Text>
+                </Animated.View>
+              ) : null}
 
-          <View className="pt-5">
-            <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-white/60">
-              {slide.body}
-            </Text>
-            <Button
-              label={isLast ? 'Continue' : 'Next'}
-              icon={isLast ? CheckCircle2 : ArrowRight}
-              onPress={next}
-            />
-          </View>
+              <Animated.View
+                style={{
+                  opacity: isIntroSlide
+                    ? introTitleProgress.interpolate({
+                        inputRange: [0, 0.52, 0.82, 1],
+                        outputRange: [0, 0, 1, 1],
+                      })
+                    : 1,
+                }}
+              >
+                <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
+                  {slide.title}
+                </Text>
+              </Animated.View>
+            </View>
+          </Animated.View>
+
+          <Animated.View
+            className="flex-1"
+            pointerEvents={introFinished ? 'auto' : 'none'}
+            style={{
+              flex: 1,
+              opacity: isIntroSlide ? introContentProgress : 1,
+              transform: [
+                {
+                  translateY: isIntroSlide
+                    ? introContentProgress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [14, 0],
+                      })
+                    : 0,
+                },
+              ],
+            }}
+          >
+            <View className={slide.media ? 'flex-1 items-center pt-5' : 'flex-1 justify-center'}>
+              <DemoStage stepKey={step} direction={direction}>
+                {slide.media === 'phone' ? (
+                  <SetupMedia type="phone" height={mediaHeight} />
+                ) : slide.media === 'squat' ? (
+                  <SetupMedia type="squat" height={mediaHeight} />
+                ) : (
+                  <TipsPanel height={tipsHeight} />
+                )}
+              </DemoStage>
+            </View>
+
+            <View className="pt-4">
+              <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-mink">
+                {slide.body}
+              </Text>
+              <Button
+                label={isLast ? 'continue' : 'next'}
+                icon={isLast ? CheckCircle2 : ArrowRight}
+                onPress={next}
+              />
+            </View>
+          </Animated.View>
         </View>
       </SlidePanel>
     </Screen>

@@ -101,7 +101,7 @@ export default function Activity() {
 
           <View className="pt-2.5">
             <Button
-              label="Continue"
+              label="continue"
               disabled={!currentSelection}
               onPress={next}
             />

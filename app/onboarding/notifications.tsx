@@ -11,14 +11,15 @@ import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+} from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { syncRoutineReminderNotification } from '../../lib/services/routineReminder';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
-
-const notificationBackground = '#07070A';
-const notificationGradient = ['#3A0F26', '#07070A'] as const;
 
 type NotificationPermissionContentProps = {
   onBack: () => void;
@@ -111,24 +112,23 @@ export function NotificationPermissionContent({
 
   return (
     <>
-      <StatusBar style="light" animated />
+      <StatusBar style="dark" animated />
       <OnboardingProgress
         step={ONBOARDING_STEPS.notificationPermission.index}
         onBack={onBack}
         showBar={false}
-        dark
       />
 
       <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">
           <View className="pt-8">
-            <Text className="text-center text-sm font-bold leading-5 text-white/60">
+            <Text className="text-center text-sm font-bold leading-5 text-mink">
               Let's set up Bootyblock!
             </Text>
-            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-white">
+            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-cocoa">
               Allow Bootyblock to send you notifications
             </Text>
-            <Text className="mt-2 text-center text-base font-semibold leading-6 text-white/55">
+            <Text className="mt-2 text-center text-base font-semibold leading-6 text-mink">
               We use this to let you unlock your apps when you want to use them.
             </Text>
           </View>
@@ -167,7 +167,7 @@ export function NotificationPermissionContent({
 
           <View>
             <Button
-              label="Continue"
+              label="continue"
               icon={Bell}
               loading={loading}
               onPress={requestNotifications}
@@ -183,8 +183,8 @@ export default function NotificationPermission() {
   return (
     <Screen
       scroll={false}
-      backgroundColor={notificationBackground}
-      backgroundGradient={notificationGradient}
+      backgroundColor={onboardingLightBackground}
+      backgroundGradient={onboardingLightGradient}
     >
       <NotificationPermissionContent onBack={() => router.back()} />
     </Screen>

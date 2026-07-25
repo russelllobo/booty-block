@@ -1,7 +1,3 @@
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from '@react-native-community/datetimepicker';
-import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -44,7 +40,6 @@ import {
   Easing,
   Image,
   ImageSourcePropType,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -60,8 +55,17 @@ import {
 } from '../../components/AnimatedOnboardingOption';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
-import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors, shadow } from '../../constants/theme';
+import {
+  SlidePanel,
+  type SlideDirection,
+  useStepDirection,
+} from '../../components/SlidePanel';
+import {
+  colors,
+  onboardingLightBackground,
+  onboardingLightGradient,
+  shadow,
+} from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import {
   HIDDEN_ONBOARDING_STEPS,
@@ -72,41 +76,30 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 type Choice = {
   label: string;
+  displayLabel?: string;
   icon: ComponentType<{ size?: number; stroke?: string; strokeWidth?: number }>;
   appIcon?: ImageSourcePropType;
 };
 
-const US_AVERAGE_PHONE_HOURS = 4.5;
-const RESULT_PERCENT_HIGHER_THAN_AVERAGE = 63;
 const TARGET_AGE = 80;
-const currentStateBackground = '#07070A';
-const currentStateGradient = ['#3A0F26', '#07070A'] as const;
 const currentStateRed = '#FF3B4D';
-const resultOrange = '#FF6B2A';
-const bootyLockGreen = '#5FF2A0';
-const exercisePink = colors.bubble;
-const starGold = '#FFD76A';
-const routineBackground = '#070915';
-const routineGradient = ['#4A1232', '#1B0B16', '#050509'] as const;
-const routineGlass = 'rgba(255, 255, 255, 0.12)';
-const routineGlassBorder = 'rgba(255, 255, 255, 0.28)';
-const DEFAULT_ROUTINE_REMINDER = { hour: 12, minute: 55 };
-const AnimatedText = Animated.createAnimatedComponent(Text);
+const resultHighlight = colors.raspberry;
+const resultStoryBackground = onboardingLightBackground;
+const resultStoryGradient = onboardingLightGradient;
+const bootyLockGreen = '#168A50';
+const exercisePink = colors.raspberry;
 const insightStepMetadata = {
   1: HIDDEN_ONBOARDING_STEPS.timeSinkApps,
   2: HIDDEN_ONBOARDING_STEPS.habitFriction,
   3: HIDDEN_ONBOARDING_STEPS.usageFeelings,
   4: HIDDEN_ONBOARDING_STEPS.currentState,
-  6: ONBOARDING_STEPS.calculatingProjection,
-  7: ONBOARDING_STEPS.resultComparison,
-  8: ONBOARDING_STEPS.projectionWarning,
-  9: ONBOARDING_STEPS.reclaimedTime,
+  6: ONBOARDING_STEPS.lifetimeProjection,
+  7: ONBOARDING_STEPS.squatTimeTrade,
+  8: ONBOARDING_STEPS.reclaimedTime,
   10: ONBOARDING_STEPS.previousMethods,
   11: ONBOARDING_STEPS.methodFeedback,
-  12: ONBOARDING_STEPS.replacementScience,
   13: ONBOARDING_STEPS.exerciseLink,
   14: ONBOARDING_STEPS.scrollUnlock,
-  15: ONBOARDING_STEPS.routineReminder,
 } as const;
 const currentStateStageDelay = {
   current: 0,
@@ -114,61 +107,7 @@ const currentStateStageDelay = {
   research: 1700,
   button: 2400,
 };
-const resultComparisonStageDelay = {
-  headline: 120,
-  averageBar: 620,
-  resultBar: 1800,
-  summary: 2550,
-  button: 3000,
-};
-
-const reflectiveYearNumberStyles = StyleSheet.create({
-  frame: {
-    alignItems: 'center',
-    height: 176,
-    justifyContent: 'center',
-    minWidth: 330,
-  },
-  numberLayer: {
-    fontSize: 168,
-    fontWeight: '900',
-    includeFontPadding: false,
-    letterSpacing: 0,
-    lineHeight: 176,
-    position: 'absolute',
-    textAlign: 'center',
-    width: 330,
-  },
-  depth: {
-    color: '#050406',
-    opacity: 0.32,
-    textShadowColor: 'rgba(0, 0, 0, 0.72)',
-    textShadowOffset: { width: 0, height: 10 },
-    textShadowRadius: 18,
-    transform: [{ translateY: 8 }],
-  },
-  main: {
-    textShadowColor: 'rgba(255, 244, 220, 0.34)',
-    textShadowOffset: { width: -1, height: -2 },
-    textShadowRadius: 3,
-  },
-});
-
-const routineReminderStyles = StyleSheet.create({
-  nativePickerFrame: {
-    backgroundColor: routineGlass,
-  },
-  nativePicker: {
-    height: 196,
-    width: '100%',
-  },
-  surface: {
-    minHeight: 168,
-    backgroundColor: routineGlass,
-    justifyContent: 'center',
-  },
-});
-
+const featureStoryButtonDelay = 700;
 const appIcons = {
   amazon: require('../../assets/onboarding/app-icons/amazon.png'),
   discord: require('../../assets/onboarding/app-icons/discord.png'),
@@ -219,12 +158,12 @@ const feelingOptions: Choice[] = [
 ];
 
 const triedMethods: Choice[] = [
-  { label: 'Nothing yet', icon: RotateCcw },
-  { label: 'Screen Time limits', icon: TimerReset },
-  { label: 'Deleting addictive apps', icon: X },
-  { label: 'Browser-only versions', icon: AppWindow },
-  { label: 'Digital detox', icon: Sparkles },
-  { label: 'Other app blockers', icon: ShieldCheck },
+  { label: 'Nothing yet', displayLabel: 'nothing yet', icon: RotateCcw },
+  { label: 'Screen Time limits', displayLabel: 'screen time limits', icon: TimerReset },
+  { label: 'Deleting addictive apps', displayLabel: 'deleting addictive apps', icon: X },
+  { label: 'Browser-only versions', displayLabel: 'browser-only versions', icon: AppWindow },
+  { label: 'Digital detox', displayLabel: 'digital detox', icon: Sparkles },
+  { label: 'Other app blockers', displayLabel: 'other app blockers', icon: ShieldCheck },
 ];
 
 const triedMethodFeedback: Record<string, {
@@ -239,7 +178,7 @@ const triedMethodFeedback: Record<string, {
   },
   'Screen Time limits': {
     title: 'Screen Time Limits',
-    stars: 4,
+    stars: 3,
     summary: 'A solid first move, but passcodes and “one more minute” buttons make them too easy to bargain with.',
   },
   'Deleting addictive apps': {
@@ -299,23 +238,9 @@ function formatHours(value: number) {
   return `${hours}h ${minutes}m`;
 }
 
-function daysPerYear(hoursPerDay: number) {
-  return Math.round((hoursPerDay * 365) / 24);
-}
-
 function yearsUntilTargetAge(hoursPerDay: number, ageRange: string) {
   const remainingYears = Math.max(1, TARGET_AGE - ageMidpoint(ageRange));
   return (hoursPerDay * remainingYears) / 24;
-}
-
-function formatYears(value: number) {
-  if (value < 1) return `${Math.round(value * 12)} months`;
-  if (value < 10) return `${value.toFixed(1)} years`;
-  return `${Math.round(value)} years`;
-}
-
-function dependenceScore(hoursPerDay: number) {
-  return Math.max(8, Math.min(99, Math.round((hoursPerDay / US_AVERAGE_PHONE_HOURS) * 33)));
 }
 
 function ChoiceRow({
@@ -347,7 +272,9 @@ function ChoiceRow({
           <Icon size={21} stroke={colors.raspberry} strokeWidth={2.4} />
         )}
       </AnimatedOnboardingOptionIcon>
-      <Text className="flex-1 text-[15px] font-bold leading-5 text-cocoa">{choice.label}</Text>
+      <Text className="flex-1 text-[15px] font-bold leading-5 text-cocoa">
+        {choice.displayLabel ?? choice.label}
+      </Text>
     </AnimatedOnboardingOption>
   );
 }
@@ -372,7 +299,7 @@ function StateChip({
       }}
     >
       <Icon size={16} stroke={accent} strokeWidth={2.8} />
-      <Text className="text-[13px] font-black text-white">{label}</Text>
+      <Text className="text-[13px] font-black text-cocoa">{label}</Text>
     </View>
   );
 }
@@ -401,7 +328,7 @@ function AppIconBubble({
           <Icon size={27} stroke={currentStateRed} strokeWidth={2.5} />
         )}
       </View>
-      <Text className="max-w-[76px] text-center text-[10px] font-black text-white" numberOfLines={1}>
+      <Text className="max-w-[76px] text-center text-[10px] font-black text-cocoa" numberOfLines={1}>
         {choice.label}
       </Text>
     </View>
@@ -451,38 +378,39 @@ function FadeInStage({
   );
 }
 
-function GrowingDivider({ delay }: { delay: number }) {
-  const width = useRef(new Animated.Value(0)).current;
+function SwipeInStage({
+  children,
+  delay,
+  direction,
+}: {
+  children: ReactNode;
+  delay: number;
+  direction: SlideDirection;
+}) {
+  const startX = direction === 'back' ? -72 : 72;
+  const translateX = useRef(new Animated.Value(startX)).current;
 
   useEffect(() => {
-    width.setValue(0);
+    translateX.setValue(startX);
 
     const animation = Animated.sequence([
       Animated.delay(delay),
-      Animated.timing(width, {
-        toValue: 1,
-        duration: 280,
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration: 440,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
     ]);
 
     animation.start();
     return () => animation.stop();
-  }, [delay, width]);
+  }, [delay, startX, translateX]);
 
   return (
-    <View className="my-8 h-0.5 w-[82%] items-start overflow-hidden rounded-full">
-      <Animated.View
-        className="h-full rounded-full bg-white/25"
-        style={{
-          width: width.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0%', '100%'],
-          }),
-        }}
-      />
-    </View>
+    <Animated.View style={{ transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -530,7 +458,7 @@ function CurrentStateSlide({
           </View>
         </FadeInStage>
 
-        <View className="my-8 h-0.5 w-[82%] rounded-full bg-white/25" />
+        <View className="my-8 h-0.5 w-[82%] rounded-full bg-cocoa/15" />
 
         <FadeInStage delay={currentStateStageDelay.bootyLock}>
           <View className="w-full items-center">
@@ -544,7 +472,7 @@ function CurrentStateSlide({
               <BrandLockup
                 height={38}
                 label="BootyBlock logo"
-                textColor={colors.white}
+                textColor={colors.cocoa}
                 textTranslateY={0}
               />
             </View>
@@ -558,11 +486,11 @@ function CurrentStateSlide({
         </FadeInStage>
 
         <FadeInStage delay={currentStateStageDelay.research}>
-          <View className="mt-7 rounded-[20px] border border-white/20 bg-white/14 px-4 py-3">
-            <Text className="text-xs font-black uppercase tracking-[1.5px] text-white">
+          <View className="mt-7 rounded-[20px] border border-cocoa/10 bg-white/70 px-4 py-3">
+            <Text className="text-xs font-black uppercase tracking-[1.5px] text-cocoa">
               The research
             </Text>
-            <Text className="mt-2 text-sm font-bold leading-5 text-white">
+            <Text className="mt-2 text-sm font-bold leading-5 text-cocoa">
               Heavy social media use is associated with lower self-esteem among
               adolescents, according to PubMed Central research.
             </Text>
@@ -572,510 +500,89 @@ function CurrentStateSlide({
 
       <FadeInStage delay={currentStateStageDelay.button}>
         <View className="pt-3">
-          <Button label="Continue" onPress={onContinue} />
+          <Button label="continue" onPress={onContinue} />
         </View>
       </FadeInStage>
     </View>
   );
 }
 
-function ResultBar({
-  value,
-  label,
-  variant,
-  delay = 0,
-  translateXFrom = 0,
+function ResultStorySlide({
+  emoji,
+  headline,
+  leadText,
+  supportingText,
+  onContinue,
 }: {
-  value: number;
-  label: string;
-  variant: 'result' | 'average';
-  delay?: number;
-  translateXFrom?: number;
+  emoji?: string;
+  headline: ReactNode;
+  leadText?: string;
+  supportingText?: string;
+  onContinue: () => void;
 }) {
-  const isResult = variant === 'result';
-  const scale = isResult ? 3.2 : 2.2;
-  const height = Math.max(80, Math.min(240, value * scale));
-  const barHeight = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(translateXFrom)).current;
-
-  useEffect(() => {
-    barHeight.setValue(0);
-    opacity.setValue(0);
-    translateX.setValue(translateXFrom);
-
-    const animation = Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(barHeight, {
-          toValue: height,
-          duration: 760,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: false,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(translateX, {
-        toValue: 0,
-        duration: translateXFrom === 0 ? 1 : 460,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    animation.start();
-    return () => animation.stop();
-  }, [barHeight, delay, height, opacity, translateX, translateXFrom]);
-
   return (
-    <Animated.View
-      className="w-[116px] items-center"
-      style={{ opacity, transform: [{ translateX }] }}
+    <View
+      className="flex-1 justify-between pt-1"
+      style={{ paddingBottom: 36 }}
     >
-      <View className="h-[250px] justify-end">
-        <Animated.View
-          className="w-[88px] overflow-hidden rounded-[22px]"
-          style={{
-            height: barHeight,
-            shadowColor: isResult ? resultOrange : '#65EFFF',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: isResult ? 0.4 : 0.24,
-            shadowRadius: 18,
-            elevation: 6,
-          }}
-        >
-          <LinearGradient
-            colors={isResult ? [resultOrange, '#FF7F36', '#FFE6A6'] : ['#68F1FF', '#F5FAFF', '#FFFFFF']}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text
-            className="mt-3 text-center text-[20px] font-black leading-7"
-            style={{ color: isResult ? colors.white : colors.cocoa }}
-          >
-            {value}%
-          </Text>
-        </Animated.View>
-      </View>
-      <Text
-        className="mt-4 w-full text-center text-[13px] font-black leading-4"
-        style={{ color: colors.white }}
-      >
-        {label}
-      </Text>
-    </Animated.View>
-  );
-}
-
-function ResultComparisonSlide({
-  currentScore,
-  averageScore,
-  onContinue,
-}: {
-  currentScore: number;
-  averageScore: number;
-  onContinue: () => void;
-}) {
-  return (
-    <View className="flex-1">
-      <View className="flex-1 justify-between pb-1 pt-1">
-        <FadeInStage delay={resultComparisonStageDelay.headline}>
-          <View className="px-10">
-            <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
-              You're higher than average
-            </Text>
-
-            <Text className="mt-8 text-center text-[18px] font-bold leading-7 text-white">
-              Your response indicates a clear{'\n'}
-              <Text style={{ color: resultOrange }}>negative dependence</Text> on your phone*
-            </Text>
-          </View>
-        </FadeInStage>
-
-        <View className="mt-4 flex-1 items-center justify-center">
-          <View
-            className="flex-row items-end justify-center gap-10"
-            style={{ minHeight: 280 }}
-          >
-            <ResultBar
-              value={averageScore}
-              label="Average"
-              variant="average"
-              delay={resultComparisonStageDelay.averageBar}
-              translateXFrom={78}
-            />
-            <ResultBar
-              value={currentScore}
-              label="Your Result"
-              variant="result"
-              delay={resultComparisonStageDelay.resultBar}
-            />
-          </View>
-        </View>
-
-        <View>
-          <FadeInStage delay={resultComparisonStageDelay.summary}>
-            <Text className="mb-7 px-10 text-center text-[28px] font-bold leading-[33px] text-white">
-              <Text style={{ color: resultOrange }}>{RESULT_PERCENT_HIGHER_THAN_AVERAGE}% higher</Text> than the average!
-            </Text>
-          </FadeInStage>
-
-          <FadeInStage delay={resultComparisonStageDelay.button}>
-            <View>
-              <Text
-                className="mb-3 text-center text-[11px] font-bold leading-4"
-                style={{ color: colors.white }}
-              >
-                *This is not a psychological diagnosis
-              </Text>
-
-              <Button label="Continue" onPress={onContinue} />
-            </View>
-          </FadeInStage>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function CalculatingSlide({ onComplete }: { onComplete: () => void }) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    progress.setValue(0);
-
-    const progressAnimation = Animated.sequence([
-      Animated.timing(progress, {
-        toValue: 0.18,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(180),
-      Animated.timing(progress, {
-        toValue: 0.46,
-        duration: 360,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(260),
-      Animated.timing(progress, {
-        toValue: 0.72,
-        duration: 240,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(220),
-      Animated.timing(progress, {
-        toValue: 0.88,
-        duration: 340,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(160),
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 160,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]);
-    const timer = setTimeout(onComplete, 2350);
-
-    progressAnimation.start();
-
-    return () => {
-      progressAnimation.stop();
-      clearTimeout(timer);
-    };
-  }, [onComplete, progress]);
-
-  return (
-    <View className="flex-1 items-center px-9 pb-1 pt-1" style={{ paddingTop: 104 }}>
-      <View className="items-center">
-        <FadeInStage delay={0}>
-          <View className="items-center">
-            <View className="h-[120px] w-[120px] items-center justify-center">
-              <Image
-                source={require('../../assets/logo.png')}
-                accessibilityLabel="Bootyblock logo"
-                resizeMode="contain"
-                style={{ width: 112, height: 112 }}
-              />
-            </View>
-
-            <Text
-              className="mt-9 text-center text-[30px] font-black leading-[35px]"
-              style={{ color: colors.white }}
-            >
-              Calculating your results...
-            </Text>
-          </View>
-        </FadeInStage>
-
+      <View className="flex-1">
         <View
-          style={{
-            width: 260,
-            maxWidth: '100%',
-            height: 12,
-            marginTop: 22,
-            borderRadius: 999,
-            overflow: 'hidden',
-            backgroundColor: 'rgba(255,255,255,0.42)',
-          }}
+          className="items-center justify-center"
+          style={{ height: leadText ? 310 : 350 }}
         >
-          <Animated.View
-            style={{
-              height: '100%',
-              borderRadius: 999,
-              width: progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-              backgroundColor: colors.white,
-            }}
-          />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function useCountUpValue(
-  value: number,
-  duration = 850,
-  delay = 0,
-  enabled = true,
-  onComplete?: () => void,
-) {
-  const animatedValue = useRef(new Animated.Value(enabled ? 0 : value)).current;
-  const [displayValue, setDisplayValue] = useState(enabled ? 0 : value);
-
-  useEffect(() => {
-    if (!enabled) {
-      animatedValue.setValue(value);
-      setDisplayValue(value);
-      onComplete?.();
-      return;
-    }
-
-    animatedValue.setValue(0);
-    setDisplayValue(0);
-
-    const listener = animatedValue.addListener(({ value: nextValue }) => {
-      setDisplayValue(Math.round(nextValue));
-    });
-    const animation = Animated.sequence([
-      Animated.delay(delay),
-      Animated.timing(animatedValue, {
-        toValue: value,
-        duration,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]);
-
-    animation.start(({ finished }) => {
-      if (finished) {
-        onComplete?.();
-      }
-    });
-    return () => {
-      animation.stop();
-      animatedValue.removeListener(listener);
-    };
-  }, [animatedValue, delay, duration, enabled, onComplete, value]);
-
-  return displayValue;
-}
-
-function CountUpText({
-  value,
-  duration = 850,
-  delay = 0,
-  style,
-  className,
-}: {
-  value: number;
-  duration?: number;
-  delay?: number;
-  style?: object;
-  className?: string;
-}) {
-  const displayValue = useCountUpValue(value, duration, delay);
-
-  return (
-    <Text className={className} style={style}>
-      {displayValue}
-    </Text>
-  );
-}
-
-function ProjectionWarningSlide({
-  currentDays,
-  projectedYears,
-  dailyHours,
-  remainingYears,
-  onContinue,
-}: {
-  currentDays: number;
-  projectedYears: number;
-  dailyHours: number;
-  remainingYears: number;
-  onContinue: () => void;
-}) {
-  const projectedYearLabel = Math.max(1, Math.round(projectedYears));
-  const [yearAnimationComplete, setYearAnimationComplete] = useState(false);
-  const handleYearAnimationComplete = useCallback(() => {
-    setYearAnimationComplete(true);
-  }, []);
-
-  useEffect(() => {
-    setYearAnimationComplete(false);
-  }, [projectedYearLabel]);
-
-  return (
-    <View className="flex-1">
-      <View className="flex-1 justify-between pb-1 pt-1">
-        <View className="px-10">
-          <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
-            You'll spend{' '}
-            <Text style={{ color: resultOrange }}>{currentDays} days</Text> on your phone over the next year
-          </Text>
-
-          <Text className="mt-7 text-center text-[16px] font-bold text-white">
-            Which means you're on track to spend
-          </Text>
-        </View>
-
-        <View className="items-center">
-          <ReflectiveYearNumber
-            value={projectedYearLabel}
-            color={resultOrange}
-            animated
-            delay={500}
-            onAnimationComplete={handleYearAnimationComplete}
-          />
-          <Text className="mt-2 text-center text-[26px] font-black uppercase tracking-[2px] text-white">
-            years
-          </Text>
-
-          <Text className="mt-7 max-w-[320px] text-center text-[21px] font-bold leading-8 text-white">
-            of your life looking down at your phone. Yep, you read this right.
-          </Text>
-        </View>
-
-        <View className="min-h-[56px]">
-          {yearAnimationComplete ? (
-            <FadeInStage delay={0}>
-              <Button label="Continue" onPress={onContinue} />
+          {emoji ? (
+            <FadeInStage delay={80}>
+              <Text
+                accessibilityLabel="Shocked face"
+                className="text-center text-[78px] leading-[92px]"
+              >
+                {emoji}
+              </Text>
             </FadeInStage>
           ) : null}
         </View>
-      </View>
-    </View>
-  );
-}
 
-function ReflectiveYearNumber({
-  value,
-  color,
-  animated = false,
-  delay = 0,
-  onAnimationComplete,
-}: {
-  value: number;
-  color: string;
-  animated?: boolean;
-  delay?: number;
-  onAnimationComplete?: () => void;
-}) {
-  const displayValue = useCountUpValue(value, 950, delay, animated, onAnimationComplete);
+        <FadeInStage delay={emoji ? 260 : 100}>
+          <View className="items-center px-5">
+            {leadText ? (
+              <Text
+                className="mb-9 max-w-[320px] text-center text-[16px] font-bold leading-[22px]"
+                style={{ color: colors.mink }}
+              >
+                {leadText}
+              </Text>
+            ) : null}
 
-  return (
-    <View style={reflectiveYearNumberStyles.frame}>
-      <Text style={[reflectiveYearNumberStyles.numberLayer, reflectiveYearNumberStyles.depth]}>
-        {displayValue}
-      </Text>
-      <Text
-        style={[
-          reflectiveYearNumberStyles.numberLayer,
-          reflectiveYearNumberStyles.main,
-          { color },
-        ]}
-      >
-        {displayValue}
-      </Text>
-    </View>
-  );
-}
+            <Text
+              className={[
+                'max-w-[350px] text-center font-black',
+                leadText
+                  ? 'text-[44px] leading-[50px]'
+                  : 'text-[28px] leading-[33px]',
+              ].join(' ')}
+              style={{ color: leadText ? resultHighlight : colors.cocoa }}
+              numberOfLines={leadText ? 3 : 5}
+              adjustsFontSizeToFit
+              minimumFontScale={0.86}
+            >
+              {headline}
+            </Text>
 
-function ReclaimedTimeSlide({
-  reclaimedYears,
-  onContinue,
-}: {
-  reclaimedYears: number;
-  onContinue: () => void;
-}) {
-  const reclaimedYearLabel = Math.max(1, Math.round(reclaimedYears));
-  const [yearAnimationComplete, setYearAnimationComplete] = useState(false);
-  const handleYearAnimationComplete = useCallback(() => {
-    setYearAnimationComplete(true);
-  }, []);
-
-  useEffect(() => {
-    setYearAnimationComplete(false);
-  }, [reclaimedYearLabel]);
-
-  return (
-    <View className="flex-1">
-      <View className="flex-1 justify-between pb-1 pt-1">
-        <View className="px-10">
-          <Text className="text-center text-[28px] font-bold leading-[33px] text-white">
-            Bootyblock can help you get back
-          </Text>
-        </View>
-
-        <View className="items-center">
-          <ReflectiveYearNumber
-            value={reclaimedYearLabel}
-            color={colors.bubble}
-            animated
-            delay={320}
-            onAnimationComplete={handleYearAnimationComplete}
-          />
-          <Text className="mt-2 text-center text-[26px] font-black uppercase tracking-[2px] text-white">
-            years+
-          </Text>
-
-          <Text className="mt-7 max-w-[330px] text-center text-[21px] font-bold leading-8 text-white">
-            of your life free from distractions, and help you achieve your dreams.
-          </Text>
-        </View>
-
-        <View>
-          <Text
-            className="mb-3 text-center text-[11px] font-bold leading-4"
-            style={{ color: colors.white }}
-          >
-            According to your profile combined with Bootyblock's program.
-          </Text>
-
-          <View className="min-h-[56px]">
-            {yearAnimationComplete ? (
-              <FadeInStage delay={0}>
-                <Button label="Continue" onPress={onContinue} />
-              </FadeInStage>
+            {supportingText ? (
+              <Text
+                className="mt-4 max-w-[310px] text-center text-[15px] font-bold leading-[21px]"
+                style={{ color: colors.mink }}
+              >
+                {supportingText}
+              </Text>
             ) : null}
           </View>
-        </View>
+        </FadeInStage>
       </View>
+
+      <FadeInStage delay={560}>
+        <Button label="continue" onPress={onContinue} />
+      </FadeInStage>
     </View>
   );
 }
@@ -1100,35 +607,37 @@ function MethodFeedbackSlide({
           <View className="w-full items-center px-10">
             <Text
               className="text-center text-[28px] font-bold leading-[33px]"
-              style={{ color: currentStateRed }}
+              style={{ color: resultHighlight }}
             >
               {hasTriedMethod
-                ? 'Big respect for tackling something tough.'
-                : 'You are starting with a clean slate.'}
+                ? 'big respect for tackling something tough.'
+                : 'you are starting with a clean slate.'}
             </Text>
             <Text
               className="mt-3 text-center text-base font-bold leading-5"
-              style={{ color: colors.white }}
+              style={{ color: colors.cocoa }}
             >
-              We did the research, here's the breakdown:
+              we did the research, here's the breakdown:
             </Text>
           </View>
         </FadeInStage>
 
         <FadeInStage delay={currentStateStageDelay.research}>
-          <View className="mt-8 rounded-[22px] border border-white/20 bg-white/14 px-4 py-4">
+          <View className="mt-8 rounded-[22px] border border-cocoa/10 bg-white/70 px-4 py-4">
             <View className="flex-row items-center gap-2.5">
-              <View className="h-7 w-7 items-center justify-center rounded-full bg-white/16">
-                <Icon size={15} stroke={colors.white} strokeWidth={2.5} />
+              <View className="h-7 w-7 items-center justify-center rounded-full bg-petal/70">
+                <Icon size={15} stroke={colors.raspberry} strokeWidth={2.5} />
               </View>
-              <Text className="flex-1 text-sm font-black text-white">{feedback.title}</Text>
+              <Text className="flex-1 text-sm font-black text-cocoa">
+                {feedback.title.toLowerCase()}
+              </Text>
               <View className="flex-row gap-0.5">
                 {[1, 2, 3, 4, 5].map((rating) => (
                   <Star
                     key={rating}
                     size={15}
                     fill={rating <= feedback.stars ? currentStateRed : 'transparent'}
-                    stroke={rating <= feedback.stars ? currentStateRed : 'rgba(255,255,255,0.45)'}
+                    stroke={rating <= feedback.stars ? currentStateRed : 'rgba(58,31,44,0.28)'}
                     strokeWidth={2.2}
                   />
                 ))}
@@ -1137,17 +646,9 @@ function MethodFeedbackSlide({
 
             <Text
               className="mt-3 text-[13px] font-bold leading-5"
-              style={{ color: colors.white }}
-              numberOfLines={2}
+              style={{ color: colors.cocoa }}
             >
-              {feedback.summary}
-            </Text>
-
-            <Text
-              className="mt-2 text-right text-[11px] font-black"
-              style={{ color: colors.white }}
-            >
-              Read more
+              {feedback.summary.toLowerCase()}
             </Text>
           </View>
         </FadeInStage>
@@ -1155,711 +656,399 @@ function MethodFeedbackSlide({
 
       <FadeInStage delay={currentStateStageDelay.button}>
         <View className="pt-3">
-          <Button label="See how Bootyblock works" onPress={onContinue} />
+          <Button label="see how booty block works" onPress={onContinue} />
         </View>
       </FadeInStage>
     </View>
   );
 }
 
-function ReplacementScienceSlide({ onContinue }: { onContinue: () => void }) {
-  const stageDelay = {
-    headline: 0,
-    divider: 560,
-    science: 1000,
-    replacement: 2050,
-    button: 2900,
-  };
-
+function ExerciseSlide({
+  direction,
+  onContinue,
+}: {
+  direction: SlideDirection;
+  onContinue: () => void;
+}) {
   return (
     <View className="flex-1">
-      <FadeInStage delay={stageDelay.headline}>
-        <View className="w-full items-center pt-3">
-          <Text
-            className="text-center text-[26px] font-black leading-9"
-            style={{ color: starGold }}
-          >
-            ★★★★★
-          </Text>
-        </View>
-      </FadeInStage>
-
-      <View className="flex-1 items-center justify-center py-5">
-        <FadeInStage delay={stageDelay.headline}>
-          <View className="w-full items-center px-10">
-            <Text
-              className="text-center text-[28px] font-bold leading-[33px]"
-              style={{ color: colors.white }}
-            >
-              We know that{'\n'}
-              <Text style={{ color: currentStateRed }}>Quitting is hard.</Text>
-            </Text>
-          </View>
-        </FadeInStage>
-
-        <GrowingDivider delay={stageDelay.divider} />
-
-        <FadeInStage delay={stageDelay.science}>
-          <View className="w-full items-center px-10">
-            <Text
-              className="text-center text-[28px] font-bold leading-[33px]"
-              style={{ color: colors.white }}
-            >
-              Science agrees - the{'\n'}
-              best method is to{'\n'}
-              <Text style={{ color: bootyLockGreen }}>Replace.</Text>
-            </Text>
-          </View>
-        </FadeInStage>
-
-        <FadeInStage delay={stageDelay.replacement}>
-          <View className="w-full items-center px-10">
-            <Text
-              className="mt-8 text-center text-[28px] font-bold leading-[33px]"
-              style={{ color: colors.white }}
-            >
-              And what better{'\n'}
-              replacement than{'\n'}
-              <Text style={{ color: bootyLockGreen }}>Growing your booty 🍑?</Text>
-            </Text>
-          </View>
-        </FadeInStage>
-      </View>
-
-      <FadeInStage delay={stageDelay.button}>
-        <View>
-          <Text
-            className="mb-5 text-center text-[10px] font-bold leading-4"
-            style={{ color: 'rgba(255,255,255,0.68)' }}
-          >
-            Backed by <Text style={{ color: bootyLockGreen, textDecorationLine: 'underline' }}>longitudinal studies</Text>,{' '}
-            <Text style={{ color: bootyLockGreen, textDecorationLine: 'underline' }}>systematic reviews</Text> and{'\n'}
-            <Text style={{ color: bootyLockGreen, textDecorationLine: 'underline' }}>behavioral science experts</Text>.
-          </Text>
-
-          <Button label="Continue" onPress={onContinue} />
-        </View>
-      </FadeInStage>
-    </View>
-  );
-}
-
-function PlusOnePop() {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.6)).current;
-
-  useEffect(() => {
-    opacity.setValue(0);
-    translateY.setValue(0);
-    scale.setValue(0.6);
-
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: -46,
-        duration: 850,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 8,
-        tension: 80,
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (!finished) return;
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [opacity, translateY, scale]);
-
-  return (
-    <AnimatedText
-      style={{
-        fontSize: 20,
-        fontWeight: '900',
-        color: exercisePink,
-        opacity,
-        transform: [{ translateY }, { scale }],
-      }}
-    >
-      +1 min
-    </AnimatedText>
-  );
-}
-
-function SquatAnimation() {
-  const squat = useRef(new Animated.Value(0)).current;
-  const [minutes, setMinutes] = useState(0);
-  const [popKey, setPopKey] = useState(0);
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(squat, {
-          toValue: 1,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(squat, {
-          toValue: 0,
-          duration: 750,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-
-    let cancelled = false;
-    function tick() {
-      if (cancelled) return;
-      setMinutes((m) => m + 1);
-      setPopKey((k) => k + 1);
-      setTimeout(tick, 1500);
-    }
-    const firstTick = setTimeout(tick, 750);
-
-    return () => {
-      cancelled = true;
-      loop.stop();
-      clearTimeout(firstTick);
-    };
-  }, [squat]);
-
-  const hipY = squat.interpolate({ inputRange: [0, 1], outputRange: [0, 38] });
-  const torsoRotate = squat.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '22deg'] });
-  const upperLegRotate = squat.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-49deg'] });
-  const lowerLegRotate = squat.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '98deg'] });
-  const armRotate = squat.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-80deg'] });
-  const farLegOpacity = 0.5;
-
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <View style={{ alignItems: 'center', marginBottom: 4 }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: '900',
-            color: 'rgba(255,255,255,0.6)',
-            letterSpacing: 1.6,
-            textTransform: 'uppercase',
-          }}
-        >
-          Screen time credits
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-          <Text
-            style={{
-              fontSize: 58,
-              fontWeight: '900',
-              color: exercisePink,
-              fontVariant: ['tabular-nums'],
-            }}
-          >
-            {minutes}
-          </Text>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: colors.white, marginLeft: 8 }}>
-            min
-          </Text>
-        </View>
-      </View>
-
-      <View style={{ width: 220, height: 240 }}>
-        {popKey > 0 ? (
-          <View key={popKey} style={{ position: 'absolute', top: 70, left: 140, zIndex: 5 }}>
-            <PlusOnePop />
-          </View>
-        ) : null}
-
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 4,
-            left: 60,
-            width: 100,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: 'rgba(255, 143, 190, 0.18)',
-          }}
-        />
-
-        <Animated.View
-          style={{
-            position: 'absolute',
-            bottom: 110,
-            left: 110,
-            width: 1,
-            height: 1,
-            transform: [{ translateY: hipY }],
-          }}
-        >
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: -11,
-              width: 10,
-              height: 55,
-              borderRadius: 5,
-              backgroundColor: exercisePink,
-              opacity: farLegOpacity,
-              transform: [{ rotate: upperLegRotate }],
-              transformOrigin: 'top center',
-            }}
-          >
-            <Animated.View
-              style={{
-                position: 'absolute',
-                top: 55,
-                left: 0,
-                width: 10,
-                height: 55,
-                borderRadius: 5,
-                backgroundColor: exercisePink,
-                opacity: farLegOpacity,
-                transform: [{ rotate: lowerLegRotate }],
-                transformOrigin: 'top center',
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 49,
-                  left: -8,
-                  width: 26,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: exercisePink,
-                  opacity: farLegOpacity,
-                }}
-              />
-            </Animated.View>
-          </Animated.View>
-
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: -70,
-              left: -14,
-              width: 28,
-              height: 70,
-              borderRadius: 14,
-              backgroundColor: exercisePink,
-              transform: [{ rotate: torsoRotate }],
-              transformOrigin: 'bottom center',
-            }}
-          >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -38,
-                  left: -4,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: exercisePink,
-                }}
-              />
-              <Animated.View
-              style={{
-                position: 'absolute',
-                top: 8,
-                left: 20,
-                width: 8,
-                height: 52,
-                borderRadius: 4,
-                backgroundColor: exercisePink,
-                transform: [{ rotate: armRotate }],
-                transformOrigin: 'top center',
-              }}
-            />
-          </Animated.View>
-
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: -5,
-              width: 10,
-              height: 55,
-              borderRadius: 5,
-              backgroundColor: exercisePink,
-              transform: [{ rotate: upperLegRotate }],
-              transformOrigin: 'top center',
-            }}
-          >
-            <Animated.View
-              style={{
-                position: 'absolute',
-                top: 55,
-                left: 0,
-                width: 10,
-                height: 55,
-                borderRadius: 5,
-                backgroundColor: exercisePink,
-                transform: [{ rotate: lowerLegRotate }],
-                transformOrigin: 'top center',
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 49,
-                  left: -8,
-                  width: 26,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: exercisePink,
-                }}
-              />
-            </Animated.View>
-          </Animated.View>
-        </Animated.View>
-      </View>
-    </View>
-  );
-}
-
-function ExerciseSlide({ onContinue }: { onContinue: () => void }) {
-  return (
-    <View className="flex-1">
-      <FadeInStage delay={currentStateStageDelay.current}>
+      <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
         <View className="w-full items-center px-8 pt-2">
           <Text
             className="text-center text-[26px] font-bold leading-[32px]"
-            style={{ color: colors.white }}
+            style={{ color: colors.cocoa }}
           >
-            In <Text style={{ color: exercisePink }}>Bootyblock</Text>, you can{'\n'}
-            save up screen time by{'\n'}
+            you can save up screen time by{'\n'}
             <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
           </Text>
         </View>
-      </FadeInStage>
+      </SwipeInStage>
 
       <View className="flex-1 items-center justify-center">
-        <FadeInStage delay={currentStateStageDelay.bootyLock}>
-          <SquatAnimation />
-        </FadeInStage>
+        <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
+          <Image
+            source={require('../../assets/onboarding/squat-static.png')}
+            accessibilityLabel="Woman holding a squat"
+            resizeMode="contain"
+            fadeDuration={0}
+            style={{ width: 336, height: 336, borderRadius: 32 }}
+          />
+        </SwipeInStage>
       </View>
 
-      <FadeInStage delay={currentStateStageDelay.button}>
+      <FadeInStage delay={featureStoryButtonDelay}>
         <View className="pt-3">
-          <Button label="Continue" onPress={onContinue} />
+          <Button label="continue" onPress={onContinue} />
         </View>
       </FadeInStage>
     </View>
   );
 }
 
-const feedRowSpecs = [
-  { barWidth: 96, tint: 0.18 },
-  { barWidth: 72, tint: 0.14 },
-  { barWidth: 104, tint: 0.18 },
-  { barWidth: 64, tint: 0.14 },
-  { barWidth: 88, tint: 0.18 },
-  { barWidth: 76, tint: 0.14 },
+const scrollingFeedCards = [
+  { colors: ['#54203D', '#E91E78'] as const, accent: '#FFBDD9', orbTop: 32, orbLeft: 25 },
+  { colors: ['#182339', '#5866E9'] as const, accent: '#BBC4FF', orbTop: 82, orbLeft: 62 },
+  { colors: ['#54203D', '#E91E78'] as const, accent: '#FFBDD9', orbTop: 32, orbLeft: 25 },
 ];
 
-function FeedRow({ barWidth, tint }: { barWidth: number; tint: number }) {
+function ScrollingFeedCard({
+  colors: cardColors,
+  accent,
+  orbTop,
+  orbLeft,
+}: (typeof scrollingFeedCards)[number]) {
   return (
-    <View
-      style={{
-        height: 54,
-        width: '100%',
-        borderRadius: 14,
-        backgroundColor: `rgba(255, 143, 190, ${tint})`,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        paddingHorizontal: 10,
-      }}
-    >
-      <View
+    <View style={{ height: 220, paddingHorizontal: 10, paddingTop: 8 }}>
+      <LinearGradient
+        colors={cardColors}
+        start={{ x: 0.08, y: 0 }}
+        end={{ x: 0.92, y: 1 }}
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          backgroundColor: 'rgba(255, 143, 190, 0.42)',
+          flex: 1,
+          overflow: 'hidden',
+          borderRadius: 19,
+          padding: 12,
         }}
-      />
-      <View style={{ flex: 1, gap: 7 }}>
+      >
         <View
           style={{
-            height: 8,
-            width: barWidth,
-            borderRadius: 4,
-            backgroundColor: 'rgba(255, 214, 231, 0.55)',
+            position: 'absolute',
+            top: orbTop,
+            left: orbLeft,
+            width: 100,
+            height: 100,
+            borderRadius: 50,
+            backgroundColor: accent,
+            opacity: 0.22,
           }}
         />
         <View
           style={{
-            height: 8,
-            width: barWidth * 0.62,
-            borderRadius: 4,
-            backgroundColor: 'rgba(255, 214, 231, 0.35)',
+            position: 'absolute',
+            right: -24,
+            bottom: 22,
+            width: 116,
+            height: 116,
+            borderRadius: 58,
+            borderWidth: 18,
+            borderColor: accent,
+            opacity: 0.16,
           }}
         />
-      </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: accent,
+              opacity: 0.9,
+            }}
+          />
+          <View style={{ gap: 4 }}>
+            <View
+              style={{
+                width: 54,
+                height: 5,
+                borderRadius: 3,
+                backgroundColor: 'rgba(255,255,255,0.82)',
+              }}
+            />
+            <View
+              style={{
+                width: 32,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'rgba(255,255,255,0.38)',
+              }}
+            />
+          </View>
+        </View>
+
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              borderWidth: 2,
+              borderColor: 'rgba(255,255,255,0.7)',
+              backgroundColor: 'rgba(255,255,255,0.18)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Play size={21} stroke="#FFFFFF" strokeWidth={3} />
+          </View>
+        </View>
+
+        <View style={{ gap: 6 }}>
+          <View
+            style={{
+              width: 102,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: 'rgba(255,255,255,0.84)',
+            }}
+          />
+          <View
+            style={{
+              width: 72,
+              height: 5,
+              borderRadius: 3,
+              backgroundColor: 'rgba(255,255,255,0.42)',
+            }}
+          />
+        </View>
+      </LinearGradient>
     </View>
   );
 }
 
 function ScrollUnlockIllustration() {
-  const swipe = useRef(new Animated.Value(0)).current;
+  const feedPosition = useRef(new Animated.Value(0)).current;
+  const swipePosition = useRef(new Animated.Value(0)).current;
+  const swipeOpacity = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0)).current;
-  const thumbOpacity = useRef(new Animated.Value(0)).current;
-  const [credits, setCredits] = useState(10);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(swipe, {
+    const swipeUp = () => Animated.parallel([
+      Animated.sequence([
+        Animated.timing(swipeOpacity, {
+          toValue: 1,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.delay(360),
+        Animated.timing(swipeOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(swipePosition, {
+        toValue: 1,
+        duration: 660,
+        easing: Easing.bezier(0.22, 0.85, 0.28, 1),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.parallel([
+          swipeUp(),
+          Animated.timing(feedPosition, {
             toValue: 1,
-            duration: 1300,
-            easing: Easing.bezier(0.22, 1, 0.36, 1),
+            duration: 760,
+            easing: Easing.bezier(0.22, 0.85, 0.28, 1),
             useNativeDriver: true,
           }),
-          Animated.delay(560),
-          Animated.timing(swipe, {
-            toValue: 0,
-            duration: 420,
-            easing: Easing.inOut(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.delay(300),
         ]),
-        Animated.sequence([
-          Animated.timing(thumbOpacity, {
-            toValue: 1,
-            duration: 220,
+        Animated.delay(900),
+        Animated.timing(swipePosition, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+        Animated.parallel([
+          swipeUp(),
+          Animated.timing(feedPosition, {
+            toValue: 2,
+            duration: 760,
+            easing: Easing.bezier(0.22, 0.85, 0.28, 1),
             useNativeDriver: true,
           }),
-          Animated.delay(1000),
-          Animated.timing(thumbOpacity, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.delay(1060),
         ]),
-        Animated.sequence([
-          Animated.timing(glow, {
-            toValue: 1,
-            duration: 900,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(glow, {
-            toValue: 0,
-            duration: 1100,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.delay(580),
-        ]),
+        Animated.delay(900),
+        Animated.timing(feedPosition, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+        Animated.timing(swipePosition, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
       ]),
     );
 
-    loop.start();
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glow, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+    glowAnimation.start();
 
     return () => {
-      loop.stop();
+      animation.stop();
+      glowAnimation.stop();
     };
-  }, [swipe, glow, thumbOpacity]);
+  }, [feedPosition, glow, swipeOpacity, swipePosition]);
 
-  useEffect(() => {
-    setCredits(10);
-
-    const countdownInterval = setInterval(() => {
-      setCredits((current) => (current > 0 ? current - 1 : 10));
-    }, 1000);
-
-    return () => {
-      clearInterval(countdownInterval);
-    };
-  }, []);
-
-  const thumbTranslateY = swipe.interpolate({
-    inputRange: [0, 1],
-    outputRange: [48, -54],
+  const feedTranslateY = feedPosition.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [0, -220, -440],
   });
-  const thumbRotate = swipe.interpolate({
+  const fingerTranslateY = swipePosition.interpolate({
     inputRange: [0, 1],
-    outputRange: ['12deg', '-6deg'],
+    outputRange: [78, -78],
+  });
+  const fingerScale = swipePosition.interpolate({
+    inputRange: [0, 0.16, 1],
+    outputRange: [0.88, 1, 0.92],
   });
   const glowOpacity = glow.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.1, 0.5],
+    outputRange: [0.2, 0.5],
   });
   const glowScale = glow.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.14],
-  });
-  const feedTranslateY = swipe.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -128],
-  });
-  const screenWake = swipe.interpolate({
-    inputRange: [0, 0.18, 1],
-    outputRange: [0.55, 0.12, 0],
+    outputRange: [0.96, 1.08],
   });
 
   return (
     <View className="items-center">
-      <View style={{ height: 312, width: 286 }}>
+      <View style={{ width: 294, height: 326, alignItems: 'center' }}>
         <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: 55,
-            top: 6,
-            width: 176,
-            height: 236,
-            borderRadius: 52,
-            backgroundColor: 'rgba(255, 143, 190, 0.22)',
+            top: 15,
+            width: 204,
+            height: 270,
+            borderRadius: 62,
+            backgroundColor: 'rgba(233, 30, 120, 0.22)',
             opacity: glowOpacity,
             shadowColor: exercisePink,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 38,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.32,
+            shadowRadius: 34,
             transform: [{ scale: glowScale }],
           }}
         />
 
         <View
           style={{
-            position: 'absolute',
-            left: 69,
-            top: 14,
-            width: 148,
-            height: 222,
-            borderRadius: 30,
-            backgroundColor: '#09070B',
+            width: 178,
+            height: 286,
+            borderRadius: 38,
             borderWidth: 3,
             borderColor: exercisePink,
+            backgroundColor: '#09070B',
+            padding: 8,
             shadowColor: exercisePink,
-            shadowOffset: { width: 0, height: 8 },
+            shadowOffset: { width: 0, height: 12 },
             shadowOpacity: 0.22,
             shadowRadius: 24,
-            elevation: 6,
+            elevation: 7,
           }}
         >
           <View
             style={{
-              position: 'absolute',
-              top: 8,
-              left: 8,
-              right: 8,
-              bottom: 8,
-              borderRadius: 24,
+              flex: 1,
               overflow: 'hidden',
+              borderRadius: 29,
               backgroundColor: '#120A10',
             }}
           >
-            <Animated.View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: '#000000',
-                opacity: screenWake,
-                zIndex: 3,
-              }}
-            />
-
-            <Animated.View
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                paddingTop: 40,
-                paddingHorizontal: 10,
-                gap: 10,
-                transform: [{ translateY: feedTranslateY }],
-              }}
-            >
-              {feedRowSpecs.map((spec, i) => (
-                <FeedRow key={i} barWidth={spec.barWidth} tint={spec.tint} />
-              ))}
-            </Animated.View>
-
-            <LinearGradient
-              colors={['#120A10', 'rgba(18, 10, 16, 0)']}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 48,
-                zIndex: 4,
-              }}
-            />
-
             <View
-              pointerEvents="none"
               style={{
-                position: 'absolute',
-                top: 12,
-                left: 12,
-                right: 12,
+                height: 36,
+                zIndex: 3,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 8,
-                zIndex: 5,
+                justifyContent: 'space-between',
+                paddingHorizontal: 12,
+                backgroundColor: '#120A10',
               }}
             >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor: exercisePink,
-                  backgroundColor: 'rgba(255, 143, 190, 0.18)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 10, fontWeight: '900', color: exercisePink }}>S</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    borderWidth: 1.5,
+                    borderColor: exercisePink,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontWeight: '900', color: exercisePink }}>s</Text>
+                </View>
+                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>for you</Text>
               </View>
-              <View
+              <View style={{ flexDirection: 'row', gap: 3 }}>
+                {[0, 1, 2].map((dot) => (
+                  <View
+                    key={dot}
+                    style={{
+                      width: 3,
+                      height: 3,
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(255,255,255,0.5)',
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <Animated.View style={{ transform: [{ translateY: feedTranslateY }] }}>
+                {scrollingFeedCards.map((card, index) => (
+                  <ScrollingFeedCard key={index} {...card} />
+                ))}
+              </Animated.View>
+
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(18,10,16,0)', '#120A10']}
                 style={{
-                  flex: 1,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: 'rgba(255, 143, 190, 0.18)',
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 24,
                 }}
               />
             </View>
-
-            <LinearGradient
-              colors={['rgba(18, 10, 16, 0)', '#120A10']}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: 42,
-                zIndex: 4,
-              }}
-            />
           </View>
 
           <View
@@ -1867,11 +1056,12 @@ function ScrollUnlockIllustration() {
             style={{
               position: 'absolute',
               top: 8,
-              left: 74,
-              width: 44,
+              left: 66,
+              width: 46,
               height: 5,
               borderRadius: 3,
-              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              zIndex: 5,
             }}
           />
         </View>
@@ -1880,293 +1070,73 @@ function ScrollUnlockIllustration() {
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: 174,
-            top: 112,
-            width: 38,
-            height: 60,
-            opacity: thumbOpacity,
-            transform: [{ translateY: thumbTranslateY }, { rotate: thumbRotate }],
-            zIndex: 6,
+            right: 35,
+            top: 136,
+            width: 42,
+            height: 42,
+            borderRadius: 21,
+            borderWidth: 2,
+            borderColor: 'rgba(255,255,255,0.72)',
+            backgroundColor: exercisePink,
+            opacity: swipeOpacity,
+            shadowColor: exercisePink,
+            shadowOffset: { width: 0, height: 5 },
+            shadowOpacity: 0.36,
+            shadowRadius: 12,
+            elevation: 5,
+            transform: [{ translateY: fingerTranslateY }, { scale: fingerScale }],
           }}
         >
           <View
             style={{
-              width: 38,
-              height: 60,
-              borderRadius: 19,
-              backgroundColor: exercisePink,
-              shadowColor: exercisePink,
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.4,
-              shadowRadius: 12,
-              elevation: 4,
-            }}
-          />
-          <View
-            style={{
               position: 'absolute',
-              top: 5,
-              left: 8,
-              width: 22,
-              height: 16,
+              top: 6,
+              left: 10,
+              width: 20,
+              height: 12,
               borderRadius: 8,
-              backgroundColor: 'rgba(255, 255, 255, 0.32)',
+              backgroundColor: 'rgba(255,255,255,0.34)',
             }}
           />
         </Animated.View>
       </View>
 
-      <View
-        style={{
-          marginTop: -10,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: 'rgba(255, 214, 231, 0.45)',
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-          paddingHorizontal: 18,
-          paddingVertical: 10,
-        }}
-      >
-        <View
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            borderWidth: 1.5,
-            borderColor: exercisePink,
-            backgroundColor: 'rgba(255, 143, 190, 0.16)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '900', color: exercisePink }}>S</Text>
-        </View>
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '900',
-            color: colors.white,
-            fontVariant: ['tabular-nums'],
-            minWidth: 64,
-          }}
-        >
-          {credits} min
-        </Text>
-      </View>
     </View>
   );
 }
 
-function ScrollUnlockSlide({ onContinue }: { onContinue: () => void }) {
-  const stageDelay = {
-    illustration: 0,
-    headline: 480,
-    subtitle: 1080,
-    button: 1850,
-  };
-
-  return (
-    <View className="flex-1">
-      <View className="flex-1 items-center justify-center">
-        <FadeInStage delay={stageDelay.illustration}>
-          <ScrollUnlockIllustration />
-        </FadeInStage>
-      </View>
-
-      <FadeInStage delay={stageDelay.headline}>
-        <View className="items-center px-8">
-          <Text
-            className="text-center text-[28px] font-bold leading-[33px]"
-            style={{ color: exercisePink }}
-          >
-            Scroll
-          </Text>
-        </View>
-      </FadeInStage>
-
-      <FadeInStage delay={stageDelay.subtitle}>
-        <Text
-          className="mt-4 w-full px-6 text-center text-base font-semibold leading-6 text-white/70"
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.82}
-        >
-          You can use your saved up Screen Time any time.
-        </Text>
-      </FadeInStage>
-
-      <FadeInStage delay={stageDelay.button}>
-        <View className="pt-6">
-          <Button label="Continue" onPress={onContinue} />
-        </View>
-      </FadeInStage>
-    </View>
-  );
-}
-
-function dateFromReminderTime(hour: number, minute: number) {
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  return date;
-}
-
-function displayHourFromDate(date: Date) {
-  const hour = date.getHours();
-  const value = hour % 12;
-  return value === 0 ? 12 : value;
-}
-
-function formatMinute(date: Date) {
-  return String(date.getMinutes()).padStart(2, '0');
-}
-
-function periodFromDate(date: Date) {
-  return date.getHours() >= 12 ? 'PM' : 'AM';
-}
-
-function formatReminderDate(date: Date) {
-  return `${displayHourFromDate(date)}:${formatMinute(date)} ${periodFromDate(date)}`;
-}
-
-function RoutineTimeSurface({
-  selectedDate,
-  onPress,
-}: {
-  selectedDate: Date;
-  onPress?: () => void;
-}) {
-  const content = (
-    <LinearGradient
-      colors={['rgba(255, 255, 255, 0.20)', 'rgba(255, 255, 255, 0.08)']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="overflow-hidden rounded-[28px] border px-7"
-      style={[routineReminderStyles.surface, { borderColor: routineGlassBorder }]}
-    >
-      <Text className="text-sm font-black uppercase tracking-[2px] text-white/45">
-        Routine time
-      </Text>
-      <View className="mt-3 flex-row items-end justify-center">
-        <Text className="text-[58px] font-black leading-[64px] text-white">
-          {displayHourFromDate(selectedDate)}:{formatMinute(selectedDate)}
-        </Text>
-        <Text className="mb-2 ml-3 text-xl font-black text-white/60">
-          {periodFromDate(selectedDate)}
-        </Text>
-      </View>
-    </LinearGradient>
-  );
-
-  if (!onPress) return content;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Choose routine time, currently ${formatReminderDate(selectedDate)}`}
-      onPress={onPress}
-    >
-      {content}
-    </Pressable>
-  );
-}
-
-function RoutineReminderSlide({
+function ScrollUnlockSlide({
+  direction,
   onContinue,
 }: {
+  direction: SlideDirection;
   onContinue: () => void;
 }) {
-  const { routineReminderTime, setRoutineReminderTime } = useBootyblock();
-  const initialTime = routineReminderTime ?? DEFAULT_ROUTINE_REMINDER;
-  const [selectedDate, setSelectedDate] = useState(() =>
-    dateFromReminderTime(initialTime.hour, initialTime.minute),
-  );
-
-  function setNativeDate(date: Date) {
-    setSelectedDate(dateFromReminderTime(date.getHours(), date.getMinutes()));
-    void Haptics.selectionAsync();
-  }
-
-  function handlePickerChange(event: DateTimePickerEvent, date?: Date) {
-    if (event.type === 'dismissed' || !date) return;
-    setNativeDate(date);
-  }
-
-  function skip() {
-    setRoutineReminderTime(null);
-    onContinue();
-  }
-
-  function save() {
-    setRoutineReminderTime({
-      hour: selectedDate.getHours(),
-      minute: selectedDate.getMinutes(),
-    });
-    onContinue();
-  }
-
-  function openAndroidPicker() {
-    DateTimePickerAndroid.open({
-      value: selectedDate,
-      mode: 'time',
-      display: 'spinner',
-      is24Hour: false,
-      positiveButton: { label: 'Set' },
-      negativeButton: { label: 'Cancel' },
-      onChange: handlePickerChange,
-    });
-  }
-
   return (
     <View className="flex-1">
-      <View>
-        <Text className="text-base font-bold leading-5 text-white/55">
-          Reminders make it 65% more likely to stick to BootyBlock after a week.
-        </Text>
-        <Text className="mt-1 text-[28px] font-bold leading-[33px] text-white">
-          What is the best time for you to exercise?
-        </Text>
-      </View>
-
-      <View className="flex-1 justify-center py-8">
-        {Platform.OS === 'ios' ? (
-          <View
-            className="overflow-hidden rounded-[28px] border px-2"
-            style={[routineReminderStyles.nativePickerFrame, { borderColor: routineGlassBorder }]}
+      <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
+        <View className="w-full items-center px-8 pt-2">
+          <Text
+            className="text-center text-[26px] font-bold leading-[32px]"
+            style={{ color: colors.cocoa }}
           >
-            <DateTimePicker
-              value={selectedDate}
-              mode="time"
-              display="spinner"
-              minuteInterval={1}
-              themeVariant="dark"
-              textColor={colors.white}
-              accentColor={colors.bubble}
-              onChange={handlePickerChange}
-              style={routineReminderStyles.nativePicker}
-            />
-          </View>
-        ) : (
-          <RoutineTimeSurface
-            selectedDate={selectedDate}
-            onPress={Platform.OS === 'android' ? openAndroidPicker : undefined}
-          />
-        )}
+            you can use your saved-up{'\n'}
+            screen time <Text style={{ color: exercisePink }}>anytime.</Text>
+          </Text>
+        </View>
+      </SwipeInStage>
+
+      <View className="flex-1 items-center justify-center">
+        <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
+          <ScrollUnlockIllustration />
+        </SwipeInStage>
       </View>
 
-      <View className="gap-4">
-        <Pressable
-          accessibilityRole="button"
-          onPress={skip}
-          className="h-11 items-center justify-center self-center rounded-full border px-8"
-          style={{ borderColor: routineGlassBorder, backgroundColor: routineGlass }}
-        >
-          <Text className="text-sm font-black text-white">Skip</Text>
-        </Pressable>
-        <Button label="Set Routine" onPress={save} />
-      </View>
+      <FadeInStage delay={featureStoryButtonDelay}>
+        <View className="pt-3">
+          <Button label="continue" onPress={onContinue} />
+        </View>
+      </FadeInStage>
     </View>
   );
 }
@@ -2175,10 +1145,14 @@ export default function Insights() {
   const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
   const parsedPreviewStep = Number(previewStep);
   const initialStep =
-    Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 15
-      ? parsedPreviewStep === 5 ? 6 : parsedPreviewStep
+    Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 14
+      ? parsedPreviewStep === 5
+        ? 6
+        : parsedPreviewStep === 12
+          ? 13
+          : parsedPreviewStep
       : 6;
-  const { ageRange, dailyScreenTimeGoalHours, dailyScreenTimeHours } =
+  const { ageRange, dailyScreenTimeHours, profileName } =
     useBootyblock();
   const posthog = usePostHog();
   const [step, setStep] = useState(initialStep);
@@ -2196,29 +1170,20 @@ export default function Insights() {
   );
   const direction = useStepDirection(step);
   const stepMetadata = insightStepMetadata[step as keyof typeof insightStepMetadata];
-  const completeCalculating = useCallback(() => setStep(7), []);
-  const darkScreen =
+  const resultStoryScreen = step === 6 || step === 7 || step === 8;
+  const featureStoryScreen =
     step === 4 ||
-    step === 6 ||
-    step === 7 ||
-    step === 8 ||
-    step === 9 ||
     step === 11 ||
-    step === 12 ||
     step === 13 ||
-    step === 14 ||
-    step === 15;
+    step === 14;
   const showProgressBar =
     step !== 4 &&
     step !== 6 &&
     step !== 7 &&
     step !== 8 &&
-    step !== 9 &&
     step !== 11 &&
-    step !== 12 &&
     step !== 13 &&
-    step !== 14 &&
-    step !== 15;
+    step !== 14;
 
   const progressStep = previewStep ? step + 8 : stepMetadata.index;
   const choosingApps = step === 1;
@@ -2239,18 +1204,11 @@ export default function Insights() {
       : choosingFeelings
         ? selectedFeelings
         : selectedTried;
-  const currentDays = daysPerYear(dailyScreenTimeHours);
-  const averageDependenceScore = dependenceScore(US_AVERAGE_PHONE_HOURS);
-  const fixedResultScore = Math.round(
-    averageDependenceScore * (1 + RESULT_PERCENT_HIGHER_THAN_AVERAGE / 100),
-  );
   const projectionAgeRange = ageRange;
-  const remainingYears = Math.max(1, TARGET_AGE - ageMidpoint(projectionAgeRange));
   const projectedYears = yearsUntilTargetAge(dailyScreenTimeHours, projectionAgeRange);
-  const reclaimedYears = Math.max(
-    0,
-    yearsUntilTargetAge(dailyScreenTimeHours - dailyScreenTimeGoalHours, projectionAgeRange),
-  );
+  const projectedYearLabel = Math.max(1, Math.round(projectedYears));
+  const projectedYearUnit = projectedYearLabel === 1 ? 'year' : 'years';
+  const firstName = profileName.trim().split(/\s+/)[0] || 'You';
 
   useOnboardingStepAnalytics(
     previewStep ? null : posthog,
@@ -2284,6 +1242,16 @@ export default function Insights() {
       return;
     }
 
+    if (step === 10) {
+      setStep(8);
+      return;
+    }
+
+    if (step === 13) {
+      setStep(11);
+      return;
+    }
+
     if (step > 1) {
       setStep((current) => current - 1);
       return;
@@ -2294,14 +1262,25 @@ export default function Insights() {
   return (
     <Screen
       scroll={false}
-      backgroundColor={darkScreen ? (step === 15 ? routineBackground : currentStateBackground) : undefined}
-      backgroundGradient={darkScreen ? (step === 15 ? routineGradient : currentStateGradient) : undefined}
+      backgroundColor={
+        resultStoryScreen
+          ? resultStoryBackground
+          : featureStoryScreen
+            ? onboardingLightBackground
+            : undefined
+      }
+      backgroundGradient={
+        resultStoryScreen
+          ? resultStoryGradient
+          : featureStoryScreen
+            ? onboardingLightGradient
+            : undefined
+      }
     >
       <OnboardingProgress
         step={progressStep}
         onBack={back}
         showBar={showProgressBar}
-        dark={darkScreen}
       />
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
@@ -2323,7 +1302,7 @@ export default function Insights() {
                   ? 'What usually makes it hard to quit?'
                   : choosingFeelings
                     ? 'How does using these apps for too long make you feel?'
-                    : 'What have you already tried?'}
+                    : 'what have you already tried?'}
             </Text>
             {!choosingTried ? (
               <Text className="mt-2 text-sm font-bold text-mink">Choose up to 3</Text>
@@ -2354,7 +1333,7 @@ export default function Insights() {
 
             <View className="pt-3">
               <Button
-                label="Continue"
+                label="continue"
                 disabled={selected.length === 0}
                 onPress={() => {
                   if (choosingApps) {
@@ -2377,39 +1356,55 @@ export default function Insights() {
             onContinue={() => setStep(6)}
           />
         ) : step === 6 ? (
-          <CalculatingSlide onComplete={completeCalculating} />
+          <ResultStorySlide
+            emoji="🤯"
+            headline={(
+              <>
+                {firstName}, at this rate you're gonna spend{' '}
+                <Text style={{ color: resultHighlight }}>
+                  {projectedYearLabel} {projectedYearUnit}
+                </Text>{' '}
+                of your life on your phone.
+              </>
+            )}
+            onContinue={() => setStep(7)}
+          />
         ) : step === 7 ? (
-          <ResultComparisonSlide
-            currentScore={fixedResultScore}
-            averageScore={averageDependenceScore}
+          <ResultStorySlide
+            headline={(
+              <>
+                you can transform your entire body in{' '}
+                <Text style={{ color: resultHighlight }}>30 days.</Text>
+              </>
+            )}
+            supportingText="if you traded your screen time for squat time."
             onContinue={() => setStep(8)}
           />
         ) : step === 8 ? (
-          <ProjectionWarningSlide
-            currentDays={currentDays}
-            projectedYears={projectedYears}
-            dailyHours={dailyScreenTimeHours}
-            remainingYears={remainingYears}
-            onContinue={() => setStep(9)}
-          />
-        ) : step === 9 ? (
-          <ReclaimedTimeSlide
-            reclaimedYears={reclaimedYears}
+          <ResultStorySlide
+            leadText="...but the good news is, we'll help you give"
+            headline={(
+              <>
+                {projectedYearLabel} {projectedYearUnit}{'\n'}
+                back to your body.
+              </>
+            )}
             onContinue={() => setStep(10)}
           />
         ) : step === 11 ? (
           <MethodFeedbackSlide
             selectedTried={selectedTried}
-            onContinue={() => setStep(12)}
+            onContinue={() => setStep(13)}
           />
-        ) : step === 12 ? (
-          <ReplacementScienceSlide onContinue={() => setStep(13)} />
         ) : step === 13 ? (
-          <ExerciseSlide onContinue={() => setStep(14)} />
+          <ExerciseSlide direction={direction} onContinue={() => setStep(14)} />
         ) : step === 14 ? (
-          <ScrollUnlockSlide onContinue={() => setStep(15)} />
+          <ScrollUnlockSlide
+            direction={direction}
+            onContinue={() => router.push('/onboarding/setup')}
+          />
         ) : (
-          <RoutineReminderSlide onContinue={() => router.push('/onboarding/setup')} />
+          null
         )}
       </SlidePanel>
     </Screen>

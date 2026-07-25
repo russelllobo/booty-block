@@ -104,7 +104,7 @@ export default function Calibration() {
         squat_count: pose.count,
         camera_granted: cameraGranted,
       });
-      router.push('/onboarding/activity');
+      router.push('/onboarding/routine-reminder');
       return;
     }
 
@@ -225,7 +225,7 @@ export default function Calibration() {
                 <Button label="Allow camera" icon={Camera} onPress={requestPermission} />
               ) : (
                 <Button
-                  label={calibrationReady ? 'Continue' : 'Try later'}
+                  label={calibrationReady ? 'continue' : 'Try later'}
                   variant={calibrationReady ? 'primary' : 'outline'}
                   foregroundColor={calibrationReady ? undefined : '#000000'}
                   onPress={finish}

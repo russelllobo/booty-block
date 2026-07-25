@@ -4,7 +4,7 @@ import { Check, Heart, ShieldCheck, Sparkles, X } from 'lucide-react-native';
 import { Image, StyleSheet, View } from 'react-native';
 
 import { Text } from '../../components/AppText';
-import { colors } from '../../constants/theme';
+import { colors, onboardingLightGradient } from '../../constants/theme';
 
 const paywallArt = require('../../assets/paywall-apps.png');
 
@@ -14,11 +14,11 @@ export default function PaywallPreview() {
 
   return (
     <LinearGradient
-      colors={discounted ? ['#3A0F26', '#130711', '#07070A'] : ['#FFF2F6', '#FFE2EB', '#FFD4E2']}
+      colors={onboardingLightGradient}
       style={styles.screen}
     >
       <View style={styles.close}>
-        <X size={22} stroke={discounted ? colors.white : colors.cocoa} strokeWidth={2.5} />
+        <X size={22} stroke={colors.cocoa} strokeWidth={2.5} />
       </View>
 
       <Image source={paywallArt} resizeMode="contain" style={styles.art} />
@@ -30,12 +30,12 @@ export default function PaywallPreview() {
           ) : (
             <Heart size={17} stroke={colors.raspberry} fill={colors.raspberry} strokeWidth={2.5} />
           )}
-          <Text style={[styles.eyebrowText, discounted && styles.lightText]}>
+          <Text style={styles.eyebrowText}>
             {discounted ? 'ONE-TIME OFFER' : 'BOOTYBLOCK PRO'}
           </Text>
         </View>
 
-        <Text style={[styles.title, discounted && styles.lightText]}>
+        <Text style={styles.title}>
           {discounted ? 'Keep the plan. Pay less.' : 'Build the booty. Beat the scroll.'}
         </Text>
 
@@ -46,23 +46,23 @@ export default function PaywallPreview() {
             'Build a routine that sticks',
           ].map((feature) => (
             <View key={feature} style={styles.feature}>
-              <View style={[styles.check, discounted && styles.darkCheck]}>
+              <View style={styles.check}>
                 <Check size={16} stroke={colors.white} strokeWidth={3.2} />
               </View>
-              <Text style={[styles.featureText, discounted && styles.lightText]}>{feature}</Text>
+              <Text style={styles.featureText}>{feature}</Text>
             </View>
           ))}
         </View>
       </View>
 
       <View style={styles.bottom}>
-        <View style={[styles.plan, discounted && styles.darkPlan]}>
-          <ShieldCheck size={24} stroke={discounted ? '#FFD76A' : colors.raspberry} strokeWidth={2.4} />
+        <View style={styles.plan}>
+          <ShieldCheck size={24} stroke={colors.raspberry} strokeWidth={2.4} />
           <View style={styles.planCopy}>
-            <Text style={[styles.planTitle, discounted && styles.lightText]}>
+            <Text style={styles.planTitle}>
               {discounted ? 'Special annual plan' : 'Annual access'}
             </Text>
-            <Text style={[styles.planPrice, discounted && styles.mutedLight]}>
+            <Text style={styles.planPrice}>
               {discounted ? 'Save 50% today' : '7-day free trial'}
             </Text>
           </View>
@@ -72,7 +72,7 @@ export default function PaywallPreview() {
             {discounted ? 'Claim my offer' : 'Start my free trial'}
           </Text>
         </View>
-        <Text style={[styles.terms, discounted && styles.mutedLight]}>
+        <Text style={styles.terms}>
           Cancel anytime · Restore purchases
         </Text>
       </View>
@@ -130,13 +130,6 @@ const styles = StyleSheet.create({
   darkButtonText: {
     color: '#24120A',
   },
-  darkCheck: {
-    backgroundColor: colors.raspberry,
-  },
-  darkPlan: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
   eyebrow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -165,12 +158,6 @@ const styles = StyleSheet.create({
   },
   goldButton: {
     backgroundColor: '#FFD76A',
-  },
-  lightText: {
-    color: colors.white,
-  },
-  mutedLight: {
-    color: 'rgba(255,255,255,0.62)',
   },
   plan: {
     alignItems: 'center',
