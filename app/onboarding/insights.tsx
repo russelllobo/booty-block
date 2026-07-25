@@ -338,9 +338,11 @@ function AppIconBubble({
 function FadeInStage({
   children,
   delay,
+  fade = true,
 }: {
   children: ReactNode;
   delay: number;
+  fade?: boolean;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(14)).current;
@@ -370,7 +372,12 @@ function FadeInStage({
   }, [delay, opacity, translateY]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <Animated.View
+      style={[
+        fade ? { opacity } : null,
+        { transform: [{ translateY }] },
+      ]}
+    >
       <ButtonGlassRevealDelay delayMs={delay + 520}>
         {children}
       </ButtonGlassRevealDelay>
@@ -525,22 +532,17 @@ function ResultStorySlide({
       className="flex-1 justify-between pt-1"
       style={{ paddingBottom: 36 }}
     >
-      <View className="flex-1">
-        <View
-          className="items-center justify-center"
-          style={{ height: leadText ? 310 : 350 }}
-        >
-          {emoji ? (
-            <FadeInStage delay={80}>
-              <Text
-                accessibilityLabel="Shocked face"
-                className="text-center text-[78px] leading-[92px]"
-              >
-                {emoji}
-              </Text>
-            </FadeInStage>
-          ) : null}
-        </View>
+      <View className="flex-1 items-center justify-center">
+        {emoji ? (
+          <FadeInStage delay={80}>
+            <Text
+              accessibilityLabel="Shocked face"
+              className="mb-4 text-center text-[78px] leading-[92px]"
+            >
+              {emoji}
+            </Text>
+          </FadeInStage>
+        ) : null}
 
         <FadeInStage delay={emoji ? 260 : 100}>
           <View className="items-center px-5">
@@ -580,7 +582,7 @@ function ResultStorySlide({
         </FadeInStage>
       </View>
 
-      <FadeInStage delay={560}>
+      <FadeInStage delay={560} fade={false}>
         <Button label="continue" onPress={onContinue} />
       </FadeInStage>
     </View>

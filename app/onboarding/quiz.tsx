@@ -14,14 +14,17 @@ import {
   Weight,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useState } from 'react';
+import { ComponentType, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { Text, TextInput } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
@@ -32,7 +35,7 @@ import {
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
-import { colors, onboardingLightGradient } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import {
   HIDDEN_ONBOARDING_STEPS,
@@ -77,19 +80,81 @@ function QuizHeader({ step, back }: { step: number; back: () => void }) {
 
 function GluteJourneyPreview({ name }: { name: string }) {
   const journeyOwner = name.trim() ? `${name.trim()}'s` : 'Your';
+  const reduceMotion = useReducedMotion();
+  const shimmerProgress = useRef(new Animated.Value(0)).current;
+  const [cardWidth, setCardWidth] = useState(0);
   const currentDate = new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(new Date());
 
+  useEffect(() => {
+    if (reduceMotion) {
+      shimmerProgress.setValue(0.42);
+      return;
+    }
+
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerProgress, {
+          toValue: 1,
+          duration: 2800,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.delay(1200),
+        Animated.timing(shimmerProgress, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    shimmer.start();
+    return () => shimmer.stop();
+  }, [reduceMotion, shimmerProgress]);
+
+  const shimmerTranslateX = shimmerProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-180, Math.max(cardWidth, 420) + 180],
+  });
+
   return (
     <LinearGradient
-      colors={onboardingLightGradient}
+      colors={['#FFE8F1', '#FFF1F5', '#FFC4DD']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
+      onLayout={(event) => setCardWidth(event.nativeEvent.layout.width)}
       style={styles.journeyCard}
     >
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(255, 255, 255, 0)', 'rgba(255, 82, 154, 0.20)']}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.journeyShimmer,
+          { transform: [{ translateX: shimmerTranslateX }, { rotate: '12deg' }] },
+        ]}
+      >
+        <LinearGradient
+          colors={[
+            'rgba(255, 255, 255, 0)',
+            'rgba(255, 255, 255, 0.48)',
+            'rgba(255, 255, 255, 0)',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
       <View style={styles.journeyHeader}>
         <View>
           <Text
@@ -197,7 +262,7 @@ export default function Quiz() {
                 <Text
                   style={styles.confidenceHeading}
                 >
-                  Ready to rebuild your confidence?
+                  ready to rebuild your confidence?
                 </Text>
 
                 <View className="mt-4">
@@ -206,7 +271,7 @@ export default function Quiz() {
 
                 <View className="mt-5">
                   <Text className="mb-2 text-[14px] font-bold text-mink">
-                    What should we call you?
+                    what should we call you?
                   </Text>
                   <TextInput
                     accessibilityLabel="Your name"
@@ -310,11 +375,19 @@ const styles = StyleSheet.create({
     paddingBottom: 13,
     paddingTop: 16,
     borderRadius: 22,
-    shadowColor: '#3A1F2C',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.72)',
+    shadowColor: colors.raspberry,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 26,
+    elevation: 11,
+  },
+  journeyShimmer: {
+    position: 'absolute',
+    top: -100,
+    bottom: -100,
+    width: 120,
   },
   journeyHeader: {
     flexDirection: 'row',
