@@ -353,17 +353,25 @@ export default function Setup() {
               </DemoStage>
             </View>
 
-            <View className="pt-4">
-              <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-mink">
-                {slide.body}
-              </Text>
+            <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-mink">
+              {slide.body}
+            </Text>
+          </Animated.View>
+
+          <View
+            className="pt-4"
+            pointerEvents={introFinished ? 'auto' : 'none'}
+          >
+            {introFinished ? (
               <Button
                 label={isLast ? 'continue' : 'next'}
                 icon={isLast ? CheckCircle2 : ArrowRight}
                 onPress={next}
               />
-            </View>
-          </Animated.View>
+            ) : (
+              <View style={{ minHeight: 56 }} />
+            )}
+          </View>
         </View>
       </SlidePanel>
     </Screen>

@@ -235,6 +235,7 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
           style={{
             borderRadius: 9999,
             minHeight: size === 'large' ? 72 : 56,
+            overflow: 'hidden',
             borderWidth: isPrimary ? 1 : 0,
             borderColor: isPrimary
               ? inert
@@ -247,6 +248,18 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
             shadowRadius: 20,
           }}
         >
+          {isPrimary ? (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: inert
+                  ? 'rgba(233,30,115,0.28)'
+                  : 'rgba(233,30,115,0.72)',
+              }}
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
             disabled={inert}

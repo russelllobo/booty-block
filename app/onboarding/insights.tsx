@@ -505,7 +505,7 @@ function CurrentStateSlide({
         </FadeInStage>
       </View>
 
-      <FadeInStage delay={currentStateStageDelay.button}>
+      <FadeInStage delay={currentStateStageDelay.button} fade={false}>
         <View className="pt-3">
           <Button label="continue" onPress={onContinue} />
         </View>
@@ -656,7 +656,7 @@ function MethodFeedbackSlide({
         </FadeInStage>
       </View>
 
-      <FadeInStage delay={currentStateStageDelay.button}>
+      <FadeInStage delay={currentStateStageDelay.button} fade={false}>
         <View className="pt-3">
           <Button label="see how booty block works" onPress={onContinue} />
         </View>
@@ -678,9 +678,20 @@ function ExerciseSlide({
         <View className="w-full items-center px-8 pt-2">
           <Text
             className="text-center text-[26px] font-bold leading-[32px]"
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            numberOfLines={1}
             style={{ color: colors.cocoa }}
           >
-            you can save up screen time by{'\n'}
+            you can save up screen time by
+          </Text>
+          <Text
+            className="text-center text-[26px] font-bold leading-[32px]"
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            numberOfLines={1}
+            style={{ color: colors.cocoa }}
+          >
             <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
           </Text>
         </View>
@@ -689,16 +700,16 @@ function ExerciseSlide({
       <View className="flex-1 items-center justify-center">
         <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
           <Image
-            source={require('../../assets/onboarding/squat-static.png')}
+            source={require('../../assets/onboarding/squat-static-transparent.png')}
             accessibilityLabel="Woman holding a squat"
             resizeMode="contain"
             fadeDuration={0}
-            style={{ width: 336, height: 336, borderRadius: 32 }}
+            style={{ width: 336, height: 336 }}
           />
         </SwipeInStage>
       </View>
 
-      <FadeInStage delay={featureStoryButtonDelay}>
+      <FadeInStage delay={featureStoryButtonDelay} fade={false}>
         <View className="pt-3">
           <Button label="continue" onPress={onContinue} />
         </View>
@@ -1134,7 +1145,7 @@ function ScrollUnlockSlide({
         </SwipeInStage>
       </View>
 
-      <FadeInStage delay={featureStoryButtonDelay}>
+      <FadeInStage delay={featureStoryButtonDelay} fade={false}>
         <View className="pt-3">
           <Button label="continue" onPress={onContinue} />
         </View>
