@@ -677,9 +677,7 @@ function ExerciseSlide({
       <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
         <View className="w-full items-center px-8 pt-2">
           <Text
-            className="text-center text-[26px] font-bold leading-[32px]"
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
+            className="text-center text-[18px] font-bold leading-6"
             numberOfLines={1}
             style={{ color: colors.cocoa }}
           >
