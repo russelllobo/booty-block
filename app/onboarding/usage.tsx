@@ -4,9 +4,12 @@ import Slider from '@react-native-community/slider';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet, View } from 'react-native';
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Text } from '../../components/AppText';
 
+import { AnimatedOnboardingOption } from '../../components/AnimatedOnboardingOption';
 import { Button } from '../../components/Button';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -15,19 +18,19 @@ import { SlidePanel, useStepDirection } from '../../components/SlidePanel';
 import { colors } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import {
-  HIDDEN_ONBOARDING_STEPS,
   ONBOARDING_STEP_TOTAL,
   ONBOARDING_STEPS,
 } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-const CURRENT_MIN_HOURS = 2;
-const CURRENT_MAX_HOURS = 8;
+const CURRENT_MIN_HOURS = 1;
+const CURRENT_MAX_HOURS = 10;
 const GOAL_MIN_HOURS = 0.5;
-const SLIDER_STEP = 0.5;
+const CURRENT_SLIDER_STEP = 1;
+const ageOptions = ['14-24', '25-34', '35-44', '45-54', '55+'] as const;
 const usageStepMetadata = {
-  1: ONBOARDING_STEPS.currentDailyScreenTime,
-  2: HIDDEN_ONBOARDING_STEPS.goalDailyScreenTime,
+  1: ONBOARDING_STEPS.ageRange,
+  2: ONBOARDING_STEPS.currentDailyScreenTime,
 } as const;
 
 function formatHours(value: number) {
@@ -37,20 +40,6 @@ function formatHours(value: number) {
   if (hours === 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h ${minutes}m`;
-}
-
-function splitHours(value: number) {
-  const hours = Math.floor(value);
-  const minutes = Math.round((value - hours) * 60);
-
-  return {
-    hours: String(hours),
-    minutes: String(minutes).padStart(2, '0'),
-  };
-}
-
-function daysPerYear(hoursPerDay: number) {
-  return Math.round((hoursPerDay * 365) / 24);
 }
 
 function halfOfCurrentHours(currentHours: number) {
@@ -66,20 +55,19 @@ function TimeSlider({
   minimumValue,
   maximumValue,
   onChange,
-  tone,
+  step,
 }: {
   value: number;
   minimumValue: number;
   maximumValue: number;
   onChange: (value: number) => void;
-  tone: 'pink' | 'mint';
+  step: number;
 }) {
   const lastValue = useRef(value);
   const previousRenderedValue = useRef(value);
   const lastHapticAt = useRef(0);
-  const accent = tone === 'pink' ? colors.raspberry : '#32B764';
+  const accent = colors.raspberry;
   const rollDirection = value >= previousRenderedValue.current ? 'up' : 'down';
-  const timeParts = splitHours(value);
 
   useEffect(() => {
     previousRenderedValue.current = value;
@@ -88,7 +76,7 @@ function TimeSlider({
 
   function update(nextValue: number) {
     const clampedRawValue = Math.min(maximumValue, Math.max(minimumValue, nextValue));
-    const steppedValue = Math.round(clampedRawValue / SLIDER_STEP) * SLIDER_STEP;
+    const steppedValue = Math.round(clampedRawValue / step) * step;
     const clampedValue = Math.min(maximumValue, Math.max(minimumValue, steppedValue));
 
     if (clampedValue !== lastValue.current) {
@@ -104,74 +92,55 @@ function TimeSlider({
   }
 
   return (
-    <View className="px-6 pb-6 pt-7">
-      <View style={styles.sliderFrame}>
-        <View pointerEvents="none" style={styles.valueLabel}>
-          <View style={styles.valueRow}>
-            <NativeRollingNumber
-              value={timeParts.hours}
-              color={accent}
-              countsDown={rollDirection === 'down'}
-              fontSize={76}
-              fontWeight="900"
-              letterSpacing={0}
-              style={styles.hoursValue}
-            />
-            <NativeRollingNumber
-              value="h"
-              color={accent}
-              countsDown={false}
-              fontSize={76}
-              fontWeight="900"
-              letterSpacing={0}
-              style={styles.valueUnit}
-            />
-            <NativeRollingNumber
-              value={timeParts.minutes}
-              color={accent}
-              countsDown={rollDirection === 'down'}
-              fontSize={76}
-              fontWeight="900"
-              letterSpacing={0}
-              style={styles.minutesValue}
-            />
-            <NativeRollingNumber
-              value="m"
-              color={accent}
-              countsDown={false}
-              fontSize={76}
-              fontWeight="900"
-              letterSpacing={0}
-              style={styles.minuteUnit}
-            />
-          </View>
-        </View>
-
-        <Slider
-          accessibilityLabel="Daily screen time in hours"
-          accessibilityValue={{
-            min: minimumValue,
-            max: maximumValue,
-            now: value,
-            text: formatHours(value),
-          }}
-          accessibilityActions={[
-            { name: 'increment', label: 'Increase screen time' },
-            { name: 'decrement', label: 'Decrease screen time' },
-          ]}
-          onAccessibilityAction={({ nativeEvent }) => {
-            update(value + (nativeEvent.actionName === 'increment' ? SLIDER_STEP : -SLIDER_STEP));
-          }}
-          minimumValue={minimumValue}
-          maximumValue={maximumValue}
-          step={SLIDER_STEP}
+    <View>
+      <View pointerEvents="none" style={styles.currentValueBlock}>
+        <NativeRollingNumber
           value={value}
-          onValueChange={update}
-          minimumTrackTintColor={accent}
-          maximumTrackTintColor={colors.petal}
-          thumbTintColor={accent}
-          style={styles.nativeSlider}
+          color={colors.cocoa}
+          countsDown={rollDirection === 'down'}
+          fontSize={50}
+          fontWeight="900"
+          letterSpacing={0}
+          style={styles.currentValue}
         />
+        <Text className="text-[11px] font-medium leading-[14px] text-mink">
+          hours/day
+        </Text>
+      </View>
+
+      <Slider
+        accessibilityLabel="Daily screen time in hours"
+        accessibilityValue={{
+          min: minimumValue,
+          max: maximumValue,
+          now: value,
+          text: formatHours(value),
+        }}
+        accessibilityActions={[
+          { name: 'increment', label: 'Increase screen time' },
+          { name: 'decrement', label: 'Decrease screen time' },
+        ]}
+        onAccessibilityAction={({ nativeEvent }) => {
+          update(value + (nativeEvent.actionName === 'increment' ? step : -step));
+        }}
+        minimumValue={minimumValue}
+        maximumValue={maximumValue}
+        step={step}
+        value={value}
+        onValueChange={update}
+        minimumTrackTintColor={accent}
+        maximumTrackTintColor={colors.petal}
+        thumbTintColor={colors.white}
+        style={styles.currentSlider}
+      />
+
+      <View className="flex-row justify-between px-0.5">
+        <Text className="text-[10px] font-medium leading-[13px] text-mink">
+          {minimumValue}h
+        </Text>
+        <Text className="text-[10px] font-medium leading-[13px] text-mink">
+          {maximumValue}h
+        </Text>
       </View>
     </View>
   );
@@ -179,23 +148,25 @@ function TimeSlider({
 
 export default function Usage() {
   const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
-  const { profileName, dailyScreenTimeHours, setUsageTargets } =
+  const { dailyScreenTimeHours, setAgeRange, setUsageTargets } =
     useBootyblock();
   const posthog = usePostHog();
   const initialCurrentHours = Math.min(
     CURRENT_MAX_HOURS,
-    Math.max(CURRENT_MIN_HOURS, dailyScreenTimeHours),
+    Math.max(CURRENT_MIN_HOURS, Math.round(dailyScreenTimeHours)),
   );
-  const [step, setStep] = useState(previewStep === '2' ? 2 : 1);
+  const parsedPreviewStep = Number(previewStep);
+  const initialStep =
+    Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 2
+      ? parsedPreviewStep
+      : 1;
+  const [step, setStep] = useState(initialStep);
+  const [selectedAgeRange, setSelectedAgeRange] = useState('');
   const [currentHours, setCurrentHours] = useState(initialCurrentHours);
-  const [goalHours, setGoalHours] = useState(halfOfCurrentHours(initialCurrentHours));
   const direction = useStepDirection(step);
 
-  const isGoal = step === 2;
+  const isAge = step === 1;
   const stepMetadata = usageStepMetadata[step as keyof typeof usageStepMetadata];
-  const name = profileName || 'you';
-  const sliderMinimum = isGoal ? GOAL_MIN_HOURS : CURRENT_MIN_HOURS;
-  const sliderMaximum = isGoal ? Math.max(GOAL_MIN_HOURS, currentHours) : CURRENT_MAX_HOURS;
 
   useOnboardingStepAnalytics(
     previewStep ? null : posthog,
@@ -207,113 +178,113 @@ export default function Usage() {
   );
 
   function back() {
-    if (isGoal) {
-      setStep(1);
+    if (step > 1) {
+      setStep((current) => current - 1);
       return;
     }
     router.back();
   }
 
   function continueFlow() {
-    if (!isGoal) {
-      const nextGoalHours = halfOfCurrentHours(currentHours);
-      setGoalHours(nextGoalHours);
-
-      if (previewStep) {
-        setStep(2);
-        return;
-      }
-
-      setUsageTargets(currentHours, nextGoalHours);
-      router.push('/onboarding/insights');
+    if (isAge) {
+      if (!selectedAgeRange) return;
+      setAgeRange(selectedAgeRange);
+      setStep(2);
       return;
     }
 
-    setUsageTargets(currentHours, goalHours);
+    setUsageTargets(currentHours, halfOfCurrentHours(currentHours));
     router.push('/onboarding/insights');
   }
 
   return (
     <Screen scroll={false}>
-      <UsageHeader
-        progressStep={previewStep ? step + 6 : stepMetadata.index}
-        back={back}
-      />
+      {!isAge ? (
+        <UsageHeader
+          progressStep={previewStep ? step + 4 : stepMetadata.index}
+          back={back}
+        />
+      ) : null}
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
-        <View className="flex-1">
-          <View>
-            <Text className="text-[15px] font-bold leading-[19px] text-mink">
-              {isGoal
-                ? `No guilt, ${name}. Small changes stick.`
-                : 'A quick reality check, no judgement.'}
-            </Text>
-            <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
-              {isGoal
-                ? 'How much time would you like to spend instead?'
-                : 'How much time do you spend on your phone every day?'}
-            </Text>
-          </View>
+        {isAge ? (
+          <View className="flex-1">
+            <View className="flex-1 justify-center" style={{ transform: [{ translateY: -32 }] }}>
+              <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
+                how old are you?
+              </Text>
 
-          <View className="flex-1 justify-center py-4">
-            <TimeSlider
-              value={isGoal ? goalHours : currentHours}
-              minimumValue={sliderMinimum}
-              maximumValue={sliderMaximum}
-              onChange={isGoal ? setGoalHours : setCurrentHours}
-              tone={isGoal ? 'mint' : 'pink'}
-            />
-          </View>
+              <View className="mt-6 gap-3">
+                {ageOptions.map((option) => {
+                  const selected = selectedAgeRange === option;
+                  return (
+                    <AnimatedOnboardingOption
+                      key={option}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
+                      selected={selected}
+                      onPress={() => setSelectedAgeRange(option)}
+                      className="min-h-[60px] justify-center rounded-full border-2 px-5"
+                      style={{ minHeight: 60 }}
+                    >
+                      <Text className="text-[16px] font-bold text-cocoa">{option}</Text>
+                    </AnimatedOnboardingOption>
+                  );
+                })}
+              </View>
+            </View>
 
-          <View className="pt-2.5">
             <Button
-              label={isGoal ? 'Build my plan' : 'Continue'}
+              label="Continue"
+              disabled={!selectedAgeRange}
               onPress={continueFlow}
             />
           </View>
-        </View>
+        ) : (
+          <View className="flex-1">
+            <View style={{ marginTop: 75 }}>
+              <Text className="max-w-[330px] text-[22px] font-bold leading-[25px] text-cocoa">
+                how long are you on your{'\n'}phone each day?
+              </Text>
+              <Text className="mt-1 text-[11px] font-medium leading-[14px] text-mink">
+                be honest
+              </Text>
+            </View>
+
+            <View className="flex-1 justify-center py-4">
+              <TimeSlider
+                value={currentHours}
+                minimumValue={CURRENT_MIN_HOURS}
+                maximumValue={CURRENT_MAX_HOURS}
+                onChange={setCurrentHours}
+                step={CURRENT_SLIDER_STEP}
+              />
+            </View>
+
+            <View className="pt-2.5">
+              <Button
+                label="continue"
+                onPress={continueFlow}
+              />
+            </View>
+          </View>
+        )}
       </SlidePanel>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  sliderFrame: {
-    paddingTop: 92,
-    position: 'relative',
-  },
-  valueLabel: {
+  currentValueBlock: {
     alignItems: 'center',
-    bottom: 38,
-    left: 0,
-    position: 'absolute',
-    right: 0,
+    marginBottom: 14,
   },
-  valueRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    height: 92,
-    justifyContent: 'center',
+  currentValue: {
+    height: 58,
+    width: 130,
   },
-  hoursValue: {
-    height: 92,
-    width: 76,
-  },
-  minutesValue: {
-    height: 92,
-    marginLeft: 10,
-    width: 122,
-  },
-  valueUnit: {
-    height: 92,
-    width: 48,
-  },
-  minuteUnit: {
-    height: 92,
-    width: 68,
-  },
-  nativeSlider: {
+  currentSlider: {
+    height: 36,
     width: '100%',
-    height: 44,
   },
 });

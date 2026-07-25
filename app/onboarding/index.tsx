@@ -58,6 +58,7 @@ export default function OnboardingStory() {
   const posthog = usePostHog();
   const [step, setStep] = useState(0);
   const [appsUnlocked, setAppsUnlocked] = useState(false);
+  const [isSimpleFlowComplete, setIsSimpleFlowComplete] = useState(false);
   const pagerRef = useRef<StoryPagerHandle>(null);
   const pageProgress = useSharedValue(0);
   const simpleProgress = useRef(new Animated.Value(0)).current;
@@ -85,6 +86,7 @@ export default function OnboardingStory() {
     if (step !== storySteps.length - 1) return;
 
     setAppsUnlocked(false);
+    setIsSimpleFlowComplete(false);
     simpleProgress.setValue(0);
     blockedCopyProgress.setValue(0);
     iconProgress.forEach((progress) => progress.setValue(0));
@@ -164,7 +166,11 @@ export default function OnboardingStory() {
             duration: 560,
             useNativeDriver: true,
           });
-          demoAnimation.start();
+          demoAnimation.start(({ finished: demoFinished }) => {
+            if (demoFinished) {
+              setIsSimpleFlowComplete(true);
+            }
+          });
         });
       });
     });
@@ -454,9 +460,11 @@ export default function OnboardingStory() {
 
         <View style={styles.buttonArea}>
           <Button
-            label={step === storySteps.length - 1 ? 'Set up BootyBlock' : 'start building my glutes'}
+            label={step === storySteps.length - 1 ? 'start building my glutes' : 'Continue'}
             icon={ArrowRight}
             iconPosition="right"
+            forceGlass
+            disabled={step === storySteps.length - 1 && !isSimpleFlowComplete}
             onPress={handleContinue}
           />
         </View>
@@ -566,6 +574,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   buttonArea: {
+    minHeight: 76,
     paddingTop: 14,
   },
   demoAnimation: {

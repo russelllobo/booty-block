@@ -11,11 +11,6 @@ export const HIDDEN_ONBOARDING_STEPS = {
     title: 'What goals do you want to achieve using BootyBlock?',
     index: 0,
   },
-  goalDailyScreenTime: {
-    key: 'goal_daily_screen_time',
-    title: 'How much time would you like to spend instead?',
-    index: 0,
-  },
   timeSinkApps: {
     key: 'time_sink_apps',
     title: 'Which apps take most of your time?',
@@ -59,14 +54,14 @@ export const ONBOARDING_STEPS = {
     title: 'What should we call you?',
     index: 4,
   },
-  currentDailyScreenTime: {
-    key: 'current_daily_screen_time',
-    title: 'How much time do you spend on your phone every day?',
-    index: 5,
-  },
   ageRange: {
     key: 'age_range',
     title: 'How old are you?',
+    index: 5,
+  },
+  currentDailyScreenTime: {
+    key: 'current_daily_screen_time',
+    title: 'How much time do you spend on your phone every day?',
     index: 6,
   },
   calculatingProjection: {

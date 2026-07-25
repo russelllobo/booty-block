@@ -11,7 +11,6 @@ import {
   BatteryLow,
   Bot,
   Brain,
-  CalendarDays,
   Check,
   CircleOff,
   CircleUserRound,
@@ -33,7 +32,6 @@ import {
   ThumbsUp,
   TimerReset,
   Tv,
-  User,
   Users,
   Video,
   X,
@@ -78,12 +76,6 @@ type Choice = {
   appIcon?: ImageSourcePropType;
 };
 
-type AgeOption = {
-  label: string;
-  value: string;
-  icon: ComponentType<{ size?: number; stroke?: string; strokeWidth?: number }>;
-};
-
 const US_AVERAGE_PHONE_HOURS = 4.5;
 const RESULT_PERCENT_HIGHER_THAN_AVERAGE = 63;
 const TARGET_AGE = 80;
@@ -105,7 +97,6 @@ const insightStepMetadata = {
   2: HIDDEN_ONBOARDING_STEPS.habitFriction,
   3: HIDDEN_ONBOARDING_STEPS.usageFeelings,
   4: HIDDEN_ONBOARDING_STEPS.currentState,
-  5: ONBOARDING_STEPS.ageRange,
   6: ONBOARDING_STEPS.calculatingProjection,
   7: ONBOARDING_STEPS.resultComparison,
   8: ONBOARDING_STEPS.projectionWarning,
@@ -236,14 +227,6 @@ const triedMethods: Choice[] = [
   { label: 'Other app blockers', icon: ShieldCheck },
 ];
 
-const ageOptions: AgeOption[] = [
-  { label: 'Under 18', value: 'under-18', icon: User },
-  { label: '18-24', value: '18-24', icon: User },
-  { label: '25-29', value: '25-29', icon: User },
-  { label: '30-40', value: '30-40', icon: User },
-  { label: '40 and over', value: '40-plus', icon: CalendarDays },
-];
-
 const triedMethodFeedback: Record<string, {
   title: string;
   stars: number;
@@ -283,6 +266,16 @@ const triedMethodFeedback: Record<string, {
 
 function ageMidpoint(ageRange: string) {
   switch (ageRange) {
+    case '14-24':
+      return 19;
+    case '25-34':
+      return 29.5;
+    case '35-44':
+      return 39.5;
+    case '45-54':
+      return 49.5;
+    case '55+':
+      return 60;
     case 'under-18':
       return 16;
     case '25-29':
@@ -2183,9 +2176,9 @@ export default function Insights() {
   const parsedPreviewStep = Number(previewStep);
   const initialStep =
     Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 15
-      ? parsedPreviewStep
-      : 5;
-  const { ageRange, dailyScreenTimeGoalHours, dailyScreenTimeHours, setAgeRange } =
+      ? parsedPreviewStep === 5 ? 6 : parsedPreviewStep
+      : 6;
+  const { ageRange, dailyScreenTimeGoalHours, dailyScreenTimeHours } =
     useBootyblock();
   const posthog = usePostHog();
   const [step, setStep] = useState(initialStep);
@@ -2200,9 +2193,6 @@ export default function Insights() {
   );
   const [selectedTried, setSelectedTried] = useState<string[]>(
     previewStep ? ['Nothing yet'] : [],
-  );
-  const [selectedAgeRange, setSelectedAgeRange] = useState(
-    previewStep ? '18-24' : '',
   );
   const direction = useStepDirection(step);
   const stepMetadata = insightStepMetadata[step as keyof typeof insightStepMetadata];
@@ -2254,7 +2244,7 @@ export default function Insights() {
   const fixedResultScore = Math.round(
     averageDependenceScore * (1 + RESULT_PERCENT_HIGHER_THAN_AVERAGE / 100),
   );
-  const projectionAgeRange = selectedAgeRange || ageRange;
+  const projectionAgeRange = ageRange;
   const remainingYears = Math.max(1, TARGET_AGE - ageMidpoint(projectionAgeRange));
   const projectedYears = yearsUntilTargetAge(dailyScreenTimeHours, projectionAgeRange);
   const reclaimedYears = Math.max(
@@ -2289,7 +2279,7 @@ export default function Insights() {
   }
 
   function back() {
-    if (!previewStep && step === 5) {
+    if (!previewStep && step === 6) {
       router.back();
       return;
     }
@@ -2384,58 +2374,8 @@ export default function Insights() {
           <CurrentStateSlide
             selectedApps={selectedApps}
             selectedFeelings={selectedFeelings}
-            onContinue={() => setStep(5)}
+            onContinue={() => setStep(6)}
           />
-        ) : step === 5 ? (
-          <View className="flex-1">
-            <Text className="text-base font-bold leading-6 text-mink">
-              This helps estimate the long-term impact.
-            </Text>
-            <Text className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa">
-              How old are you?
-            </Text>
-            <Text className="mt-2 text-sm font-bold text-mink">
-              We use age range only for onboarding projections.
-            </Text>
-
-            <View className="flex-1 justify-center gap-3 py-6">
-              {ageOptions.map(({ label, value, icon: Icon }) => {
-                const selected = selectedAgeRange === value;
-                return (
-                  <AnimatedOnboardingOption
-                    key={value}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    selected={selected}
-                    onPress={() => setSelectedAgeRange(value)}
-                    className="min-h-[66px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3"
-                  >
-                    <AnimatedOnboardingOptionIcon
-                      selected={selected}
-                      className="h-11 w-11 items-center justify-center rounded-full"
-                    >
-                      <Icon
-                        size={21}
-                        stroke={selected ? colors.white : colors.raspberry}
-                        strokeWidth={2.5}
-                      />
-                    </AnimatedOnboardingOptionIcon>
-                    <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>
-                    {selected ? <Check size={22} stroke={colors.raspberry} strokeWidth={3} /> : null}
-                  </AnimatedOnboardingOption>
-                );
-              })}
-            </View>
-
-            <Button
-              label="Continue"
-              disabled={!selectedAgeRange}
-              onPress={() => {
-                setAgeRange(selectedAgeRange);
-                setStep(6);
-              }}
-            />
-          </View>
         ) : step === 6 ? (
           <CalculatingSlide onComplete={completeCalculating} />
         ) : step === 7 ? (

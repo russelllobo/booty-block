@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   BedDouble,
   BriefcaseBusiness,
@@ -13,15 +14,15 @@ import {
   Weight,
 } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
-import { ComponentType, useRef, useState } from 'react';
+import { ComponentType, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
+  StyleSheet,
   View,
 } from 'react-native';
-import { AppTextInputRef, Text, TextInput } from '../../components/AppText';
+import { Text, TextInput } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
 import {
@@ -65,15 +66,6 @@ const quizStepMetadata = {
   2: HIDDEN_ONBOARDING_STEPS.goals,
 } as const;
 
-const NAME_LETTER_STYLE = {
-  color: colors.cocoa,
-  fontSize: 72,
-  fontWeight: '700' as const,
-  includeFontPadding: false,
-  letterSpacing: 0.4,
-  lineHeight: 82,
-};
-
 function QuizHeader({ step, back }: { step: number; back: () => void }) {
   return (
     <OnboardingProgress
@@ -83,19 +75,53 @@ function QuizHeader({ step, back }: { step: number; back: () => void }) {
   );
 }
 
-function NameDisplay({ name }: { name: string }) {
-  if (name.length === 0) {
-    return (
-      <Text className="text-[54px] font-bold leading-[62px] text-mink/35">
-        Your name
-      </Text>
-    );
-  }
+function GluteJourneyPreview({ name }: { name: string }) {
+  const journeyOwner = name.trim() ? `${name.trim()}'s` : 'Your';
+  const currentDate = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date());
 
   return (
-    <Text style={NAME_LETTER_STYLE}>
-      {name}
-    </Text>
+    <LinearGradient
+      colors={['#4A1734', '#260A1B', '#12050D']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.journeyCard}
+    >
+      <View style={styles.journeyHeader}>
+        <View>
+          <Text
+            style={styles.journeyTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
+            {journeyOwner} 90 day glute journey
+          </Text>
+          <Text style={styles.journeyProgress}>0% Complete</Text>
+        </View>
+        <Text style={styles.journeyFire}>🔥</Text>
+      </View>
+
+      <View style={styles.journeyGrid}>
+        {Array.from({ length: 9 }, (_, row) => (
+          <View key={row} style={styles.journeyRow}>
+            {Array.from({ length: 10 }, (_, column) => (
+              <View
+                key={column}
+                style={styles.journeyCell}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.journeyFooter}>
+        <Text style={styles.journeyFooterText}>{currentDate}</Text>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -107,7 +133,6 @@ export default function Quiz() {
   const [step, setStep] = useState(initialStep);
   const [name, setName] = useState(previewStep ? 'Russ' : '');
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const nameInputRef = useRef<AppTextInputRef>(null);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -169,59 +194,37 @@ export default function Quiz() {
               showsVerticalScrollIndicator={false}
             >
               <View className="flex-1">
-                <View className="pt-1">
-                  <Text className="text-[15px] font-bold leading-[19px] text-mink">
-                    First things first,
-                  </Text>
-                  <Text
-                    className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa"
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.82}
-                  >
-                    What should we call you?
-                  </Text>
+                <Text
+                  style={styles.confidenceHeading}
+                >
+                  Ready to rebuild your confidence?
+                </Text>
+
+                <View className="mt-4">
+                  <GluteJourneyPreview name={name} />
                 </View>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Name input"
-                  onPressIn={() => nameInputRef.current?.focus()}
-                  className="mt-6 min-h-[176px] justify-center"
-                >
-                  <View
-                    className="min-h-[142px] flex-row flex-wrap content-center items-center"
-                    pointerEvents="none"
-                  >
-                    <NameDisplay name={name} />
-                  </View>
-
+                <View className="mt-5">
+                  <Text className="mb-2 text-[14px] font-bold text-mink">
+                    What should we call you?
+                  </Text>
                   <TextInput
-                    ref={nameInputRef}
+                    accessibilityLabel="Your name"
                     autoCapitalize="words"
                     autoCorrect={false}
-                    caretHidden
-                    placeholder="Your name"
-                    placeholderTextColor={colors.mink}
+                    placeholder="Enter your name"
+                    placeholderTextColor="rgba(125, 90, 103, 0.52)"
                     returnKeyType="next"
                     value={name}
                     onChangeText={setName}
                     onSubmitEditing={() => name.trim() && continueFromName()}
-                    className="absolute inset-0 text-[1px] text-transparent"
-                    style={{
-                      includeFontPadding: false,
-                      opacity: 0.01,
-                      paddingBottom: 0,
-                      paddingTop: 0,
-                    }}
+                    className="h-14 rounded-2xl border-2 border-cocoa bg-white/75 px-4 text-[17px] font-bold text-cocoa"
+                    style={styles.nameInput}
                     selectionColor={colors.raspberry}
                   />
+                </View>
 
-                </Pressable>
-
-                <View className="flex-1" />
-
-                <View className="pt-5">
+                <View className="mt-4">
                   <Button label="Continue" disabled={!name.trim()} onPress={continueFromName} />
                 </View>
               </View>
@@ -287,3 +290,80 @@ export default function Quiz() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  nameInput: {
+    borderRadius: 14,
+  },
+  confidenceHeading: {
+    width: '100%',
+    color: colors.cocoa,
+    fontSize: 35,
+    fontWeight: '800',
+    letterSpacing: -1,
+    lineHeight: 38,
+    textAlign: 'center',
+  },
+  journeyCard: {
+    overflow: 'hidden',
+    paddingHorizontal: 17,
+    paddingBottom: 13,
+    paddingTop: 16,
+    borderRadius: 22,
+    shadowColor: '#3A1F2C',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  journeyHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  journeyTitle: {
+    color: '#FFF8FB',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    lineHeight: 23,
+  },
+  journeyProgress: {
+    marginTop: 2,
+    color: '#A58A97',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  journeyFire: {
+    fontSize: 31,
+    lineHeight: 35,
+  },
+  journeyGrid: {
+    marginTop: 14,
+    gap: 4,
+  },
+  journeyRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  journeyCell: {
+    flex: 1,
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 143, 190, 0.14)',
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.065)',
+  },
+  journeyFooter: {
+    marginTop: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  journeyFooterText: {
+    color: '#A58A97',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+});
