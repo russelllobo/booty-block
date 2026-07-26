@@ -1,4 +1,13 @@
-import { createContext, ReactNode, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from 'react';
 import Animated, {
   Easing,
   interpolate,
@@ -59,7 +68,9 @@ export function SlidePanel({
   const latestChildren = useRef(children);
   const outgoingChildren = useRef<ReactNode>(null);
   const transitionDirection = useSharedValue<1 | -1>(direction === 'back' ? -1 : 1);
-  const [showOutgoing, setShowOutgoing] = useState(false);
+  const showOutgoing = useRef(false);
+  const transitionGeneration = useRef(0);
+  const [, renderTransitionState] = useReducer((version: number) => version + 1, 0);
   const incomingLayer = useMemo<SlideTransitionLayer>(() => ({
     role: 'incoming',
     progress,
@@ -77,8 +88,15 @@ export function SlidePanel({
   if (stepChanged) {
     outgoingChildren.current = latestChildren.current;
     previousKey.current = stepKey;
+    showOutgoing.current = true;
   }
   latestChildren.current = children;
+
+  const finishTransition = useCallback((generation: number) => {
+    if (transitionGeneration.current !== generation || !showOutgoing.current) return;
+    showOutgoing.current = false;
+    renderTransitionState();
+  }, []);
 
   useLayoutEffect(() => {
     const isFirstRender = firstRender.current;
@@ -86,22 +104,35 @@ export function SlidePanel({
     const shouldAnimate = stepChanged || (isFirstRender && animateOnMount);
 
     if (!shouldAnimate || reduceMotion) {
+      transitionGeneration.current += 1;
       progress.value = 1;
-      setShowOutgoing(false);
+      if (showOutgoing.current) {
+        showOutgoing.current = false;
+        renderTransitionState();
+      }
       return;
     }
 
+    const generation = transitionGeneration.current + 1;
+    transitionGeneration.current = generation;
     transitionDirection.value = direction === 'back' ? -1 : 1;
-    setShowOutgoing(stepChanged);
     progress.value = 0;
     progress.value = withTiming(
       1,
       { duration: TRANSITION_DURATION, easing: TRANSITION_EASING },
       (finished) => {
-        if (finished) runOnJS(setShowOutgoing)(false);
+        if (finished) runOnJS(finishTransition)(generation);
       },
     );
-  }, [animateOnMount, direction, progress, reduceMotion, stepKey, transitionDirection]);
+  }, [
+    animateOnMount,
+    direction,
+    finishTransition,
+    progress,
+    reduceMotion,
+    stepKey,
+    transitionDirection,
+  ]);
 
   const incomingStyle = useAnimatedStyle(() => ({
     transform: [
@@ -118,7 +149,7 @@ export function SlidePanel({
 
   return (
     <Animated.View style={{ flex: 1 }}>
-      {showOutgoing ? (
+      {showOutgoing.current ? (
         <Animated.View pointerEvents="none" style={[{ position: 'absolute', inset: 0 }, outgoingStyle]}>
           <SlideTransitionContext.Provider value={outgoingLayer}>
             {outgoingChildren.current}

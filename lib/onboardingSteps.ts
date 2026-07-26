@@ -172,7 +172,7 @@ export const ONBOARDING_STEPS = {
   blockedAppsPicker: {
     key: 'blocked_apps_picker',
     title: 'Blocked apps',
-    index: 30,
+    index: 28,
   },
 } as const;
 

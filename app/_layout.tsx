@@ -28,6 +28,7 @@ import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvid
 
 const onboardingScreenOptions = {
   animation: 'none',
+  freezeOnBlur: true,
   gestureEnabled: false,
 } as const;
 

@@ -3,7 +3,6 @@ import { ArrowRight, Lock } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
 
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
@@ -53,7 +52,6 @@ export default function OnboardingStory() {
   const [appsUnlocked, setAppsUnlocked] = useState(false);
   const [isSimpleFlowComplete, setIsSimpleFlowComplete] = useState(false);
   const pagerRef = useRef<StoryPagerHandle>(null);
-  const pageProgress = useSharedValue(0);
   const simpleProgress = useRef(new Animated.Value(0)).current;
   const blockedCopyProgress = useRef(new Animated.Value(0)).current;
   const iconProgress = useRef(appIcons.map(() => new Animated.Value(0))).current;
@@ -204,7 +202,6 @@ export default function OnboardingStory() {
       <View style={styles.page}>
         <StoryPager
           ref={pagerRef}
-          progress={pageProgress}
           onPageSelected={handlePageSelected}
           style={styles.pager}
         >

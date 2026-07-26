@@ -16,7 +16,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { SharedValue } from 'react-native-reanimated';
 
 export type StoryPagerHandle = {
   setPage: (page: number) => void;
@@ -25,12 +24,11 @@ export type StoryPagerHandle = {
 type StoryPagerProps = {
   children: ReactNode;
   onPageSelected: (page: number) => void;
-  progress: SharedValue<number>;
   style?: StyleProp<ViewStyle>;
 };
 
 export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
-  function StoryPager({ children, onPageSelected, progress, style }, forwardedRef) {
+  function StoryPager({ children, onPageSelected, style }, forwardedRef) {
     const scrollRef = useRef<ScrollView>(null);
     const selectedPageRef = useRef(0);
     const [pageWidth, setPageWidth] = useState(0);
@@ -47,8 +45,8 @@ export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
       forwardedRef,
       () => ({
         setPage: (page) => {
-          reportSelectedPage(page);
           scrollRef.current?.scrollTo({ x: page * pageWidth, animated: true });
+          reportSelectedPage(page);
         },
       }),
       [pageWidth, reportSelectedPage],
@@ -59,13 +57,12 @@ export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
         if (pageWidth <= 0) return;
         const nextProgress = event.nativeEvent.contentOffset.x / pageWidth;
         const nearestPage = Math.round(nextProgress);
-        progress.value = nextProgress;
 
         if (Math.abs(nextProgress - nearestPage) < 0.01) {
           reportSelectedPage(nearestPage);
         }
       },
-      [pageWidth, progress, reportSelectedPage],
+      [pageWidth, reportSelectedPage],
     );
 
     const handleScrollEnd = useCallback(

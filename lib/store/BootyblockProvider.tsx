@@ -353,14 +353,6 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
               startedSeconds: usageWindowSeconds,
             }
           : null;
-        if (screenTimeService.isAvailable()) {
-          screenTimeService.configureShield();
-          if (usageWindow) {
-            void screenTimeService.startUsageWindow(usageWindow.seconds);
-          } else {
-            screenTimeService.applyDefaultBlock();
-          }
-        }
         const {
           activeUnlock: _activeUnlock,
           requestedMinutes: _requestedMinutes,
@@ -732,9 +724,19 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    if (!subscriptionHydrated || hasSubscriptionAccess(isSubscribed)) return;
+    if (!hydrated || !subscriptionHydrated) return;
 
-    screenTimeService.applyDefaultBlock();
+    if (hasSubscriptionAccess(isSubscribed)) {
+      const currentUsageWindow = payloadRef.current.usageWindow;
+      if (currentUsageWindow?.seconds) {
+        void screenTimeService.startUsageWindow(currentUsageWindow.seconds);
+      } else {
+        screenTimeService.applyDefaultBlock();
+      }
+      return;
+    }
+
+    screenTimeService.releaseAllBlocks();
     setPayload((current) => (
       current.usageWindow || current.usageWindowSeconds > 0 || current.usageWindowMonitorVersion !== 0
         ? {
@@ -745,7 +747,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           }
         : current
     ));
-  }, [isSubscribed, subscriptionHydrated]);
+  }, [hydrated, isSubscribed, subscriptionHydrated]);
 
   useEffect(() => {
     syncUsageWindow();

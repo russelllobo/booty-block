@@ -1,5 +1,5 @@
 import { LinearGradient, LinearGradientProps } from 'expo-linear-gradient';
-import { PropsWithChildren, useEffect, useRef, useState } from 'react';
+import { memo, PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,7 +23,7 @@ function backgroundKey({ background, gradient }: BackgroundState) {
   return `${background}:${gradient?.join(',') ?? ''}`;
 }
 
-function BackgroundLayer({
+const BackgroundLayer = memo(function BackgroundLayer({
   background,
   gradient,
 }: {
@@ -42,7 +42,7 @@ function BackgroundLayer({
       style={StyleSheet.absoluteFill}
     />
   );
-}
+});
 
 export function Screen({
   children,

@@ -247,10 +247,12 @@ function ChoiceRow({
   choice,
   selected,
   onPress,
+  number,
 }: {
   choice: Choice;
   selected: boolean;
   onPress: () => void;
+  number?: number;
 }) {
   const Icon = choice.icon;
 
@@ -266,7 +268,14 @@ function ChoiceRow({
         selected={selected}
         className="h-11 w-11 items-center justify-center rounded-full"
       >
-        {selected ? (
+        {number !== undefined ? (
+          <Text
+            className="text-lg font-black"
+            style={{ color: selected ? colors.white : colors.raspberry }}
+          >
+            {number}
+          </Text>
+        ) : selected ? (
           <Check size={22} stroke={colors.white} strokeWidth={3} />
         ) : (
           <Icon size={21} stroke={colors.raspberry} strokeWidth={2.4} />
@@ -544,42 +553,41 @@ function ResultStorySlide({
           </FadeInStage>
         ) : null}
 
-        <FadeInStage delay={emoji ? 260 : 100}>
-          <View className="items-center px-5">
-            {leadText ? (
-              <Text
-                className="mb-9 max-w-[320px] text-center text-[16px] font-bold leading-[22px]"
-                style={{ color: colors.mink }}
-              >
-                {leadText}
-              </Text>
-            ) : null}
+        <View className="w-full">
+          <FadeInStage delay={emoji ? 260 : 100}>
+            <View className="w-full items-center px-5">
+              {leadText ? (
+                <Text
+                  className="mb-9 max-w-[320px] text-center text-[16px] font-bold leading-[22px]"
+                  style={{ color: colors.mink }}
+                >
+                  {leadText}
+                </Text>
+              ) : null}
 
-            <Text
-              className={[
-                'max-w-[350px] text-center font-black',
-                leadText
-                  ? 'text-[44px] leading-[50px]'
-                  : 'text-[28px] leading-[33px]',
-              ].join(' ')}
-              style={{ color: leadText ? resultHighlight : colors.cocoa }}
-              numberOfLines={leadText ? 3 : 5}
-              adjustsFontSizeToFit
-              minimumFontScale={0.86}
-            >
-              {headline}
-            </Text>
-
-            {supportingText ? (
               <Text
-                className="mt-4 max-w-[310px] text-center text-[15px] font-bold leading-[21px]"
-                style={{ color: colors.mink }}
+                className={[
+                  'max-w-[350px] text-center font-black',
+                  leadText
+                    ? 'text-[44px] leading-[50px]'
+                    : 'text-[28px] leading-[33px]',
+                ].join(' ')}
+                style={{ color: leadText ? resultHighlight : colors.cocoa }}
               >
-                {supportingText}
+                {headline}
               </Text>
-            ) : null}
-          </View>
-        </FadeInStage>
+
+              {supportingText ? (
+                <Text
+                  className="mt-4 max-w-[310px] text-center text-[15px] font-bold leading-[21px]"
+                  style={{ color: colors.mink }}
+                >
+                  {supportingText}
+                </Text>
+              ) : null}
+            </View>
+          </FadeInStage>
+        </View>
       </View>
 
       <FadeInStage delay={560} fade={false}>
@@ -685,9 +693,6 @@ function ExerciseSlide({
           </Text>
           <Text
             className="text-center text-[26px] font-bold leading-[32px]"
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
-            numberOfLines={1}
             style={{ color: colors.cocoa }}
           >
             <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
@@ -1324,11 +1329,12 @@ export default function Insights() {
               contentContainerStyle={{ gap: 11, paddingBottom: 18 }}
               showsVerticalScrollIndicator={false}
             >
-              {choices.map((choice) => (
+              {choices.map((choice, index) => (
                 <ChoiceRow
                   key={choice.label}
                   choice={choice}
                   selected={selected.includes(choice.label)}
+                  number={choosingTried ? index + 1 : undefined}
                   onPress={() =>
                     choosingApps
                       ? toggle(choice.label, selectedApps, setSelectedApps)

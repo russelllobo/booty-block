@@ -18,6 +18,7 @@ import { ComponentType, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -198,6 +199,8 @@ export default function Quiz() {
   const [step, setStep] = useState(initialStep);
   const [name, setName] = useState(previewStep ? 'Russ' : '');
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const nameScrollRef = useRef<ScrollView>(null);
+  const nameInputFocusedRef = useRef(false);
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -209,6 +212,16 @@ export default function Quiz() {
     stepMetadata.index,
     ONBOARDING_STEP_TOTAL,
   );
+
+  useEffect(() => {
+    const keyboardDidShow = Keyboard.addListener('keyboardDidShow', () => {
+      if (nameInputFocusedRef.current) {
+        nameScrollRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+
+    return () => keyboardDidShow.remove();
+  }, []);
 
   function toggleGoal(label: string) {
     setSelectedGoals((current) => {
@@ -239,7 +252,7 @@ export default function Quiz() {
 
   return (
     <Screen scroll={false}>
-      <QuizHeader step={step} back={back} />
+      {step > 1 ? <QuizHeader step={step} back={back} /> : null}
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         {step === 1 ? (
@@ -249,6 +262,7 @@ export default function Quiz() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
           >
             <ScrollView
+              ref={nameScrollRef}
               className="flex-1"
               contentContainerStyle={{
                 flexGrow: 1,
@@ -262,7 +276,8 @@ export default function Quiz() {
                 <Text
                   style={styles.confidenceHeading}
                 >
-                  ready to rebuild your confidence?
+                  ready to rebuild your{' '}
+                  <Text style={styles.confidenceHighlight}>confidence?</Text>
                 </Text>
 
                 <View className="mt-4">
@@ -277,11 +292,20 @@ export default function Quiz() {
                     accessibilityLabel="Your name"
                     autoCapitalize="words"
                     autoCorrect={false}
-                    placeholder="Enter your name"
+                    placeholder="enter your name"
                     placeholderTextColor="rgba(125, 90, 103, 0.52)"
                     returnKeyType="next"
                     value={name}
                     onChangeText={setName}
+                    onFocus={() => {
+                      nameInputFocusedRef.current = true;
+                      requestAnimationFrame(() => {
+                        nameScrollRef.current?.scrollToEnd({ animated: true });
+                      });
+                    }}
+                    onBlur={() => {
+                      nameInputFocusedRef.current = false;
+                    }}
                     onSubmitEditing={() => name.trim() && continueFromName()}
                     className="h-14 rounded-2xl border-2 border-cocoa bg-white/75 px-4 text-[17px] font-bold text-cocoa"
                     style={styles.nameInput}
@@ -368,6 +392,9 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     lineHeight: 38,
     textAlign: 'center',
+  },
+  confidenceHighlight: {
+    color: colors.raspberry,
   },
   journeyCard: {
     overflow: 'hidden',

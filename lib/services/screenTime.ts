@@ -298,6 +298,17 @@ export const screenTimeService = {
     DeviceActivity.blockSelection({ activitySelectionId: SELECTION_ID }, 'bootyblock-default-block');
   },
 
+  releaseAllBlocks() {
+    if (!isAvailable()) return;
+    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.cleanUpAfterActivity(ALWAYS_BLOCK_ACTIVITY);
+    DeviceActivity.cleanUpAfterActivity(UNLOCK_ACTIVITY);
+    DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
+    DeviceActivity.clearWhitelist();
+    DeviceActivity.resetBlocks('bootyblock-pro-access-inactive');
+    DeviceActivity.refreshManagedSettingsStore();
+  },
+
   saveNativeSelectionConfigured() {
     if (!isAvailable()) return;
     getNormalizedStoredSelection();
