@@ -590,6 +590,8 @@ function CurrentStateSlide({
 
 function ResultStorySlide({
   emoji,
+  heroImage,
+  heroImageAccessibilityLabel,
   headline,
   headlineBold = true,
   leadText,
@@ -598,6 +600,8 @@ function ResultStorySlide({
   syncEntranceWithSlideTransition = false,
 }: {
   emoji?: string;
+  heroImage?: ImageSourcePropType;
+  heroImageAccessibilityLabel?: string;
   headline: ReactNode;
   headlineBold?: boolean;
   leadText?: string;
@@ -605,7 +609,7 @@ function ResultStorySlide({
   onContinue: () => void;
   syncEntranceWithSlideTransition?: boolean;
 }) {
-  const leadTextDelay = 100;
+  const leadTextDelay = heroImage ? 360 : 100;
   const headlineDelay = emoji ? 680 : leadText ? 720 : 100;
   const supportingTextDelay = headlineDelay + 620;
   const buttonDelay = emoji
@@ -634,6 +638,20 @@ function ResultStorySlide({
         ) : null}
 
         <View className="w-full">
+          {heroImage && leadText ? (
+            <FadeInStage delay={80}>
+              <View className="w-full items-center px-5">
+                <Image
+                  source={heroImage}
+                  accessibilityLabel={heroImageAccessibilityLabel}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                  style={{ width: 190, height: 240, marginBottom: 14 }}
+                />
+              </View>
+            </FadeInStage>
+          ) : null}
+
           {leadText ? (
             <FadeInStage delay={leadTextDelay}>
               <View className="w-full items-center px-5">
@@ -650,6 +668,15 @@ function ResultStorySlide({
           {syncEntranceWithSlideTransition ? (
             <SlideSyncedStage>
               <View className="w-full items-center px-5">
+                {heroImage && !leadText ? (
+                  <Image
+                    source={heroImage}
+                    accessibilityLabel={heroImageAccessibilityLabel}
+                    resizeMode="contain"
+                    fadeDuration={0}
+                    style={{ width: 220, height: 300, marginBottom: 16 }}
+                  />
+                ) : null}
                 <Text
                   className={[
                     'max-w-[350px] text-center',
@@ -676,6 +703,15 @@ function ResultStorySlide({
           ) : (
             <FadeInStage delay={headlineDelay}>
             <View className="w-full items-center px-5">
+              {heroImage && !leadText ? (
+                <Image
+                  source={heroImage}
+                  accessibilityLabel={heroImageAccessibilityLabel}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                  style={{ width: 220, height: 300, marginBottom: 16 }}
+                />
+              ) : null}
               <Text
                 className={[
                   'max-w-[350px] text-center',
@@ -1522,11 +1558,13 @@ export default function Insights() {
           />
         ) : step === 7 ? (
           <ResultStorySlide
+            heroImage={require('../../assets/onboarding/body-transformation-transparent.png')}
+            heroImageAccessibilityLabel="Woman showing a full-body transformation"
             headlineBold={false}
             syncEntranceWithSlideTransition
             headline={(
               <>
-                you can transform your entire body in{' '}
+                you can make meaningful changes to your body in{' '}
                 <Text style={{ color: resultHighlight }}>30 days.</Text>
               </>
             )}
@@ -1535,7 +1573,9 @@ export default function Insights() {
           />
         ) : step === 8 ? (
           <ResultStorySlide
-            leadText="...but the good news is, we'll help you give"
+            heroImage={require('../../assets/onboarding/reclaimed-time-woman-clock.png')}
+            heroImageAccessibilityLabel="Woman encircled by a rewind arrow beside a clock"
+            leadText="...the good news is, we'll help you give"
             headline={(
               <>
                 <CountUpNumber target={projectedYearLabel} delay={720} />{' '}

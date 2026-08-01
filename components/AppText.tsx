@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import {
   Platform,
+  StyleSheet,
   Text as RNText,
   TextInput as RNTextInput,
   TextInputProps,
@@ -24,7 +25,14 @@ export function appFontFamilyForWeight(fontWeight?: TextStyle['fontWeight']): st
 }
 
 function roundedStyle(style: TextProps['style']): TextStyle {
-  return { fontFamily: appFontFamilyForWeight() };
+  const fontWeight = StyleSheet.flatten(style)?.fontWeight;
+
+  return {
+    fontFamily: appFontFamilyForWeight(fontWeight),
+    // The local SF Pro Rounded install resolves both 600 and 700 to its Bold
+    // face. Match that preview on iOS so semibold headings do not get thinner.
+    ...(Platform.OS === 'ios' && fontWeight === '600' ? { fontWeight: '700' } : null),
+  };
 }
 
 export type AppTextInputRef = RNTextInput;

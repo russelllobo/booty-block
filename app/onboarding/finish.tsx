@@ -56,7 +56,7 @@ export default function FinishSetup() {
           </View>
 
           <Button
-            label="Finish setup"
+            label="finish setup"
             icon={ArrowRight}
             onPress={() => router.push('/onboarding/screentime')}
           />
