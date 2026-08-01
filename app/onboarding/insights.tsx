@@ -45,6 +45,10 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import Reanimated, {
+  interpolate,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { Text } from '../../components/AppText';
 
 import { BrandLockup } from '../../components/BrandLockup';
@@ -58,6 +62,7 @@ import { Screen } from '../../components/Screen';
 import {
   SlidePanel,
   type SlideDirection,
+  useSlideTransitionLayer,
   useStepDirection,
 } from '../../components/SlidePanel';
 import {
@@ -394,6 +399,24 @@ function FadeInStage({
   );
 }
 
+function SlideSyncedStage({ children }: { children: ReactNode }) {
+  const transitionLayer = useSlideTransitionLayer();
+  const animatedStyle = useAnimatedStyle(() => {
+    if (!transitionLayer || transitionLayer.role === 'outgoing') return {};
+
+    return {
+      opacity: interpolate(transitionLayer.progress.value, [0, 0.72, 1], [0, 1, 1]),
+      transform: [
+        {
+          translateY: interpolate(transitionLayer.progress.value, [0, 0.72, 1], [8, 0, 0]),
+        },
+      ],
+    };
+  }, [transitionLayer]);
+
+  return <Reanimated.View style={animatedStyle}>{children}</Reanimated.View>;
+}
+
 function SwipeInStage({
   children,
   delay,
@@ -572,6 +595,7 @@ function ResultStorySlide({
   leadText,
   supportingText,
   onContinue,
+  syncEntranceWithSlideTransition = false,
 }: {
   emoji?: string;
   headline: ReactNode;
@@ -579,6 +603,7 @@ function ResultStorySlide({
   leadText?: string;
   supportingText?: string;
   onContinue: () => void;
+  syncEntranceWithSlideTransition?: boolean;
 }) {
   const leadTextDelay = 100;
   const headlineDelay = emoji ? 680 : leadText ? 720 : 100;
@@ -622,7 +647,34 @@ function ResultStorySlide({
             </FadeInStage>
           ) : null}
 
-          <FadeInStage delay={headlineDelay}>
+          {syncEntranceWithSlideTransition ? (
+            <SlideSyncedStage>
+              <View className="w-full items-center px-5">
+                <Text
+                  className={[
+                    'max-w-[350px] text-center',
+                    headlineBold ? 'font-black' : 'font-semibold',
+                    leadText
+                      ? 'text-[44px] leading-[50px]'
+                      : 'text-[28px] leading-[33px]',
+                  ].join(' ')}
+                  style={{ color: leadText ? resultHighlight : colors.cocoa }}
+                >
+                  {headline}
+                </Text>
+
+                {supportingText ? (
+                  <Text
+                    className="mt-4 max-w-[310px] text-center text-[15px] font-bold leading-[21px]"
+                    style={{ color: colors.mink }}
+                  >
+                    {supportingText}
+                  </Text>
+                ) : null}
+              </View>
+            </SlideSyncedStage>
+          ) : (
+            <FadeInStage delay={headlineDelay}>
             <View className="w-full items-center px-5">
               <Text
                 className={[
@@ -637,9 +689,10 @@ function ResultStorySlide({
                 {headline}
               </Text>
             </View>
-          </FadeInStage>
+            </FadeInStage>
+          )}
 
-          {supportingText ? (
+          {supportingText && !syncEntranceWithSlideTransition ? (
             <FadeInStage delay={supportingTextDelay}>
               <View className="w-full items-center px-5">
                 <Text
@@ -654,9 +707,18 @@ function ResultStorySlide({
         </View>
       </View>
 
-      <FadeInStage delay={buttonDelay} fade={false}>
-        <Button label="continue" onPress={onContinue} />
-      </FadeInStage>
+      {syncEntranceWithSlideTransition ? (
+        <Button
+          label="continue"
+          onPress={onContinue}
+          pressDelayMs={0}
+          animateGlassReveal={false}
+        />
+      ) : (
+        <FadeInStage delay={buttonDelay} fade={false}>
+          <Button label="continue" onPress={onContinue} />
+        </FadeInStage>
+      )}
     </View>
   );
 }
@@ -755,10 +817,12 @@ function ExerciseSlide({
         <View className="w-full items-center px-8 pt-2">
           <Text
             className="text-center text-[26px] font-bold leading-[32px]"
+            allowFontScaling={false}
             style={{ color: colors.cocoa }}
           >
-            you can save up screen time by{'\n'}
-            <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
+            you can save up screen{'\n'}
+            time by <Text style={{ color: exercisePink }}>squatting</Text>{'\n'}
+            whenever you want.
           </Text>
         </View>
       </SwipeInStage>
@@ -1194,12 +1258,10 @@ function ScrollUnlockSlide({
   return (
     <View className="flex-1">
       <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
-        <View className="w-full items-center px-8 pt-2">
+        <View className="w-full items-center px-2 pt-2">
           <Text
-            adjustsFontSizeToFit
             className="text-center text-[26px] font-bold leading-[32px]"
-            minimumFontScale={0.8}
-            numberOfLines={2}
+            allowFontScaling={false}
             style={{ color: colors.cocoa }}
           >
             you can use your saved-up{'\n'}
@@ -1461,6 +1523,7 @@ export default function Insights() {
         ) : step === 7 ? (
           <ResultStorySlide
             headlineBold={false}
+            syncEntranceWithSlideTransition
             headline={(
               <>
                 you can transform your entire body in{' '}

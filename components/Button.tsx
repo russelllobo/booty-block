@@ -32,6 +32,7 @@ type ButtonProps = {
   animateDisabledFade?: boolean;
   pressDelayMs?: number;
   size?: 'default' | 'large';
+  animateGlassReveal?: boolean;
 };
 
 const DEPTH = 6;
@@ -61,7 +62,7 @@ const GLASS_AVAILABLE = (() => {
   }
 })();
 
-export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, disableGlass = false, forceGlass = false, animateDisabledFade = false, pressDelayMs = RELEASE_DELAY, size = 'default' }: ButtonProps) {
+export function Button({ label, onPress, icon: Icon, iconPosition = 'left', variant = 'primary', disabled, loading, foregroundColor, noOutline, disableGlass = false, forceGlass = false, animateDisabledFade = false, pressDelayMs = RELEASE_DELAY, size = 'default', animateGlassReveal = true }: ButtonProps) {
   const transitionLayer = useSlideTransitionLayer();
   const glassRevealDelayMs = useContext(GlassRevealDelayContext);
   const isPrimary = variant === 'primary';
@@ -96,12 +97,12 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   }, [animateDisabledFade, contentProgress, disabled, label, loading, useGlass]);
 
   useEffect(() => {
-    if (!useGlass || animateDisabledFade) return;
+    if (!useGlass || animateDisabledFade || !animateGlassReveal) return;
 
     setGlassMaterial('clear');
     const frame = requestAnimationFrame(() => setGlassMaterial('regular'));
     return () => cancelAnimationFrame(frame);
-  }, [animateDisabledFade, disabled, label, loading, useGlass]);
+  }, [animateDisabledFade, animateGlassReveal, disabled, label, loading, useGlass]);
 
   useEffect(() => {
     if (!animateDisabledFade || !useGlass) return;
@@ -114,12 +115,12 @@ export function Button({ label, onPress, icon: Icon, iconPosition = 'left', vari
   }, [animateDisabledFade, disabledOpacity, inert, useGlass]);
 
   useEffect(() => {
-    if (!useGlass || glassRevealDelayMs === null) return;
+    if (!useGlass || !animateGlassReveal || glassRevealDelayMs === null) return;
     const timer = setTimeout(() => {
       setGlassGeneration((generation) => generation + 1);
     }, glassRevealDelayMs);
     return () => clearTimeout(timer);
-  }, [glassRevealDelayMs, useGlass]);
+  }, [animateGlassReveal, glassRevealDelayMs, useGlass]);
 
   const primaryStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: press.value * DEPTH }],

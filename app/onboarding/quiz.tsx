@@ -65,6 +65,7 @@ const goals: Goal[] = [
 ];
 
 const FOCUSED_BOTTOM_PADDING = 132;
+const REVEAL_OFFSET = 12;
 const quizStepMetadata = {
   1: ONBOARDING_STEPS.profileName,
   2: HIDDEN_ONBOARDING_STEPS.goals,
@@ -201,6 +202,10 @@ export default function Quiz() {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const nameScrollRef = useRef<ScrollView>(null);
   const nameInputFocusedRef = useRef(false);
+  const reduceMotion = useReducedMotion();
+  const headingReveal = useRef(new Animated.Value(0)).current;
+  const chartReveal = useRef(new Animated.Value(0)).current;
+  const nameReveal = useRef(new Animated.Value(0)).current;
   const direction = useStepDirection(step);
   const stepMetadata = quizStepMetadata[step as keyof typeof quizStepMetadata];
 
@@ -222,6 +227,43 @@ export default function Quiz() {
 
     return () => keyboardDidShow.remove();
   }, []);
+
+  useEffect(() => {
+    if (step !== 1) return;
+
+    const revealValues = [headingReveal, chartReveal, nameReveal];
+    revealValues.forEach((value) => value.setValue(reduceMotion ? 1 : 0));
+
+    if (reduceMotion) return;
+
+    const reveal = Animated.sequence(
+      revealValues.map((value, index) =>
+        Animated.timing(value, {
+          toValue: 1,
+          duration: index === 1 ? 440 : 360,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ),
+    );
+
+    reveal.start();
+    return () => reveal.stop();
+  }, [chartReveal, headingReveal, nameReveal, reduceMotion, step]);
+
+  function revealStyle(value: Animated.Value) {
+    return {
+      opacity: value,
+      transform: [
+        {
+          translateY: value.interpolate({
+            inputRange: [0, 1],
+            outputRange: [REVEAL_OFFSET, 0],
+          }),
+        },
+      ],
+    };
+  }
 
   function toggleGoal(label: string) {
     setSelectedGoals((current) => {
@@ -272,50 +314,54 @@ export default function Quiz() {
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
-              <View className="flex-1" style={{ paddingTop: 72 }}>
-                <Text
-                  style={styles.confidenceHeading}
-                >
-                  ready to rebuild your{' '}
-                  <Text style={styles.confidenceHighlight}>confidence?</Text>
-                </Text>
-
-                <View className="mt-4">
-                  <GluteJourneyPreview name={name} />
-                </View>
-
-                <View className="mt-5">
-                  <Text className="mb-2 text-[14px] font-bold text-mink">
-                    what should we call you?
+              <View className="flex-1" style={{ paddingTop: 40 }}>
+                <Animated.View style={revealStyle(headingReveal)}>
+                  <Text style={styles.confidenceHeading}>
+                    ready to rebuild your{' '}
+                    <Text style={styles.confidenceHighlight}>confidence?</Text>
                   </Text>
-                  <TextInput
-                    accessibilityLabel="Your name"
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    placeholder="enter your name"
-                    placeholderTextColor="rgba(125, 90, 103, 0.52)"
-                    returnKeyType="next"
-                    value={name}
-                    onChangeText={setName}
-                    onFocus={() => {
-                      nameInputFocusedRef.current = true;
-                      requestAnimationFrame(() => {
-                        nameScrollRef.current?.scrollToEnd({ animated: true });
-                      });
-                    }}
-                    onBlur={() => {
-                      nameInputFocusedRef.current = false;
-                    }}
-                    onSubmitEditing={() => name.trim() && continueFromName()}
-                    className="h-14 rounded-2xl border-2 border-cocoa bg-white/75 px-4 text-[17px] font-bold text-cocoa"
-                    style={styles.nameInput}
-                    selectionColor={colors.raspberry}
-                  />
-                </View>
+                </Animated.View>
 
-                <View className="mt-4">
-                  <Button label="continue" disabled={!name.trim()} onPress={continueFromName} />
-                </View>
+                <Animated.View style={revealStyle(chartReveal)}>
+                  <View className="mt-4">
+                    <GluteJourneyPreview name={name} />
+                  </View>
+                </Animated.View>
+
+                <Animated.View style={revealStyle(nameReveal)}>
+                  <View className="mt-5">
+                    <Text className="mb-2 text-[14px] font-bold text-mink">
+                      what should we call you?
+                    </Text>
+                    <TextInput
+                      accessibilityLabel="Your name"
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      placeholder="enter your name"
+                      placeholderTextColor="rgba(125, 90, 103, 0.52)"
+                      returnKeyType="next"
+                      value={name}
+                      onChangeText={setName}
+                      onFocus={() => {
+                        nameInputFocusedRef.current = true;
+                        requestAnimationFrame(() => {
+                          nameScrollRef.current?.scrollToEnd({ animated: true });
+                        });
+                      }}
+                      onBlur={() => {
+                        nameInputFocusedRef.current = false;
+                      }}
+                      onSubmitEditing={() => name.trim() && continueFromName()}
+                      className="h-14 rounded-2xl border-2 border-cocoa bg-white/75 px-4 text-[17px] font-bold text-cocoa"
+                      style={styles.nameInput}
+                      selectionColor={colors.raspberry}
+                    />
+                  </View>
+
+                  <View className="mt-4">
+                    <Button label="continue" disabled={!name.trim()} onPress={continueFromName} />
+                  </View>
+                </Animated.View>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>

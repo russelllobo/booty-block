@@ -5,6 +5,7 @@ import {
 import { usePostHog } from 'posthog-react-native';
 import { ComponentType, ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
@@ -63,11 +64,11 @@ const tips: Tip[] = [
   { icon: Shirt, text: 'tuck in shirts and pants that are too baggy.' },
 ];
 
-function SetupMedia({ type }: { type: NonNullable<SetupSlide['media']> }) {
+function SetupMedia({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
   return (
     <View
       className="overflow-hidden rounded-[34px] border border-cocoa/10 bg-white/75"
-      style={[{ alignSelf: 'center', aspectRatio: 420 / 747, width: '100%' }, shadow]}
+      style={[{ alignSelf: 'center', aspectRatio: 420 / 747, height }, shadow]}
     >
       <Image
         key={type}
@@ -168,9 +169,12 @@ export default function Setup() {
   const introContentProgress = useRef(new Animated.Value(initialStep === 0 ? 0 : 1)).current;
   const posthog = usePostHog();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const direction = useStepDirection(step);
   const slide = slides[step];
   const isLast = step === slides.length - 1;
+  const usableHeight = height - insets.top - insets.bottom;
+  const mediaHeight = Math.min(500, Math.max(300, usableHeight - 300));
   const tipsHeight = Math.min(430, Math.max(270, height * 0.48));
   const isIntroSlide = step === 0;
   const introTitleOffset = Math.max(190, height * 0.34);
@@ -250,6 +254,7 @@ export default function Setup() {
 
   return (
     <Screen
+      scroll={false}
       backgroundColor={onboardingLightBackground}
       backgroundGradient={onboardingLightGradient}
     >
@@ -342,9 +347,9 @@ export default function Setup() {
             <View className={slide.media ? 'items-center pt-5' : 'flex-1 justify-center'}>
               <DemoStage stepKey={step} direction={direction}>
                 {slide.media === 'phone' ? (
-                  <SetupMedia type="phone" />
+                  <SetupMedia type="phone" height={mediaHeight} />
                 ) : slide.media === 'squat' ? (
-                  <SetupMedia type="squat" />
+                  <SetupMedia type="squat" height={mediaHeight} />
                 ) : (
                   <TipsPanel height={tipsHeight} />
                 )}
