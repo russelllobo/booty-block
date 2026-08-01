@@ -5,6 +5,7 @@ import Purchases, {
   CustomerInfoUpdateListener,
   LOG_LEVEL,
   PurchasesOffering,
+  PurchasesOfferings,
 } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
@@ -58,6 +59,27 @@ export type PaywallOfferingDiagnostics = {
   currencyCodes: string[];
 };
 
+export type OneTimeOfferPriceComparison = {
+  discounted: boolean;
+  reason: 'discounted' | 'missing_annual_product' | 'currency_mismatch' | 'not_discounted';
+  normalPrice: number | null;
+  normalPriceString: string | null;
+  normalCurrencyCode: string | null;
+  offerPrice: number | null;
+  offerPriceString: string | null;
+  offerCurrencyCode: string | null;
+};
+
+export class OneTimeOfferNotDiscountedError extends Error {
+  comparison: OneTimeOfferPriceComparison;
+
+  constructor(comparison: OneTimeOfferPriceComparison) {
+    super('The one-time offer is not cheaper than the normal yearly subscription.');
+    this.name = 'OneTimeOfferNotDiscountedError';
+    this.comparison = comparison;
+  }
+}
+
 function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
   return (
     result === PAYWALL_RESULT.NOT_PRESENTED ||
@@ -68,6 +90,42 @@ function shouldRefreshAccessAfterPaywall(result: PAYWALL_RESULT) {
 
 function hasAvailablePackages(offering: PurchasesOffering | null | undefined) {
   return (offering?.availablePackages?.length ?? 0) > 0;
+}
+
+function getAnnualProduct(offering: PurchasesOffering) {
+  return offering.annual?.product
+    ?? offering.availablePackages.find((item) => item.product.subscriptionPeriod === 'P1Y')?.product
+    ?? null;
+}
+
+export function compareOneTimeOfferPrice(
+  normalOffering: PurchasesOffering,
+  offerOffering: PurchasesOffering,
+): OneTimeOfferPriceComparison {
+  const normalProduct = getAnnualProduct(normalOffering);
+  const offerProduct = getAnnualProduct(offerOffering);
+  const comparison = {
+    normalPrice: normalProduct?.price ?? null,
+    normalPriceString: normalProduct?.priceString ?? null,
+    normalCurrencyCode: normalProduct?.currencyCode ?? null,
+    offerPrice: offerProduct?.price ?? null,
+    offerPriceString: offerProduct?.priceString ?? null,
+    offerCurrencyCode: offerProduct?.currencyCode ?? null,
+  };
+
+  if (!normalProduct || !offerProduct) {
+    return { discounted: false, reason: 'missing_annual_product', ...comparison };
+  }
+
+  if (normalProduct.currencyCode !== offerProduct.currencyCode) {
+    return { discounted: false, reason: 'currency_mismatch', ...comparison };
+  }
+
+  if (offerProduct.price >= normalProduct.price) {
+    return { discounted: false, reason: 'not_discounted', ...comparison };
+  }
+
+  return { discounted: true, reason: 'discounted', ...comparison };
 }
 
 export function getPaywallOfferingDiagnostics(
@@ -85,8 +143,11 @@ export function getPaywallOfferingDiagnostics(
   };
 }
 
-async function getOfferingByIdentifier(identifier: string, missingMessage: string) {
-  const offerings = await Purchases.getOfferings();
+function getOfferingByIdentifier(
+  offerings: PurchasesOfferings,
+  identifier: string,
+  missingMessage: string,
+) {
   const offering = offerings.all[identifier];
 
   if (!hasAvailablePackages(offering)) {
@@ -96,8 +157,7 @@ async function getOfferingByIdentifier(identifier: string, missingMessage: strin
   return offering;
 }
 
-async function getNormalPaywallOffering(): Promise<PurchasesOffering> {
-  const offerings = await Purchases.getOfferings();
+function getNormalPaywallOffering(offerings: PurchasesOfferings): PurchasesOffering {
   const preferred = offerings.all[REVENUECAT_NORMAL_OFFERING_ID];
   const current = offerings.current;
 
@@ -125,6 +185,23 @@ async function getNormalPaywallOffering(): Promise<PurchasesOffering> {
   throw new Error(
     `No normal RevenueCat Offering with packages is available. Checked "${REVENUECAT_NORMAL_OFFERING_ID}".`,
   );
+}
+
+async function getValidatedOneTimeOfferPaywallOffering() {
+  const offerings = await Purchases.getOfferings();
+  const normalOffering = getNormalPaywallOffering(offerings);
+  const offerOffering = getOfferingByIdentifier(
+    offerings,
+    REVENUECAT_ONE_TIME_OFFERING_ID,
+    `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
+  );
+  const comparison = compareOneTimeOfferPrice(normalOffering, offerOffering);
+
+  if (!comparison.discounted) {
+    throw new OneTimeOfferNotDiscountedError(comparison);
+  }
+
+  return offerOffering;
 }
 
 export const revenueCatService = {
@@ -201,7 +278,7 @@ export const revenueCatService = {
     onOfferingResolved?: (diagnostics: PaywallOfferingDiagnostics) => void,
   ): Promise<PaywallAccessResult> {
     assertConfigured();
-    const offering = await getNormalPaywallOffering();
+    const offering = getNormalPaywallOffering(await Purchases.getOfferings());
     const offeringDiagnostics = getPaywallOfferingDiagnostics(offering);
     onOfferingResolved?.(offeringDiagnostics);
     const result = await RevenueCatUI.presentPaywall({
@@ -229,10 +306,7 @@ export const revenueCatService = {
 
   async presentOneTimeOfferPaywallWithResult(): Promise<PaywallAccessResult> {
     assertConfigured();
-    const offering = await getOfferingByIdentifier(
-      REVENUECAT_ONE_TIME_OFFERING_ID,
-      `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
-    );
+    const offering = await getValidatedOneTimeOfferPaywallOffering();
     const offeringDiagnostics = getPaywallOfferingDiagnostics(offering);
 
     const result = await RevenueCatUI.presentPaywall({
@@ -260,10 +334,7 @@ export const revenueCatService = {
 
   async getOneTimeOfferPaywallOffering() {
     assertConfigured();
-    return getOfferingByIdentifier(
-      REVENUECAT_ONE_TIME_OFFERING_ID,
-      `The one-time offer "${REVENUECAT_ONE_TIME_OFFERING_ID}" is not available right now. Check the RevenueCat Offering identifier.`,
-    );
+    return getValidatedOneTimeOfferPaywallOffering();
   },
 
   async presentPaywallIfNeeded(options?: { force?: boolean }) {

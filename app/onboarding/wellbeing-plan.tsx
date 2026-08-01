@@ -293,6 +293,15 @@ export default function WellbeingPlan() {
   const squatsThisWeek = Math.round(savedPerDay * 7 * 12);
   const projectionDate = targetDate();
 
+  function back() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/onboarding/notifications');
+  }
+
   useOnboardingStepAnalytics(
     posthog,
     '/onboarding/wellbeing-plan',
@@ -326,7 +335,7 @@ export default function WellbeingPlan() {
       <StatusBar style="dark" animated />
       <OnboardingProgress
         step={ONBOARDING_STEPS.firstWeekWellbeingPlan.index}
-        onBack={() => router.back()}
+        onBack={back}
         showBar={false}
       />
 

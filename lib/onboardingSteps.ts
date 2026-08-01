@@ -1,4 +1,4 @@
-export const ONBOARDING_STEP_TOTAL = 28;
+export const ONBOARDING_STEP_TOTAL = 29;
 
 export const HIDDEN_ONBOARDING_STEPS = {
   welcome: {
@@ -141,38 +141,43 @@ export const ONBOARDING_STEPS = {
   },
   notificationPermission: {
     key: 'notification_permission',
-    title: 'Allow Bootyblock to send you notifications',
+    title: 'allow Booty Block to send you notifications',
     index: 22,
+  },
+  socialProof: {
+    key: 'social_proof',
+    title: 'Booty Block was designed for women like you',
+    index: 23,
   },
   calculatingWellbeingPlan: {
     key: 'calculating_wellbeing_plan',
     title: 'Calculating your first-week plan',
-    index: 23,
+    index: 24,
   },
   firstWeekWellbeingPlan: {
     key: 'first_week_wellbeing_plan',
     title: 'Your first-week wellbeing plan',
-    index: 24,
+    index: 25,
   },
   subscriptionPaywall: {
     key: 'subscription_paywall',
     title: 'Bootyblock Pro paywall',
-    index: 25,
+    index: 26,
   },
   oneTimeOfferPaywall: {
     key: 'one_time_offer_paywall',
     title: 'Bootyblock Pro one-time offer',
-    index: 26,
+    index: 27,
   },
   homeScreen: {
     key: 'home_screen',
     title: 'Home',
-    index: 27,
+    index: 28,
   },
   blockedAppsPicker: {
     key: 'blocked_apps_picker',
     title: 'Blocked apps',
-    index: 28,
+    index: 29,
   },
 } as const;
 

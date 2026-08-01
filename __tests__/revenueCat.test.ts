@@ -30,10 +30,30 @@ jest.mock('react-native-purchases-ui', () => ({
 }));
 
 import {
+  compareOneTimeOfferPrice,
   getPaywallOfferingDiagnostics,
   hasActiveEntitlement,
   REVENUECAT_ENTITLEMENT_ID,
 } from '../lib/services/revenueCat';
+
+function annualOffering(identifier: string, price: number, priceString: string, currencyCode = 'GBP') {
+  const annualPackage = {
+    identifier: '$rc_annual',
+    product: {
+      identifier: `${identifier}_yearly`,
+      price,
+      priceString,
+      currencyCode,
+      subscriptionPeriod: 'P1Y',
+    },
+  };
+
+  return {
+    identifier,
+    annual: annualPackage,
+    availablePackages: [annualPackage],
+  } as never;
+}
 
 function customerInfoWithActiveEntitlement(entitlement: Record<string, unknown>) {
   return {
@@ -91,6 +111,48 @@ describe('getPaywallOfferingDiagnostics', () => {
       productIdentifiers: ['bootyblock_monthly', 'bootyblock_yearly'],
       priceStrings: ['£9.99', '£49.99'],
       currencyCodes: ['GBP'],
+    });
+  });
+});
+
+describe('compareOneTimeOfferPrice', () => {
+  it('allows a genuinely cheaper yearly follow-up offer', () => {
+    const comparison = compareOneTimeOfferPrice(
+      annualOffering('default', 49.99, '£49.99'),
+      annualOffering('one_time_offer', 29.99, '£29.99'),
+    );
+
+    expect(comparison).toMatchObject({
+      discounted: true,
+      reason: 'discounted',
+      normalPrice: 49.99,
+      offerPrice: 29.99,
+    });
+  });
+
+  it('rejects an equal-price follow-up offer', () => {
+    const comparison = compareOneTimeOfferPrice(
+      annualOffering('default', 799, '799 Kč', 'CZK'),
+      annualOffering('one_time_offer', 799, '799 Kč', 'CZK'),
+    );
+
+    expect(comparison).toMatchObject({
+      discounted: false,
+      reason: 'not_discounted',
+      normalPriceString: '799 Kč',
+      offerPriceString: '799 Kč',
+    });
+  });
+
+  it('rejects prices in different storefront currencies', () => {
+    const comparison = compareOneTimeOfferPrice(
+      annualOffering('default', 49.99, '£49.99'),
+      annualOffering('one_time_offer', 29.99, '$29.99', 'USD'),
+    );
+
+    expect(comparison).toMatchObject({
+      discounted: false,
+      reason: 'currency_mismatch',
     });
   });
 });

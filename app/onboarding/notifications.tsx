@@ -28,7 +28,7 @@ type NotificationPermissionContentProps = {
 
 export function NotificationPermissionContent({
   onBack,
-  onComplete = () => router.replace('/onboarding/calculating'),
+  onComplete = () => router.replace('/onboarding/social-proof'),
 }: NotificationPermissionContentProps) {
   const posthog = usePostHog();
   const { routineReminderTime } = useBootyblock();
@@ -122,14 +122,14 @@ export function NotificationPermissionContent({
       <SlidePanel animateOnMount>
         <View className="flex-1 justify-between">
           <View className="pt-8">
-            <Text className="text-center text-sm font-bold leading-5 text-mink">
-              Let's set up Bootyblock!
+            <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
+              allow Booty Block to send you notifications
             </Text>
-            <Text className="mt-1 text-center text-[28px] font-bold leading-[33px] text-cocoa">
-              Allow Bootyblock to send you notifications
-            </Text>
-            <Text className="mt-2 text-center text-base font-semibold leading-6 text-mink">
-              We use this to let you unlock your apps when you want to use them.
+            <Text
+              className="mt-2 self-center text-center text-base font-semibold leading-6 text-mink"
+              style={styles.supportingCopy}
+            >
+              we use this to let you unlock your apps when you want to use them.
             </Text>
           </View>
 
@@ -205,5 +205,8 @@ const styles = StyleSheet.create({
   },
   promptArrow: {
     position: 'absolute',
+  },
+  supportingCopy: {
+    maxWidth: 270,
   },
 });

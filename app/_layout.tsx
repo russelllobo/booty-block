@@ -223,6 +223,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/finish" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/screentime" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/notifications" options={onboardingScreenOptions} />
+              <Stack.Screen name="onboarding/social-proof" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />

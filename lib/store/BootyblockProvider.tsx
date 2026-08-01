@@ -14,6 +14,7 @@ import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../onboardingSteps';
 import {
   getPaywallOfferingDiagnostics,
   hasActiveEntitlement,
+  OneTimeOfferNotDiscountedError,
   revenueCatService,
   type PaywallOfferingDiagnostics,
 } from '../services/revenueCat';
@@ -861,7 +862,25 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       placement: 'one_time_offer',
       analytics_flow: analyticsFlow ?? 'in_app',
     });
-    const offering = await revenueCatService.getOneTimeOfferPaywallOffering();
+    let offering;
+    try {
+      offering = await revenueCatService.getOneTimeOfferPaywallOffering();
+    } catch (error) {
+      if (error instanceof OneTimeOfferNotDiscountedError) {
+        captureAnalytics(posthog, 'revenuecat_one_time_offer_skipped', {
+          analytics_flow: analyticsFlow ?? 'in_app',
+          reason: error.comparison.reason,
+          normal_price: error.comparison.normalPrice,
+          normal_price_string: error.comparison.normalPriceString,
+          normal_currency_code: error.comparison.normalCurrencyCode,
+          offer_price: error.comparison.offerPrice,
+          offer_price_string: error.comparison.offerPriceString,
+          offer_currency_code: error.comparison.offerCurrencyCode,
+        });
+        return false;
+      }
+      throw error;
+    }
     const diagnostics = getPaywallOfferingDiagnostics(offering);
     captureAnalytics(posthog, 'revenuecat_offering_resolved', {
       placement: 'one_time_offer',
