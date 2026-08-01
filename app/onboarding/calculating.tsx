@@ -136,7 +136,7 @@ export default function CalculatingPlan() {
                 <View className="h-[120px] w-[120px] items-center justify-center">
                   <Image
                     source={require('../../assets/logo.png')}
-                    accessibilityLabel="Bootyblock logo"
+                    accessibilityLabel="bootyblock logo"
                     resizeMode="contain"
                     style={{ width: 112, height: 112 }}
                   />

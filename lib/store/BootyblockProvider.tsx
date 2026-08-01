@@ -558,7 +558,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
   const earnPeaches = useCallback(async (peaches: number) => {
     if (!hasSubscriptionAccess(isSubscribed)) {
-      throw new Error('Bootyblock Pro is required to earn Peaches.');
+      throw new Error('bootyblock Pro is required to earn Peaches.');
     }
 
     const safePeaches = Math.min(MAX_SQUAT_SESSION_PEACHES, Math.max(0, Math.floor(peaches)));
@@ -601,7 +601,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     durationSeconds: number;
   }) => {
     if (!hasSubscriptionAccess(isSubscribed)) {
-      throw new Error('Bootyblock Pro is required to earn Peaches.');
+      throw new Error('bootyblock Pro is required to earn Peaches.');
     }
 
     const safePeaches = Math.max(0, Math.floor(peaches));

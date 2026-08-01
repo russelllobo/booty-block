@@ -76,7 +76,7 @@ export function NotificationPermissionContent({
     try {
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
-          name: 'Bootyblock notifications',
+          name: 'bootyblock notifications',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: colors.bubble,
@@ -123,7 +123,7 @@ export function NotificationPermissionContent({
         <View className="flex-1 justify-between">
           <View className="pt-8">
             <Text className="text-center text-[28px] font-bold leading-[33px] text-cocoa">
-              allow Booty Block to send you notifications
+              allow bootyblock to send you notifications
             </Text>
             <Text
               className="mt-2 self-center text-center text-base font-semibold leading-6 text-mink"

@@ -2,7 +2,7 @@ const { withAppDelegate, withInfoPlist, withPodfile, withXcodeProject } = requir
 
 const POD_LINE = "  pod 'TikTokBusinessSDK'";
 const ATT_DESCRIPTION =
-  'Bootyblock uses app activity data to measure TikTok ads and improve subscription campaign performance.';
+  'bootyblock uses app activity data to measure TikTok ads and improve subscription campaign performance.';
 
 function addPod(src) {
   if (src.includes("pod 'TikTokBusinessSDK'")) {

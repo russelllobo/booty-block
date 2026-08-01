@@ -180,7 +180,7 @@ export default function RoutineReminder() {
               what is the best time for you to exercise?
             </Text>
             <Text className="mt-1 text-base font-bold leading-5 text-mink">
-              reminders make it 65% more likely to stick to BootyBlock after a week.
+              reminders make it 65% more likely to stick to bootyblock after a week.
             </Text>
           </View>
 

@@ -493,7 +493,7 @@ export default function Home() {
                 style={({ pressed }) => pressed ? styles.blockedAppsCtaPressed : null}
               >
                 <Text className="text-center text-xs font-black uppercase tracking-[2px] text-white/75">
-                  Bootyblock Pro unlocked
+                  bootyblock Pro unlocked
                 </Text>
                 <View style={styles.paywallArtFrame}>
                   <Image
@@ -507,7 +507,7 @@ export default function Home() {
                   Choose blocked apps
                 </Text>
                 <Text className="mt-3 text-center text-base font-bold leading-6 text-white/80">
-                  Pick the apps you want Bootyblock to protect.
+                  Pick the apps you want bootyblock to protect.
                 </Text>
               </Pressable>
             </View>
@@ -524,7 +524,7 @@ export default function Home() {
       backgroundGradient={showUnlockedState ? UNLOCKED_HOME_GRADIENT : LOCKED_HOME_GRADIENT}
     >
       <Header
-        title="BootyBlock"
+        title="bootyblock"
         logo
         centerLogo
         logoHeight={48}

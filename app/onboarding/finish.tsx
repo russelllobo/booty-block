@@ -21,8 +21,8 @@ export default function FinishSetup() {
   const posthog = usePostHog();
   const firstName = profileName.trim().split(/\s+/)[0];
   const headline = firstName
-    ? `${firstName}, let’s finish setting up Booty Block to help you succeed.`
-    : 'Let’s finish setting up Booty Block to help you succeed.';
+    ? `${firstName}, let’s finish setting up bootyblock to help you succeed.`
+    : 'Let’s finish setting up bootyblock to help you succeed.';
 
   useOnboardingStepAnalytics(
     posthog,

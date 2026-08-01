@@ -137,7 +137,7 @@ export default function Session() {
     return (
       <Screen scroll={false}>
         <View className="flex-1 items-center justify-center">
-          <BrandLockup height={42} label="BootyBlock logo" />
+          <BrandLockup height={42} label="bootyblock logo" />
         </View>
       </Screen>
     );
@@ -157,7 +157,7 @@ export default function Session() {
           </Pressable>
 
           <View className="mb-4 items-center py-2">
-            <BrandLockup height={42} label="BootyBlock logo" />
+            <BrandLockup height={42} label="bootyblock logo" />
           </View>
 
           <View
@@ -226,7 +226,7 @@ export default function Session() {
                   Camera required
                 </Text>
                 <Text className="text-center text-base font-semibold leading-6 text-petal">
-                  Bootyblock needs the camera to count reps on-device.
+                  bootyblock needs the camera to count reps on-device.
                 </Text>
               </View>
             )}

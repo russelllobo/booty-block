@@ -217,9 +217,9 @@ export default function OnboardingStory() {
           <View key={storySteps[1].key} style={styles.pagerPage}>
             <View style={[styles.slide, { paddingTop: contentTopPadding }]}>
               <Text style={styles.headline}>
-                <Text style={styles.highlight}>BootyBlock</Text>
+                <Text style={styles.highlight}>bootyblock</Text>
                 {' helps you turn screen time into '}
-                <Text style={styles.highlight}>Squat Time.</Text>
+                <Text style={styles.highlight}>squat time.</Text>
               </Text>
             </View>
           </View>

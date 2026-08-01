@@ -341,7 +341,7 @@ export default function Setup() {
               ],
             }}
           >
-            <View className={slide.media ? 'flex-1 items-center pt-5' : 'flex-1 justify-center'}>
+            <View className={slide.media ? 'items-center pt-5' : 'flex-1 justify-center'}>
               <DemoStage stepKey={step} direction={direction}>
                 {slide.media === 'phone' ? (
                   <SetupMedia type="phone" height={mediaHeight} />
@@ -353,7 +353,7 @@ export default function Setup() {
               </DemoStage>
             </View>
 
-            <Text className="mb-4 px-4 text-center text-base font-semibold leading-6 text-mink">
+            <Text className="mb-4 mt-5 px-4 text-center text-base font-semibold leading-6 text-mink">
               {slide.body}
             </Text>
           </Animated.View>

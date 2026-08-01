@@ -125,7 +125,7 @@ export default function Apps() {
       <Screen>
         <SlidePanel animateOnMount>
           <View className="flex-1 justify-center gap-6">
-            <Header title="Bootyblock Pro" subtitle="Subscribe before choosing the apps Bootyblock should protect." />
+            <Header title="bootyblock Pro" subtitle="Subscribe before choosing the apps bootyblock should protect." />
 
             <View className="items-center gap-5 rounded-[28px] bg-white/75 p-7">
               <View className="h-20 w-20 items-center justify-center rounded-full bg-petal">
@@ -140,7 +140,7 @@ export default function Apps() {
               </Text>
               <Text className="text-center text-base font-semibold leading-6 text-mink">
                 {subscriptionConfigured
-                  ? 'The app picker opens right after Bootyblock Pro is active.'
+                  ? 'The app picker opens right after bootyblock Pro is active.'
                   : subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.'}
               </Text>
             </View>
@@ -171,7 +171,7 @@ export default function Apps() {
               <DeviceActivitySelectionViewPersisted
                 familyActivitySelectionId={SELECTION_ID}
                 includeEntireCategory
-                headerText="Choose apps for Bootyblock"
+                headerText="Choose apps for bootyblock"
                 footerText="You can change this later in Settings."
                 onSelectionChange={(event) => {
                   const metadata = event.nativeEvent;

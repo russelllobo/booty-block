@@ -50,7 +50,7 @@ function LaunchLogo() {
         source={splashLogo}
         resizeMode="contain"
         fadeDuration={0}
-        accessibilityLabel="BootyBlock logo"
+        accessibilityLabel="bootyblock logo"
         style={{ width: 160, height: 160 }}
       />
     </View>

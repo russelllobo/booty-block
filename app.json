@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BootyBlock",
+    "name": "bootyblock",
     "slug": "bootyblock",
     "scheme": [
       "bootyblock",
@@ -15,7 +15,7 @@
       "bundleIdentifier": "com.bootyblock.app",
       "appleTeamId": "SZ78KGUF6B",
       "infoPlist": {
-        "NSCameraUsageDescription": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
+        "NSCameraUsageDescription": "bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
@@ -67,7 +67,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
+          "cameraPermission": "bootyblock uses your camera on-device to count squats. Video is not recorded or uploaded.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
@@ -104,7 +104,7 @@
             },
             {
               "id": "discount-offer",
-              "title": "🎁 Get Bootyblock for a fraction of the price",
+              "title": "🎁 Get bootyblock for a fraction of the price",
               "subtitle": "80% off with this limited time offer",
               "icon": "symbol:gift",
               "params": {

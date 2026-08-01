@@ -77,11 +77,11 @@ export default function OnboardingWelcome() {
           <View className="flex-row items-center justify-center gap-2 pb-5 pt-1">
             <Pressable
               accessibilityRole={__DEV__ ? 'button' : undefined}
-              accessibilityLabel="BootyBlock logo"
+              accessibilityLabel="bootyblock logo"
               onPress={handleLogoPress}
               hitSlop={16}
             >
-              <BrandLockup height={42} label="BootyBlock logo" />
+              <BrandLockup height={42} label="bootyblock logo" />
             </Pressable>
           </View>
 

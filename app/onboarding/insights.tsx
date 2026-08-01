@@ -487,7 +487,7 @@ function CurrentStateSlide({
               </Text>
               <BrandLockup
                 height={38}
-                label="BootyBlock logo"
+                label="bootyblock logo"
                 textColor={colors.cocoa}
                 textTranslateY={0}
               />
@@ -536,6 +536,17 @@ function ResultStorySlide({
   supportingText?: string;
   onContinue: () => void;
 }) {
+  const leadTextDelay = 100;
+  const headlineDelay = emoji ? 680 : leadText ? 720 : 100;
+  const supportingTextDelay = headlineDelay + 620;
+  const buttonDelay = emoji
+    ? 1240
+    : supportingText
+      ? supportingTextDelay + 560
+      : leadText
+        ? headlineDelay + 560
+        : 560;
+
   return (
     <View
       className="flex-1 justify-between pt-1"
@@ -554,17 +565,21 @@ function ResultStorySlide({
         ) : null}
 
         <View className="w-full">
-          <FadeInStage delay={emoji ? 260 : 100}>
-            <View className="w-full items-center px-5">
-              {leadText ? (
+          {leadText ? (
+            <FadeInStage delay={leadTextDelay}>
+              <View className="w-full items-center px-5">
                 <Text
                   className="mb-9 max-w-[320px] text-center text-[16px] font-bold leading-[22px]"
                   style={{ color: colors.mink }}
                 >
                   {leadText}
                 </Text>
-              ) : null}
+              </View>
+            </FadeInStage>
+          ) : null}
 
+          <FadeInStage delay={headlineDelay}>
+            <View className="w-full items-center px-5">
               <Text
                 className={[
                   'max-w-[350px] text-center font-black',
@@ -576,21 +591,25 @@ function ResultStorySlide({
               >
                 {headline}
               </Text>
+            </View>
+          </FadeInStage>
 
-              {supportingText ? (
+          {supportingText ? (
+            <FadeInStage delay={supportingTextDelay}>
+              <View className="w-full items-center px-5">
                 <Text
                   className="mt-4 max-w-[310px] text-center text-[15px] font-bold leading-[21px]"
                   style={{ color: colors.mink }}
                 >
                   {supportingText}
                 </Text>
-              ) : null}
-            </View>
-          </FadeInStage>
+              </View>
+            </FadeInStage>
+          ) : null}
         </View>
       </View>
 
-      <FadeInStage delay={560} fade={false}>
+      <FadeInStage delay={buttonDelay} fade={false}>
         <Button label="continue" onPress={onContinue} />
       </FadeInStage>
     </View>
@@ -666,7 +685,7 @@ function MethodFeedbackSlide({
 
       <FadeInStage delay={currentStateStageDelay.button} fade={false}>
         <View className="pt-3">
-          <Button label="see how booty block works" onPress={onContinue} />
+          <Button label="see how bootyblock works" onPress={onContinue} />
         </View>
       </FadeInStage>
     </View>
@@ -692,7 +711,7 @@ function ExerciseSlide({
             you can save up screen time by
           </Text>
           <Text
-            className="text-center text-[26px] font-bold leading-[32px]"
+            className="text-center text-[18px] font-bold leading-6"
             style={{ color: colors.cocoa }}
           >
             <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
@@ -1311,7 +1330,12 @@ export default function Insights() {
                     : "Let's zoom in."}
               </Text>
             ) : null}
-            <Text className="mt-1 text-[28px] font-bold leading-[33px] text-cocoa">
+            <Text
+              className={[
+                choosingTried ? 'mt-7' : 'mt-1',
+                'text-[28px] font-bold leading-[33px] text-cocoa',
+              ].join(' ')}
+            >
               {choosingApps
                 ? 'Which apps take most of your time?'
                 : choosingReasons

@@ -242,7 +242,7 @@ export default function Usage() {
           </View>
         ) : (
           <View className="flex-1">
-            <View style={{ marginTop: 75 }}>
+            <View>
               <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
                 how long are you on your phone each day?
               </Text>

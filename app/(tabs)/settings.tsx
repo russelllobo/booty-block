@@ -118,8 +118,8 @@ export default function Settings() {
 
   const reset = () => {
     Alert.alert(
-      'Reset Bootyblock?',
-      'This clears your setup and immediately removes Bootyblock’s app restrictions on this iPhone.',
+      'Reset bootyblock?',
+      'This clears your setup and immediately removes bootyblock’s app restrictions on this iPhone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -185,8 +185,8 @@ export default function Settings() {
       Alert.alert(
         restored ? 'Subscription restored' : 'No active subscription found',
         restored
-          ? 'Bootyblock Pro is active on this device.'
-          : subscriptionError ?? 'No active Bootyblock Pro purchase was found for this App Store account.',
+          ? 'bootyblock Pro is active on this device.'
+          : subscriptionError ?? 'No active bootyblock Pro purchase was found for this App Store account.',
       );
     } finally {
       setSubscriptionBusy(false);
@@ -212,7 +212,7 @@ export default function Settings() {
 
         <SettingsGroup title="Subscription">
           <SettingsRow
-            title={isSubscribed ? 'Bootyblock Pro' : subscriptionConfigured ? 'Not Subscribed' : 'Setup Needed'}
+            title={isSubscribed ? 'bootyblock Pro' : subscriptionConfigured ? 'Not Subscribed' : 'Setup Needed'}
             subtitle={
               subscriptionConfigured
                 ? isSubscribed

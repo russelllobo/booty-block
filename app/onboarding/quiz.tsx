@@ -272,7 +272,7 @@ export default function Quiz() {
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
-              <View className="flex-1">
+              <View className="flex-1 pt-4">
                 <Text
                   style={styles.confidenceHeading}
                 >
@@ -328,7 +328,7 @@ export default function Quiz() {
               adjustsFontSizeToFit
               minimumFontScale={0.88}
             >
-              What goals do you want to{'\n'}achieve using BootyBlock?
+              What goals do you want to{'\n'}achieve using bootyblock?
             </Text>
             <Text className="mt-2 text-base font-bold text-mink">Choose up to 3</Text>
 

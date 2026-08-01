@@ -145,10 +145,10 @@ export default function ScreenTime() {
             <View className="flex-1">
               <View>
                 <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
-                  Connect Bootyblock to Screen Time, Securely.
+                  Connect bootyblock to Screen Time, Securely.
                 </Text>
                 <Text className="mt-2 text-base font-semibold leading-6 text-mink">
-                  To analyze your Screen Time on this iPhone, Bootyblock will need your permission.
+                  To analyze your Screen Time on this iPhone, bootyblock will need your permission.
                 </Text>
               </View>
 

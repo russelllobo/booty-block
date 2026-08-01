@@ -339,7 +339,7 @@ private final class BootyPoseSession: NSObject, AVCaptureVideoDataOutputSampleBu
 
     guard let baselineHipY, let baselineHipKneeSpan else {
       phase = "calibrating"
-      emit(hint: "Stand tall so Bootyblock can learn your starting position.", confidence: confidence, visible: true)
+      emit(hint: "Stand tall so bootyblock can learn your starting position.", confidence: confidence, visible: true)
       return
     }
 

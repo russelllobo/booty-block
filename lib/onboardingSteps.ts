@@ -8,7 +8,7 @@ export const HIDDEN_ONBOARDING_STEPS = {
   },
   goals: {
     key: 'goals',
-    title: 'What goals do you want to achieve using BootyBlock?',
+    title: 'What goals do you want to achieve using bootyblock?',
     index: 0,
   },
   timeSinkApps: {
@@ -41,7 +41,7 @@ export const ONBOARDING_STEPS = {
   },
   squatTimeSolution: {
     key: 'squat_time_solution',
-    title: 'BootyBlock helps you turn screen time into Squat Time.',
+    title: 'bootyblock helps you turn screen time into Squat Time.',
     index: 2,
   },
   unlockAppsExplainer: {
@@ -131,22 +131,22 @@ export const ONBOARDING_STEPS = {
   },
   finishSetupIntro: {
     key: 'finish_setup_intro',
-    title: 'Finish setting up Booty Block',
+    title: 'Finish setting up bootyblock',
     index: 20,
   },
   screenTimePermission: {
     key: 'screen_time_permission',
-    title: 'Connect Bootyblock to Screen Time, Securely.',
+    title: 'Connect bootyblock to Screen Time, Securely.',
     index: 21,
   },
   notificationPermission: {
     key: 'notification_permission',
-    title: 'allow Booty Block to send you notifications',
+    title: 'allow bootyblock to send you notifications',
     index: 22,
   },
   socialProof: {
     key: 'social_proof',
-    title: 'Booty Block was designed for women like you',
+    title: 'bootyblock was designed for women like you',
     index: 23,
   },
   calculatingWellbeingPlan: {
@@ -161,12 +161,12 @@ export const ONBOARDING_STEPS = {
   },
   subscriptionPaywall: {
     key: 'subscription_paywall',
-    title: 'Bootyblock Pro paywall',
+    title: 'bootyblock Pro paywall',
     index: 26,
   },
   oneTimeOfferPaywall: {
     key: 'one_time_offer_paywall',
-    title: 'Bootyblock Pro one-time offer',
+    title: 'bootyblock Pro one-time offer',
     index: 27,
   },
   homeScreen: {

@@ -32,7 +32,7 @@ const onboardingScreenOptions = {
   gestureEnabled: false,
 } as const;
 
-const FEEDBACK_DELETE_URL = 'mailto:r.lobo2003@gmail.com?subject=Deleting%20Bootyblock%3F%20Tell%20us%20why';
+const FEEDBACK_DELETE_URL = 'mailto:r.lobo2003@gmail.com?subject=Deleting%20bootyblock%3F%20Tell%20us%20why';
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({

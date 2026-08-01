@@ -33,7 +33,7 @@ export async function syncRoutineReminderNotification(time: RoutineReminderTime 
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ROUTINE_REMINDER_CHANNEL, {
-      name: 'Bootyblock notifications',
+      name: 'bootyblock notifications',
       importance: Notifications.AndroidImportance.MAX,
     });
   }

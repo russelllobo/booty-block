@@ -190,8 +190,8 @@ function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfig
   const configuration: ShieldConfigurationWithVariants = {
     title: 'Blocked for your booty',
     titleVariants: SHIELD_TITLE_VARIANTS,
-    subtitle: 'Open BootyBlock, knock out your squats, and earn this app back.',
-    primaryButtonLabel: 'Open BootyBlock',
+    subtitle: 'Open bootyblock, knock out your squats, and earn this app back.',
+    primaryButtonLabel: 'Open bootyblock',
     iconSystemName: useLogo ? undefined : 'figure.strengthtraining.traditional',
     iconAppGroupRelativePath: useLogo ? SHIELD_LOGO_FILE_NAME : undefined,
     iconTint: useLogo ? undefined : shieldPalette.raspberry,

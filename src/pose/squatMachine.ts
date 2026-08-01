@@ -60,7 +60,7 @@ export function createSquatMachine(target: number): MachineInternals {
     phase: 'calibrating',
     confidence: 0,
     visible: false,
-    hint: 'Stand tall so Bootyblock can learn your starting position.',
+    hint: 'Stand tall so bootyblock can learn your starting position.',
     baseline: null,
     calibrationSamples: [],
     sawBottomAt: null,

@@ -129,11 +129,11 @@ export default function SocialProof() {
         <View style={styles.screenContent}>
           <View>
             <Text style={[styles.headline, compact && styles.headlineCompact]}>
-              Booty Block was designed{`\n`}for{' '}
+              bootyblock was designed{`\n`}for{' '}
               <Text style={styles.headlineAccent}>women like you.</Text>
             </Text>
             <Text style={[styles.supportingText, compact && styles.supportingTextCompact]}>
-              reviews from people using Booty Block.
+              reviews from people using bootyblock.
             </Text>
           </View>
 
@@ -175,7 +175,7 @@ export default function SocialProof() {
           </View>
 
           <Button
-            label="Join Booty Block 🙏"
+            label="Join bootyblock 🙏"
             onPress={() => router.replace('/onboarding/calculating')}
           />
         </View>

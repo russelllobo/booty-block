@@ -55,7 +55,7 @@ export function BrandLockup({
           transform: [{ translateY: textTranslateY ?? defaultTextTranslateY }],
         }}
       >
-        BootyBlock
+        bootyblock
       </Text>
     </View>
   );

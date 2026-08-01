@@ -480,7 +480,7 @@ export function StatisticsContent({
           </Pressable>
           <BrandLockup
             height={31}
-            label="BootyBlock"
+            label="bootyblock"
             textColor={TEXT}
             textTranslateY={4}
           />

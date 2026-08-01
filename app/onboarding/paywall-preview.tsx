@@ -31,7 +31,7 @@ export default function PaywallPreview() {
             <Heart size={17} stroke={colors.raspberry} fill={colors.raspberry} strokeWidth={2.5} />
           )}
           <Text style={styles.eyebrowText}>
-            {discounted ? 'ONE-TIME OFFER' : 'BOOTYBLOCK PRO'}
+            {discounted ? 'ONE-TIME OFFER' : 'bootyblock PRO'}
           </Text>
         </View>
 

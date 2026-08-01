@@ -166,14 +166,12 @@ export default function WellbeingPlan() {
                   <Text className="font-black text-cocoa">
                     it’s about turning your screen time into glute time.{' '}
                   </Text>
-                  <Text className="font-black text-cocoa">
-                    glutes grow through consistent resistance.{' '}
-                  </Text>
-                  BootyBlock builds those reps into something you already do every day. before a
-                  blocked app opens, you squat. those small sets add up, helping you build stronger,
-                  fuller glutes every time you reach for the scroll.
+                  glutes grow through consistent resistance. bootyblock builds those reps into
+                  something you already do every day. before a blocked app opens, you squat. those
+                  small sets add up, helping you build stronger, fuller glutes every time you reach
+                  for the scroll.
                 </Text>
-                <Text className="mt-5 self-stretch text-left text-[17px] font-black leading-6 text-cocoa">
+                <Text className="mt-5 self-stretch text-left text-[17px] font-semibold leading-6 text-mink">
                   here's what your first seven days looks like:
                 </Text>
               </View>
@@ -247,7 +245,7 @@ export default function WellbeingPlan() {
 
           <View className="border-t border-cocoa/10 bg-white/45 pt-3">
             <Button
-              label="join booty block"
+              label="join bootyblock"
               loading={starting}
               disabled={starting}
               onPress={() => void startBuilding()}
