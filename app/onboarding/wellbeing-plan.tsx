@@ -167,9 +167,8 @@ export default function WellbeingPlan() {
                     it’s about turning your screen time into glute time.{' '}
                   </Text>
                   glutes grow through consistent resistance. bootyblock builds those reps into
-                  something you already do every day. before a blocked app opens, you squat. those
-                  small sets add up, helping you build stronger, fuller glutes every time you reach
-                  for the scroll.
+                  something you already do every day. those small sets add up, helping you build
+                  stronger, fuller glutes before you know it.
                 </Text>
                 <Text className="mt-5 self-stretch text-left text-[17px] font-semibold leading-6 text-mink">
                   here's what your first seven days looks like:

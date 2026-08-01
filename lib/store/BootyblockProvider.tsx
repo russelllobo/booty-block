@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePostHog } from 'posthog-react-native';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Modal, Platform, Pressable, StyleSheet } from 'react-native';
+import { Alert, AppState, Modal, Platform, StyleSheet } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
 
 import {
@@ -1207,35 +1207,27 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         visible={Boolean(oneTimeOfferModal)}
       >
         {oneTimeOfferModal ? (
-          <>
-            <RevenueCatUI.Paywall
-              onDismiss={() => resolveOneTimeOfferModal(false)}
-              onPurchaseCompleted={({ customerInfo }) => {
-                const active = hasActiveEntitlement(customerInfo);
-                if (active) {
-                  tiktokService.trackSubscribe({ placement: 'one_time_offer_modal' });
-                  tiktokService.trackPurchase({
-                    content_id: 'bootyblock_one_time_offer_yearly',
-                    content_name: 'Bootyblock Pro One-Time Offer',
-                    description: 'Discounted yearly app blocking access',
-                    event_id: 'bootyblock_one_time_offer_yearly_modal',
-                    placement: 'one_time_offer_modal',
-                    value: 29.99,
-                  });
-                }
-                resolveOneTimeOfferModal(active);
-              }}
-              onRestoreCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
-              options={{ offering: oneTimeOfferModal.offering, displayCloseButton: false }}
-              style={styles.oneTimeOfferPaywall}
-            />
-            <Pressable
-              accessibilityLabel="I'd rather pay full price"
-              accessibilityRole="button"
-              onPress={() => resolveOneTimeOfferModal(false)}
-              style={styles.fullPricePaywallTapTarget}
-            />
-          </>
+          <RevenueCatUI.Paywall
+            onDismiss={() => resolveOneTimeOfferModal(false)}
+            onPurchaseCompleted={({ customerInfo }) => {
+              const active = hasActiveEntitlement(customerInfo);
+              if (active) {
+                tiktokService.trackSubscribe({ placement: 'one_time_offer_modal' });
+                tiktokService.trackPurchase({
+                  content_id: 'bootyblock_one_time_offer_yearly',
+                  content_name: 'Bootyblock Pro One-Time Offer',
+                  description: 'Discounted yearly app blocking access',
+                  event_id: 'bootyblock_one_time_offer_yearly_modal',
+                  placement: 'one_time_offer_modal',
+                  value: 29.99,
+                });
+              }
+              resolveOneTimeOfferModal(active);
+            }}
+            onRestoreCompleted={({ customerInfo }) => resolveOneTimeOfferModal(hasActiveEntitlement(customerInfo))}
+            options={{ offering: oneTimeOfferModal.offering, displayCloseButton: false }}
+            style={styles.oneTimeOfferPaywall}
+          />
         ) : null}
       </Modal>
     </BootyblockContext.Provider>
@@ -1253,13 +1245,5 @@ export function useBootyblock() {
 const styles = StyleSheet.create({
   oneTimeOfferPaywall: {
     flex: 1,
-  },
-  fullPricePaywallTapTarget: {
-    bottom: 54,
-    height: 78,
-    left: 32,
-    position: 'absolute',
-    right: 32,
-    zIndex: 10,
   },
 });
