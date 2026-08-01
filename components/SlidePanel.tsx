@@ -15,6 +15,7 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
@@ -116,13 +117,15 @@ export function SlidePanel({
     const generation = transitionGeneration.current + 1;
     transitionGeneration.current = generation;
     transitionDirection.value = direction === 'back' ? -1 : 1;
-    progress.value = 0;
-    progress.value = withTiming(
-      1,
-      { duration: TRANSITION_DURATION, easing: TRANSITION_EASING },
-      (finished) => {
-        if (finished) runOnJS(finishTransition)(generation);
-      },
+    progress.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withTiming(
+        1,
+        { duration: TRANSITION_DURATION, easing: TRANSITION_EASING },
+        (finished) => {
+          if (finished) runOnJS(finishTransition)(generation);
+        },
+      ),
     );
   }, [
     animateOnMount,
