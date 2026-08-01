@@ -1,19 +1,14 @@
 import { router } from 'expo-router';
-import { CalendarDays, Dumbbell, Footprints, Flame, LucideIcon } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import {
-  AnimatedOnboardingOption,
-  AnimatedOnboardingOptionIcon,
-} from '../../components/AnimatedOnboardingOption';
+import { AnimatedOnboardingOption } from '../../components/AnimatedOnboardingOption';
 import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
-import { colors } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -21,14 +16,13 @@ import { useBootyblock } from '../../lib/store/BootyblockProvider';
 type ActivityOption = {
   label: string;
   value: string;
-  icon: LucideIcon;
 };
 
 const options: ActivityOption[] = [
-  { label: 'Never', value: 'never', icon: Footprints },
-  { label: '1-3 times per week', value: 'weekly-light', icon: CalendarDays },
-  { label: '3-5 times per week', value: 'weekly-active', icon: Dumbbell },
-  { label: 'Every day', value: 'daily', icon: Flame },
+  { label: 'never', value: 'never' },
+  { label: '1-3 times per week', value: 'weekly-light' },
+  { label: '3-5 times per week', value: 'weekly-active' },
+  { label: 'every day', value: 'daily' },
 ];
 
 export default function Activity() {
@@ -65,17 +59,14 @@ export default function Activity() {
       <SlidePanel animateOnMount>
         <View className="flex-1">
           <View>
-            <Text className="text-[15px] font-bold leading-[19px] text-mink">
-              Speaking of movement
+            <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
+              how often do you currently exercise?
             </Text>
-            <Text className="mt-1.5 text-[28px] font-bold leading-[33px] text-cocoa">
-              How often do you currently exercise?
-            </Text>
-            <Text className="mt-2 text-sm font-bold text-mink">Choose one</Text>
+            <Text className="mt-2 text-sm font-bold text-mink">choose one</Text>
           </View>
 
           <View className="mt-5 flex-1 gap-3">
-            {options.map(({ label, value, icon: Icon }) => {
+            {options.map(({ label, value }) => {
               const active = currentSelection === value;
 
               return (
@@ -85,14 +76,8 @@ export default function Activity() {
                   accessibilityState={{ selected: active }}
                   selected={active}
                   onPress={() => setSelected(value)}
-                  className="min-h-[68px] flex-row items-center gap-4 rounded-full border-2 px-4 py-3"
+                  className="min-h-[68px] flex-row items-center rounded-full border-2 px-5 py-3"
                 >
-                  <AnimatedOnboardingOptionIcon
-                    selected={active}
-                    className="h-11 w-11 items-center justify-center rounded-full"
-                  >
-                    <Icon size={23} stroke={active ? colors.white : colors.raspberry} strokeWidth={2.4} />
-                  </AnimatedOnboardingOptionIcon>
                   <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>
                 </AnimatedOnboardingOption>
               );

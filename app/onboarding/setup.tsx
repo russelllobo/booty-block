@@ -63,11 +63,11 @@ const tips: Tip[] = [
   { icon: Shirt, text: 'tuck in shirts and pants that are too baggy.' },
 ];
 
-function SetupMedia({ type, height }: { type: NonNullable<SetupSlide['media']>; height: number }) {
+function SetupMedia({ type }: { type: NonNullable<SetupSlide['media']> }) {
   return (
     <View
       className="overflow-hidden rounded-[34px] border border-cocoa/10 bg-white/75"
-      style={[{ alignSelf: 'center', aspectRatio: 420 / 747, height }, shadow]}
+      style={[{ alignSelf: 'center', aspectRatio: 420 / 747, width: '100%' }, shadow]}
     >
       <Image
         key={type}
@@ -147,7 +147,7 @@ function DemoStage({
 
   return (
     <Animated.View
-      style={{ opacity, transform: [{ translateY }, { scale }] }}
+      style={{ opacity, width: '100%', transform: [{ translateY }, { scale }] }}
     >
       {children}
     </Animated.View>
@@ -171,7 +171,6 @@ export default function Setup() {
   const direction = useStepDirection(step);
   const slide = slides[step];
   const isLast = step === slides.length - 1;
-  const mediaHeight = Math.min(470, Math.max(300, height * 0.56));
   const tipsHeight = Math.min(430, Math.max(270, height * 0.48));
   const isIntroSlide = step === 0;
   const introTitleOffset = Math.max(190, height * 0.34);
@@ -251,7 +250,6 @@ export default function Setup() {
 
   return (
     <Screen
-      scroll={false}
       backgroundColor={onboardingLightBackground}
       backgroundGradient={onboardingLightGradient}
     >
@@ -344,9 +342,9 @@ export default function Setup() {
             <View className={slide.media ? 'items-center pt-5' : 'flex-1 justify-center'}>
               <DemoStage stepKey={step} direction={direction}>
                 {slide.media === 'phone' ? (
-                  <SetupMedia type="phone" height={mediaHeight} />
+                  <SetupMedia type="phone" />
                 ) : slide.media === 'squat' ? (
-                  <SetupMedia type="squat" height={mediaHeight} />
+                  <SetupMedia type="squat" />
                 ) : (
                   <TipsPanel height={tipsHeight} />
                 )}

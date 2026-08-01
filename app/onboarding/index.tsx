@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   headline: {
     color: colors.cocoa,
     fontSize: 30,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: -0.9,
     lineHeight: 35,
   },

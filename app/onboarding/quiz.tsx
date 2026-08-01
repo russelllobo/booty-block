@@ -272,7 +272,7 @@ export default function Quiz() {
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
-              <View className="flex-1 pt-4">
+              <View className="flex-1" style={{ paddingTop: 72 }}>
                 <Text
                   style={styles.confidenceHeading}
                 >
@@ -323,7 +323,7 @@ export default function Quiz() {
           <View className="flex-1">
             <Text className="text-lg font-bold text-mink">So, tell us, {name.trim()},</Text>
             <Text
-              className="mt-2 text-[28px] font-bold leading-[33px] text-cocoa"
+              className="mt-2 text-[28px] font-semibold leading-[33px] text-cocoa"
               numberOfLines={2}
               adjustsFontSizeToFit
               minimumFontScale={0.88}
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     width: '100%',
     color: colors.cocoa,
     fontSize: 35,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -1,
     lineHeight: 38,
     textAlign: 'center',

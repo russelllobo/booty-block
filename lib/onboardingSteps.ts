@@ -126,7 +126,7 @@ export const ONBOARDING_STEPS = {
   },
   exerciseFrequency: {
     key: 'exercise_frequency',
-    title: 'How often do you currently exercise?',
+    title: 'how often do you currently exercise?',
     index: 19,
   },
   finishSetupIntro: {

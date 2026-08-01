@@ -200,17 +200,19 @@ export default function Usage() {
   return (
     <Screen scroll={false}>
       {!isAge ? (
-        <UsageHeader
-          progressStep={previewStep ? step + 4 : stepMetadata.index}
-          back={back}
-        />
+        <View style={styles.usageHeaderOverlay}>
+          <UsageHeader
+            progressStep={previewStep ? step + 4 : stepMetadata.index}
+            back={back}
+          />
+        </View>
       ) : null}
 
       <SlidePanel stepKey={step} direction={direction} animateOnMount>
         {isAge ? (
           <View className="flex-1">
             <View className="flex-1 justify-center" style={{ transform: [{ translateY: -32 }] }}>
-              <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
+              <Text className="text-[28px] font-semibold leading-[33px] text-cocoa">
                 how old are you?
               </Text>
 
@@ -242,34 +244,36 @@ export default function Usage() {
           </View>
         ) : (
           <View className="flex-1">
-            <View>
-              <Text className="text-[28px] font-bold leading-[33px] text-cocoa">
-                how long are you on your phone each day?
-              </Text>
-              <Text className="mt-1.5 text-[14px] font-medium leading-[18px] text-mink">
-                be honest
-              </Text>
-            </View>
-
             <View
-              className="flex-1 justify-center py-4"
-              style={{ transform: [{ translateY: -24 }] }}
+              className="flex-1 justify-center"
+              style={{ transform: [{ translateY: -32 }] }}
             >
-              <TimeSlider
-                value={currentHours}
-                minimumValue={CURRENT_MIN_HOURS}
-                maximumValue={CURRENT_MAX_HOURS}
-                onChange={setCurrentHours}
-                step={CURRENT_SLIDER_STEP}
-              />
+              <View style={styles.phoneQuestionGroup}>
+                <View>
+                  <Text className="text-[28px] font-semibold leading-[33px] text-cocoa">
+                    how long are you on your phone each day?
+                  </Text>
+                  <Text className="mt-1.5 text-[14px] font-medium leading-[18px] text-mink">
+                    be honest
+                  </Text>
+                </View>
+
+                <View className="flex-1 justify-center">
+                  <TimeSlider
+                    value={currentHours}
+                    minimumValue={CURRENT_MIN_HOURS}
+                    maximumValue={CURRENT_MAX_HOURS}
+                    onChange={setCurrentHours}
+                    step={CURRENT_SLIDER_STEP}
+                  />
+                </View>
+              </View>
             </View>
 
-            <View className="pt-2.5">
-              <Button
-                label="continue"
-                onPress={continueFlow}
-              />
-            </View>
+            <Button
+              label="continue"
+              onPress={continueFlow}
+            />
           </View>
         )}
       </SlidePanel>
@@ -278,6 +282,16 @@ export default function Usage() {
 }
 
 const styles = StyleSheet.create({
+  usageHeaderOverlay: {
+    left: 24,
+    position: 'absolute',
+    right: 24,
+    top: 12,
+    zIndex: 1,
+  },
+  phoneQuestionGroup: {
+    height: 405,
+  },
   currentValueBlock: {
     alignItems: 'center',
     marginBottom: 12,

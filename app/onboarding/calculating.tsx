@@ -2,7 +2,14 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { usePostHog } from 'posthog-react-native';
 import { ReactNode, useEffect, useRef } from 'react';
-import { Animated, Easing, Image, View } from 'react-native';
+import { Animated, Image, View } from 'react-native';
+import Reanimated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Text } from '../../components/AppText';
 
 import { OnboardingProgress } from '../../components/OnboardingProgress';
@@ -53,7 +60,10 @@ function FadeInStage({ children, delay }: { children: ReactNode; delay: number }
 
 export default function CalculatingPlan() {
   const posthog = usePostHog();
-  const progress = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(0);
+  const progressStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: progress.value }],
+  }));
 
   useOnboardingStepAnalytics(
     posthog,
@@ -65,52 +75,17 @@ export default function CalculatingPlan() {
   );
 
   useEffect(() => {
-    progress.setValue(0);
-
-    const progressAnimation = Animated.sequence([
-      Animated.timing(progress, {
-        toValue: 0.18,
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(180),
-      Animated.timing(progress, {
-        toValue: 0.46,
-        duration: 360,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(260),
-      Animated.timing(progress, {
-        toValue: 0.72,
-        duration: 240,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(220),
-      Animated.timing(progress, {
-        toValue: 0.88,
-        duration: 340,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.delay(160),
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 160,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-    ]);
+    progress.value = 0;
+    progress.value = withTiming(1, {
+      duration: 2200,
+      easing: Easing.linear,
+    });
     const timer = setTimeout(() => {
       router.replace('/onboarding/wellbeing-plan');
     }, 2350);
 
-    progressAnimation.start();
-
     return () => {
-      progressAnimation.stop();
+      cancelAnimation(progress);
       clearTimeout(timer);
     };
   }, [progress]);
@@ -162,16 +137,18 @@ export default function CalculatingPlan() {
                 backgroundColor: 'rgba(233, 30, 115, 0.16)',
               }}
             >
-              <Animated.View
-                style={{
-                  height: '100%',
-                  borderRadius: 999,
-                  width: progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', '100%'],
-                  }),
-                  backgroundColor: colors.raspberry,
-                }}
+              <Reanimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    height: '100%',
+                    width: '100%',
+                    borderRadius: 999,
+                    backgroundColor: colors.raspberry,
+                    transformOrigin: 'left center',
+                  },
+                  progressStyle,
+                ]}
               />
             </View>
           </View>

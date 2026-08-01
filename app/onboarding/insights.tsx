@@ -430,6 +430,48 @@ function SwipeInStage({
   );
 }
 
+function CountUpNumber({
+  target,
+  delay = 0,
+  duration = 1200,
+}: {
+  target: number;
+  delay?: number;
+  duration?: number;
+}) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    progress.setValue(0);
+    setDisplayValue(0);
+
+    const listenerId = progress.addListener(({ value }) => {
+      setDisplayValue(Math.round(value));
+    });
+    const animation = Animated.sequence([
+      Animated.delay(delay),
+      Animated.timing(progress, {
+        toValue: target,
+        duration,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]);
+
+    animation.start(({ finished }) => {
+      if (finished) setDisplayValue(target);
+    });
+
+    return () => {
+      animation.stop();
+      progress.removeListener(listenerId);
+    };
+  }, [delay, duration, progress, target]);
+
+  return <Text>{displayValue}</Text>;
+}
+
 function CurrentStateSlide({
   selectedApps,
   selectedFeelings,
@@ -454,7 +496,7 @@ function CurrentStateSlide({
         <FadeInStage delay={currentStateStageDelay.current}>
           <View className="w-full items-center">
             <Text
-              className="text-center text-[28px] font-bold leading-[33px]"
+              className="text-center text-[28px] font-semibold leading-[33px]"
               style={{ color: currentStateRed }}
             >
               Current State
@@ -480,7 +522,7 @@ function CurrentStateSlide({
           <View className="w-full items-center">
             <View className="flex-row items-center justify-center gap-3">
               <Text
-                className="text-center text-[28px] font-bold leading-[33px]"
+                className="text-center text-[28px] font-semibold leading-[33px]"
                 style={{ color: bootyLockGreen }}
               >
                 With
@@ -526,12 +568,14 @@ function CurrentStateSlide({
 function ResultStorySlide({
   emoji,
   headline,
+  headlineBold = true,
   leadText,
   supportingText,
   onContinue,
 }: {
   emoji?: string;
   headline: ReactNode;
+  headlineBold?: boolean;
   leadText?: string;
   supportingText?: string;
   onContinue: () => void;
@@ -582,7 +626,8 @@ function ResultStorySlide({
             <View className="w-full items-center px-5">
               <Text
                 className={[
-                  'max-w-[350px] text-center font-black',
+                  'max-w-[350px] text-center',
+                  headlineBold ? 'font-black' : 'font-semibold',
                   leadText
                     ? 'text-[44px] leading-[50px]'
                     : 'text-[28px] leading-[33px]',
@@ -642,6 +687,11 @@ function MethodFeedbackSlide({
                 ? 'big respect for tackling something tough.'
                 : 'you are starting with a clean slate.'}
             </Text>
+          </View>
+        </FadeInStage>
+
+        <FadeInStage delay={currentStateStageDelay.bootyLock}>
+          <View className="w-full items-center px-10">
             <Text
               className="mt-3 text-center text-base font-bold leading-5"
               style={{ color: colors.cocoa }}
@@ -704,16 +754,10 @@ function ExerciseSlide({
       <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
         <View className="w-full items-center px-8 pt-2">
           <Text
-            className="text-center text-[18px] font-bold leading-6"
-            numberOfLines={1}
+            className="text-center text-[26px] font-bold leading-[32px]"
             style={{ color: colors.cocoa }}
           >
-            you can save up screen time by
-          </Text>
-          <Text
-            className="text-center text-[18px] font-bold leading-6"
-            style={{ color: colors.cocoa }}
-          >
+            you can save up screen time by{'\n'}
             <Text style={{ color: exercisePink }}>squatting</Text> whenever you want.
           </Text>
         </View>
@@ -1152,7 +1196,10 @@ function ScrollUnlockSlide({
       <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
         <View className="w-full items-center px-8 pt-2">
           <Text
+            adjustsFontSizeToFit
             className="text-center text-[26px] font-bold leading-[32px]"
+            minimumFontScale={0.8}
+            numberOfLines={2}
             style={{ color: colors.cocoa }}
           >
             you can use your saved-up{'\n'}
@@ -1333,7 +1380,7 @@ export default function Insights() {
             <Text
               className={[
                 choosingTried ? 'mt-7' : 'mt-1',
-                'text-[28px] font-bold leading-[33px] text-cocoa',
+                'text-[28px] font-semibold leading-[33px] text-cocoa',
               ].join(' ')}
             >
               {choosingApps
@@ -1399,6 +1446,7 @@ export default function Insights() {
         ) : step === 6 ? (
           <ResultStorySlide
             emoji="🤯"
+            headlineBold={false}
             headline={(
               <>
                 {firstName}, at this rate you're gonna spend{' '}
@@ -1412,6 +1460,7 @@ export default function Insights() {
           />
         ) : step === 7 ? (
           <ResultStorySlide
+            headlineBold={false}
             headline={(
               <>
                 you can transform your entire body in{' '}
@@ -1426,7 +1475,8 @@ export default function Insights() {
             leadText="...but the good news is, we'll help you give"
             headline={(
               <>
-                {projectedYearLabel} {projectedYearUnit}{'\n'}
+                <CountUpNumber target={projectedYearLabel} delay={720} />{' '}
+                {projectedYearUnit}{'\n'}
                 back to your body.
               </>
             )}

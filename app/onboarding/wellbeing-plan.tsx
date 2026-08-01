@@ -7,6 +7,7 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
+import { BrandLogo } from '../../components/BrandLogo';
 import { OnboardingProgress } from '../../components/OnboardingProgress';
 import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
@@ -153,7 +154,9 @@ export default function WellbeingPlan() {
           >
             <FadeInStage delay={0}>
               <View className="items-center">
-                <View className="flex-row items-center justify-center gap-1.5">
+                <BrandLogo height={72} label="bootyblock logo" />
+
+                <View className="mt-4 flex-row items-center justify-center gap-1.5">
                   {[0, 1, 2, 3, 4].map((star) => (
                     <Star key={star} size={18} stroke={gold} fill={gold} strokeWidth={2.4} />
                   ))}
