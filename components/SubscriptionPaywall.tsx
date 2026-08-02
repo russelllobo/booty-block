@@ -43,8 +43,19 @@ function periodName(subscriptionPeriod: string | null) {
 
 function packageRank(item: PurchasesPackage) {
   if (item.product.subscriptionPeriod === 'P1Y') return 0;
-  if (item.product.subscriptionPeriod === 'P1M') return 1;
+  if (item.product.subscriptionPeriod === 'P1W') return 1;
+  if (item.product.subscriptionPeriod === 'P1M') return 2;
   return 2;
+}
+
+function trialName(item: PurchasesPackage) {
+  const introPrice = item.product.introPrice;
+  if (!introPrice || introPrice.price !== 0) return null;
+  if (introPrice.period === 'P3D') return '3 days';
+  if (introPrice.period === 'P1W') return '1 week';
+  if (introPrice.period === 'P2W') return '2 weeks';
+  if (introPrice.period === 'P1M') return '1 month';
+  return null;
 }
 
 function WreathHalf({ side }: { side: 'left' | 'right' }) {
@@ -81,6 +92,7 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
   const [busyAction, setBusyAction] = useState<'purchase' | 'restore' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
+  const selectedTrial = trialName(selectedPackage);
 
   useEffect(() => {
     Animated.timing(entrance, {
@@ -93,6 +105,7 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
   }, [entrance]);
 
   const renewalUnit = periodName(selectedPackage.product.subscriptionPeriod).replace(/^1 /, '');
+  const selectedWeeklyEquivalent = selectedPackage.product.pricePerWeekString;
 
   const purchase = async () => {
     if (busyAction) return;
@@ -210,6 +223,7 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
               {packages.map((item) => {
                 const selected = selectedPackage.identifier === item.identifier;
                 const isAnnual = item.product.subscriptionPeriod === 'P1Y';
+                const itemTrial = trialName(item);
                 return (
                   <Pressable
                     accessibilityRole="radio"
@@ -217,19 +231,24 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
                     disabled={Boolean(busyAction)}
                     key={item.identifier}
                     onPress={() => setSelectedPackage(item)}
-                    style={({ pressed }) => [
+                    style={[
                       styles.plan,
                       selected && styles.planSelected,
-                      pressed && styles.planPressed,
                     ]}
                   >
                     <View style={styles.planCopy}>
-                      <Text style={styles.planName}>{periodName(item.product.subscriptionPeriod)}</Text>
-                      <Text style={styles.planPrice}>{item.product.priceString}</Text>
+                      <Text style={styles.planName}>
+                        {itemTrial ? 'Free' : periodName(item.product.subscriptionPeriod)}
+                      </Text>
+                      <Text style={styles.planPrice}>
+                        {itemTrial ?? item.product.priceString}
+                      </Text>
                     </View>
                     {isAnnual ? (
                       <View style={styles.planBadge}>
-                        <Text style={styles.planBadgeText}>best value</Text>
+                        <Text style={styles.planBadgeText}>
+                          {itemTrial ? 'No Payment Now' : 'best value'}
+                        </Text>
                       </View>
                     ) : null}
                   </Pressable>
@@ -238,7 +257,9 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
             </View>
 
             <Text style={styles.renewalCopy}>
-              {selectedPackage.product.priceString} per {renewalUnit}. Cancel anytime.
+              {selectedTrial
+                ? `Subscription renews at ${selectedPackage.product.priceString}/yr${selectedWeeklyEquivalent ? ` (~${selectedWeeklyEquivalent}/week)` : ''}`
+                : `Subscription renews at ${selectedPackage.product.priceString}/${renewalUnit}`}
             </Text>
             {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
@@ -246,13 +267,13 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
               accessibilityRole="button"
               disabled={Boolean(busyAction)}
               onPress={purchase}
-              style={({ pressed }) => [styles.continueButton, pressed && styles.continueButtonPressed]}
+              style={styles.continueButton}
             >
               {busyAction === 'purchase' ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Text style={styles.continueText}>Continue</Text>
+                  <Text style={styles.continueText}>{selectedTrial ? 'Start free trial' : 'Continue'}</Text>
                   <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                 </>
               )}
@@ -297,7 +318,6 @@ const styles = StyleSheet.create({
     gap: 5, justifyContent: 'center', marginTop: 8, minHeight: 53,
     shadowColor: colors.cherry, shadowOffset: { height: 8, width: 0 }, shadowOpacity: 0.22, shadowRadius: 12,
   },
-  continueButtonPressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   continueText: { color: colors.white, fontSize: 16, fontWeight: '900' },
   error: { color: colors.cherry, fontSize: 12, fontWeight: '800', marginTop: 4, textAlign: 'center' },
   hero: { backgroundColor: '#260017', height: '34%', minHeight: 244, overflow: 'hidden' },
@@ -313,7 +333,6 @@ const styles = StyleSheet.create({
   planList: { gap: 7, marginTop: 13 },
   planListCompact: { marginTop: 10 },
   planName: { color: colors.cocoa, fontSize: 15, fontWeight: '900' },
-  planPressed: { opacity: 0.9 },
   planPrice: { color: colors.mink, fontSize: 12, fontWeight: '700', marginTop: 1 },
   planSelected: { borderColor: colors.cherry, shadowColor: colors.cherry, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.16, shadowRadius: 7 },
   ratingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginTop: -22 },
