@@ -12,6 +12,7 @@ import { Screen } from '../../components/Screen';
 import { SlidePanel } from '../../components/SlidePanel';
 import { colors, shadow } from '../../constants/theme';
 import { captureAnalytics, useOnboardingStepAnalytics } from '../../lib/analytics';
+import { requestOnboardingReviewOnce } from '../../lib/appReview';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { usePoseSession } from '../../lib/services/pose';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -72,6 +73,16 @@ export default function Calibration() {
   const { width } = useWindowDimensions();
   const calibrationReady = webPreview || pose.count >= 1;
   const displayPhase = useCalibrationDisplayPhase(pose.phase, pose.visible);
+
+  useEffect(() => {
+    if (webPreview || onboardingComplete || pose.count < 1) return;
+
+    const reviewTimer = setTimeout(() => {
+      void requestOnboardingReviewOnce();
+    }, 1200);
+
+    return () => clearTimeout(reviewTimer);
+  }, [onboardingComplete, pose.count, webPreview]);
 
   const phase: Phase = !pose.visible
     ? { instruction: 'Place the phone on the floor against the wall, facing you', icon: ArrowDown, accent: colors.white }
