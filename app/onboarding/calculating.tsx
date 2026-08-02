@@ -118,7 +118,7 @@ export default function CalculatingPlan() {
                 </View>
 
                 <Text
-                  className="mt-9 text-center text-[30px] font-black leading-[35px]"
+                  className="mt-9 text-center text-[30px] font-bold leading-[35px]"
                   style={{ color: colors.cocoa }}
                 >
                   Forming your booty plan

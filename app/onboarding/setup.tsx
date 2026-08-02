@@ -38,13 +38,11 @@ const slides: SetupSlide[] = [
   {
     analyticsStep: ONBOARDING_STEPS.setupPhone,
     title: 'put your phone on the floor',
-    body: 'face the camera toward you in a well-lit area so bootyblock can see your full body.',
     media: 'phone',
   },
   {
     analyticsStep: ONBOARDING_STEPS.setupSquat,
     title: 'step back and squat',
-    body: 'keep your whole body in frame, then do one clean squat to finish calibration.',
     media: 'squat',
   },
   {
@@ -356,9 +354,11 @@ export default function Setup() {
               </DemoStage>
             </View>
 
-            <Text className="mb-4 mt-5 px-4 text-center text-base font-semibold leading-6 text-mink">
-              {slide.body}
-            </Text>
+            {slide.body ? (
+              <Text className="mb-4 mt-5 px-4 text-center text-base font-semibold leading-6 text-mink">
+                {slide.body}
+              </Text>
+            ) : null}
           </Animated.View>
 
           <View

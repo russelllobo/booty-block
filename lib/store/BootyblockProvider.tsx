@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePostHog } from 'posthog-react-native';
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Modal, Platform, StyleSheet } from 'react-native';
+import type { PurchasesPackage } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 
+import { SubscriptionPaywall } from '../../components/SubscriptionPaywall';
 import {
   MAX_SQUAT_SESSION_PEACHES,
   PEACHES_PER_MINUTE,
@@ -256,6 +258,18 @@ type OneTimeOfferModalState = {
   resolve: (active: boolean) => void;
 };
 
+type NormalPaywallResult = {
+  active: boolean;
+  cancelled: boolean;
+  result: 'CANCELLED' | 'PURCHASED' | 'RESTORED';
+  offering: PaywallOfferingDiagnostics;
+};
+
+type NormalPaywallModalState = {
+  offering: Awaited<ReturnType<typeof revenueCatService.getNormalPaywallOffering>>;
+  resolve: (result: NormalPaywallResult) => void;
+};
+
 export function BootyblockProvider({ children }: PropsWithChildren) {
   const posthog = usePostHog();
   const [hydrated, setHydrated] = useState(false);
@@ -267,6 +281,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [xpRewardNotice, setXpRewardNotice] = useState<XpRewardNotice | null>(null);
   const [oneTimeOfferModal, setOneTimeOfferModal] = useState<OneTimeOfferModalState | null>(null);
+  const [normalPaywallModal, setNormalPaywallModal] = useState<NormalPaywallModalState | null>(null);
   const accessRequestRef = useRef<Promise<SubscriptionAccessOutcome> | null>(null);
   const payloadRef = useRef(payload);
   const subscriptionResetLockedRef = useRef(false);
@@ -829,6 +844,30 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
   }, [refreshSubscription]);
 
+  const resolveNormalPaywallModal = useCallback((
+    active: boolean,
+    result: NormalPaywallResult['result'],
+  ) => {
+    setNormalPaywallModal((current) => {
+      if (!current) return null;
+      current.resolve({
+        active,
+        cancelled: result === 'CANCELLED',
+        offering: getPaywallOfferingDiagnostics(current.offering),
+        result,
+      });
+      return null;
+    });
+  }, []);
+
+  const presentNormalPaywallModal = useCallback(async () => {
+    const offering = await revenueCatService.getNormalPaywallOffering();
+    const diagnostics = getPaywallOfferingDiagnostics(offering);
+    return new Promise<NormalPaywallResult>((resolve) => {
+      setNormalPaywallModal({ offering, resolve });
+    }).then((result) => ({ ...result, offering: diagnostics }));
+  }, []);
+
   const presentSubscriptionPaywall = useCallback(async (options?: { force?: boolean }) => {
     if ((isSubscribed && !options?.force) || Platform.OS === 'web') return true;
 
@@ -842,7 +881,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       tiktokService.trackPaywallViewed({
         placement: options?.force ? 'forced_subscription_paywall' : 'subscription_paywall_if_needed',
       });
-      const active = await revenueCatService.presentPaywallIfNeeded(options);
+      const outcome = await presentNormalPaywallModal();
+      const active = outcome.active;
       setIsSubscribed(active);
       setSubscriptionError(null);
       if (active) {
@@ -854,7 +894,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setSubscriptionError(error instanceof Error ? error.message : 'Could not show the subscription paywall.');
       return false;
     }
-  }, [isSubscribed]);
+  }, [isSubscribed, presentNormalPaywallModal]);
 
   const presentOneTimeOfferModal = useCallback(async (analyticsFlow?: SubscriptionAccessOptions['analyticsFlow']) => {
     const startedAt = Date.now();
@@ -1001,14 +1041,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           placement: activePlacement,
           analytics_flow: options?.analyticsFlow ?? 'in_app',
         });
-        const outcome = await revenueCatService.presentPaywallWithResult((diagnostics) => {
-          errorStage = 'presentation';
-          captureAnalytics(posthog, 'revenuecat_offering_resolved', {
-            placement: activePlacement,
-            analytics_flow: options?.analyticsFlow ?? 'in_app',
-            duration_ms: Date.now() - startedAt,
-            ...offeringAnalyticsProperties(diagnostics),
-          });
+        const outcome = await presentNormalPaywallModal();
+        errorStage = 'presentation';
+        captureAnalytics(posthog, 'revenuecat_offering_resolved', {
+          placement: activePlacement,
+          analytics_flow: options?.analyticsFlow ?? 'in_app',
+          duration_ms: Date.now() - startedAt,
+          ...offeringAnalyticsProperties(outcome.offering),
         });
         captureAnalytics(posthog, 'revenuecat_paywall_result', {
           placement: activePlacement,
@@ -1081,7 +1120,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     } finally {
       accessRequestRef.current = null;
     }
-  }, [isSubscribed, posthog, presentOneTimeOfferModal, refreshSubscription]);
+  }, [isSubscribed, posthog, presentNormalPaywallModal, presentOneTimeOfferModal, refreshSubscription]);
 
   const requestSubscriptionAccess = useCallback(async () => (
     await requestSubscriptionAccessOutcome()
@@ -1200,6 +1239,30 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
   return (
     <BootyblockContext.Provider value={value}>
       {children}
+      <Modal
+        animationType="fade"
+        onRequestClose={() => resolveNormalPaywallModal(false, 'CANCELLED')}
+        presentationStyle="fullScreen"
+        visible={Boolean(normalPaywallModal)}
+      >
+        {normalPaywallModal ? (
+          <SubscriptionPaywall
+            offering={normalPaywallModal.offering}
+            onClose={() => resolveNormalPaywallModal(false, 'CANCELLED')}
+            onPurchase={async (selectedPackage: PurchasesPackage) => {
+              const active = await revenueCatService.purchasePackage(selectedPackage);
+              if (active) resolveNormalPaywallModal(true, 'PURCHASED');
+              return active;
+            }}
+            onRestore={async () => {
+              const customerInfo = await revenueCatService.restorePurchases();
+              const active = hasActiveEntitlement(customerInfo);
+              if (active) resolveNormalPaywallModal(true, 'RESTORED');
+              return active;
+            }}
+          />
+        ) : null}
+      </Modal>
       <Modal
         animationType="slide"
         onRequestClose={() => resolveOneTimeOfferModal(false)}

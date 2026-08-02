@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   headline: {
     color: colors.cocoa,
     fontSize: 27,
-    fontWeight: '400',
+    fontWeight: '700',
     letterSpacing: -0.9,
     lineHeight: 32,
   },
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   headlineAccent: {
     color: colors.raspberry,
-    fontWeight: '400',
+    fontWeight: '700',
   },
   supportingText: {
     color: colors.mink,

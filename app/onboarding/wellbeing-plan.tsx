@@ -69,9 +69,11 @@ function TimelineCard({
   body,
   emoji,
   highlighted = false,
+  useBoldHeading = false,
 }: PlanItem & {
   day: string;
   highlighted?: boolean;
+  useBoldHeading?: boolean;
 }) {
   return (
     <View
@@ -82,7 +84,13 @@ function TimelineCard({
     >
       <Text className="w-9 pt-0.5 text-center text-[26px] leading-8">{emoji}</Text>
       <View className="flex-1">
-        <Text className="text-[15px] font-black leading-5 text-cocoa">
+        <Text
+          className={
+            useBoldHeading
+              ? 'text-[15px] font-bold leading-5 text-cocoa'
+              : 'text-[15px] font-black leading-5 text-cocoa'
+          }
+        >
           {day} - {title}
         </Text>
         <Text className="mt-1 text-[14px] font-bold leading-5 text-mink">{body}</Text>
@@ -162,7 +170,7 @@ export default function WellbeingPlan() {
                   ))}
                 </View>
 
-                <Text className="mt-5 text-center text-[31px] font-black leading-[36px] text-cocoa">
+                <Text className="mt-5 text-center text-[31px] font-bold leading-[36px] text-cocoa">
                   it’s not about finding more time to work out
                 </Text>
                 <Text className="mt-5 text-left text-[15px] font-semibold leading-[22px] text-mink">
@@ -186,12 +194,14 @@ export default function WellbeingPlan() {
                   title="pause added"
                   body="when the urge hits, bootyblock makes you move before the feed opens."
                   emoji="⏱️"
+                  useBoldHeading
                 />
                 <TimelineCard
                   day="day 2"
                   title="booty reps begin"
                   body="short squat sets add a satisfying little win where automatic scrolling used to be."
                   emoji="🏋️‍♀️"
+                  useBoldHeading
                 />
                 <TimelineCard
                   day="mid-week"
@@ -199,12 +209,14 @@ export default function WellbeingPlan() {
                   body="less feed fog, more agency. you choose when to scroll, and your body gets the credit."
                   emoji="🧠"
                   highlighted
+                  useBoldHeading
                 />
                 <TimelineCard
                   day="day 5"
                   title="booty size increases"
                   body="consistent squat sets start waking up your glutes, helping your booty feel fuller and stronger."
                   emoji="🍑"
+                  useBoldHeading
                 />
                 <TimelineCard
                   day="day 7"
@@ -221,7 +233,7 @@ export default function WellbeingPlan() {
 
             <FadeInStage delay={720}>
               <View className="mt-7 rounded-[24px] border border-cocoa/10 bg-white/70 px-5 py-5">
-                <Text className="text-center text-[18px] font-black leading-6 text-cocoa">
+                <Text className="text-center text-[18px] font-bold leading-6 text-cocoa">
                   join the girls choosing a better body-scroll balance
                 </Text>
                 <View className="mt-4 rounded-[20px] border border-cocoa/10 bg-petal/35 px-4 py-4">

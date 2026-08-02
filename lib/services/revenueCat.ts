@@ -6,6 +6,7 @@ import Purchases, {
   LOG_LEVEL,
   PurchasesOffering,
   PurchasesOfferings,
+  PurchasesPackage,
 } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
@@ -235,6 +236,17 @@ export const revenueCatService = {
   async getCustomerInfo() {
     assertConfigured();
     return Purchases.getCustomerInfo();
+  },
+
+  async getNormalPaywallOffering() {
+    assertConfigured();
+    return getNormalPaywallOffering(await Purchases.getOfferings());
+  },
+
+  async purchasePackage(selectedPackage: PurchasesPackage) {
+    assertConfigured();
+    const { customerInfo } = await Purchases.purchasePackage(selectedPackage);
+    return hasActiveEntitlement(customerInfo);
   },
 
   async restorePurchases() {
