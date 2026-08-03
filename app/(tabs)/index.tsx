@@ -10,7 +10,10 @@ import {
   Animated,
   Easing,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -21,6 +24,7 @@ import { CelebrationOverlay } from '../../components/CelebrationOverlay';
 import { Header } from '../../components/Header';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
+import { PeachPatch3D } from '../../components/PeachPatch3D';
 import { Screen } from '../../components/Screen';
 import {
   MAX_SQUAT_SESSION_PEACHES,
@@ -30,12 +34,14 @@ import {
 import { colors } from '../../constants/theme';
 import { trackOnboardingStepViewed } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import { getPeachPatchStage } from '../../lib/peachPatch';
 import { getBootyProgress } from '../../lib/progression';
 import { countSquatActivityDays, GLUTE_JOURNEY_DAYS } from '../../lib/squatActivity';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const LOCKED_HOME_GRADIENT = ['#FFF1F6', '#FFF9F3', '#FFD6E7'] as const;
 const UNLOCKED_HOME_GRADIENT = ['#DDFBE7', '#F4FFF1', '#A8EFC2'] as const;
+const JOURNEY_CARD_FALLBACK_HEIGHT = 415;
 
 type UnlockAction = 'spend' | 'earn';
 
@@ -98,14 +104,25 @@ export default function Home() {
   const [unlockPromptVisible, setUnlockPromptVisible] = useState(false);
   const [unlockAction, setUnlockAction] = useState<UnlockAction | null>(null);
   const [selectedMinutes, setSelectedMinutes] = useState(1);
+  const [quickSquatSelectorVisible, setQuickSquatSelectorVisible] = useState(false);
+  const [quickSquats, setQuickSquats] = useState(() => Math.max(
+    1,
+    Math.min(
+      Math.floor(MAX_SQUAT_SESSION_PEACHES / PEACHES_PER_SQUAT),
+      Math.ceil(requestedPeaches / PEACHES_PER_SQUAT),
+    ),
+  ));
   const [unlocking, setUnlocking] = useState(false);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [celebratingSubscription, setCelebratingSubscription] = useState(false);
+  const [journeyCardWidth, setJourneyCardWidth] = useState(0);
+  const [journeyCardPage, setJourneyCardPage] = useState(0);
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
   const blockedAppsEntry = useRef(new Animated.Value(0)).current;
   const blockedAppsGlow = useRef(new Animated.Value(0)).current;
   const shieldPromptHandledRef = useRef(false);
+  const journeyCardPageRef = useRef(0);
   const bootyProgress = useMemo(
     () => getBootyProgress(unlockHistory, currentStreak, bonusXp),
     [unlockHistory, currentStreak, bonusXp],
@@ -117,6 +134,10 @@ export default function Home() {
   );
   const journeyProgressPercent = Math.round((completedJourneyDays / GLUTE_JOURNEY_DAYS) * 100);
   const streakLabel = `${currentStreak} day${currentStreak === 1 ? '' : 's'} streak`;
+  const patchStage = useMemo(() => getPeachPatchStage(completedJourneyDays), [completedJourneyDays]);
+  const journeyCardDisplayHeight = journeyCardWidth > 0
+    ? Math.round(journeyCardWidth * (JOURNEY_CARD_FALLBACK_HEIGHT / 341))
+    : JOURNEY_CARD_FALLBACK_HEIGHT;
 
   useEffect(() => {
     if (params.onboardingArrival !== '1') return;
@@ -147,6 +168,7 @@ export default function Home() {
   const needsBlockedApps = hasAppAccess && !selectedAppsConfigured;
   const spendMaxMinutes = Math.max(1, Math.floor(peachBalance / PEACHES_PER_MINUTE));
   const earnMaxMinutes = MAX_SQUAT_SESSION_PEACHES / PEACHES_PER_MINUTE;
+  const quickSquatMax = Math.floor(MAX_SQUAT_SESSION_PEACHES / PEACHES_PER_SQUAT);
   const sliderMaxMinutes = unlockAction === 'spend' ? spendMaxMinutes : earnMaxMinutes;
   const selectedPeaches = selectedMinutes * PEACHES_PER_MINUTE;
   const selectorTitle = unlockAction === 'spend' ? 'Unlock time' : 'Peaches to earn';
@@ -368,13 +390,42 @@ export default function Home() {
     }
   }
 
+  function showQuickSquatSelector() {
+    setQuickSquats(Math.max(
+      1,
+      Math.min(quickSquatMax, Math.ceil(requestedPeaches / PEACHES_PER_SQUAT)),
+    ));
+    setQuickSquatSelectorVisible(true);
+    void Haptics.selectionAsync().catch(() => {});
+  }
+
+  function updateQuickSquats(value: number) {
+    const nextSquats = Math.max(1, Math.min(quickSquatMax, Math.round(value)));
+    if (nextSquats === quickSquats) return;
+
+    setQuickSquats(nextSquats);
+    void Haptics.selectionAsync().catch(() => {});
+  }
+
   async function startQuickSquat() {
     if (showUnlockedState) return;
     const canContinue = await ensureUnlockAccess();
     if (!canContinue) return;
 
+    setRequestedPeaches(quickSquats * PEACHES_PER_SQUAT);
+    setQuickSquatSelectorVisible(false);
     void Haptics.selectionAsync().catch(() => {});
     router.push('/session');
+  }
+
+  function handleJourneyCardSwipe(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (journeyCardWidth <= 0) return;
+    const nextPage = Math.round(event.nativeEvent.contentOffset.x / journeyCardWidth);
+    if (nextPage === journeyCardPageRef.current) return;
+
+    journeyCardPageRef.current = nextPage;
+    setJourneyCardPage(nextPage);
+    void Haptics.selectionAsync().catch(() => {});
   }
 
   if (needsBlockedApps) {
@@ -472,70 +523,134 @@ export default function Home() {
         )}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP, ${streakLabel}, ${completedJourneyDays} of ${GLUTE_JOURNEY_DAYS} journey days complete`}
-        accessibilityHint="Opens the 90 day journey and interactive peach patch"
-        onPress={() => router.push('/journey' as Href)}
-        className="-mt-10 overflow-hidden rounded-[24px]"
-        style={({ pressed }) => [styles.xpCard, pressed ? styles.xpCardPressed : null]}
+      <View
+        className="-mt-10"
+        onLayout={(event) => setJourneyCardWidth(event.nativeEvent.layout.width)}
       >
-        <LinearGradient
-          colors={['#FFE8F1', '#FFF1F5', '#FFC4DD']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.journeyCard}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          bounces={false}
+          decelerationRate="fast"
+          onMomentumScrollEnd={handleJourneyCardSwipe}
+          onScroll={handleJourneyCardSwipe}
+          onScrollEndDrag={handleJourneyCardSwipe}
+          scrollEventThrottle={16}
+          showsHorizontalScrollIndicator={false}
+          style={styles.journeyPager}
         >
-          <View className="flex-row items-start justify-between gap-4">
-            <View className="min-w-0 flex-1">
-              <View className="flex-row items-center gap-2.5">
-                <View className="rounded-full bg-white/75 px-3 py-1.5">
-                  <Text className="text-xs font-black text-raspberry">
-                    Level {bootyProgress.currentLevel.level}
-                  </Text>
+          <View
+            style={{
+              height: journeyCardDisplayHeight,
+              width: journeyCardWidth,
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP, ${streakLabel}, ${completedJourneyDays} of ${GLUTE_JOURNEY_DAYS} journey days complete`}
+              accessibilityHint="Opens full activity with month and year views"
+              onPress={() => router.push('/statistics' as Href)}
+              style={[styles.xpCard, styles.journeyPagerCard]}
+            >
+              <LinearGradient
+                colors={['#FFE8F1', '#FFF1F5', '#FFC4DD']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.journeyCard}
+              >
+                <View className="flex-row items-start justify-between gap-4">
+                  <View className="min-w-0 flex-1">
+                    <View className="flex-row items-center gap-2.5">
+                      <View className="rounded-full bg-white/75 px-3 py-1.5">
+                        <Text className="text-xs font-black text-raspberry">
+                          Level {bootyProgress.currentLevel.level}
+                        </Text>
+                      </View>
+                      <Text className="min-w-0 flex-1 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+                        {bootyProgress.currentLevel.title}
+                      </Text>
+                    </View>
+                    <Text className="mt-1.5 text-xs font-bold text-mink">
+                      {journeyProgressPercent}% of your 90 day glute journey
+                    </Text>
+                  </View>
+                  <View className="items-end">
+                    <Text className="text-lg font-black tabular-nums text-raspberry">{bootyProgress.xp} XP</Text>
+                    <Text className="mt-0.5 text-xs font-black text-cocoa">🔥 {streakLabel}</Text>
+                  </View>
                 </View>
-                <Text className="min-w-0 flex-1 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
-                  {bootyProgress.currentLevel.title}
+
+                <View style={styles.journeyGrid}>
+                  {Array.from({ length: 9 }, (_, row) => (
+                    <View key={row} style={styles.journeyRow}>
+                      {Array.from({ length: 10 }, (_, column) => {
+                        const dayIndex = row * 10 + column;
+                        const complete = dayIndex < completedJourneyDays;
+
+                        return (
+                          <View
+                            key={column}
+                            style={[styles.journeyCell, complete && styles.journeyCellComplete]}
+                          />
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.peachProgressTrack}>
+                  <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
+                </View>
+                <Text className="mt-2 text-xs font-bold text-mink" numberOfLines={1}>
+                  {bootyProgress.nextLevel
+                    ? `${bootyProgress.xpToNext} XP until ${bootyProgress.nextLevel.title}`
+                    : 'Max level unlocked'}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+
+          <View style={{ height: journeyCardDisplayHeight, width: journeyCardWidth }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${patchStage.title}, day ${completedJourneyDays} of your Peach Patch`}
+              accessibilityHint="Opens the full-screen interactive Peach Patch"
+              onPress={() => router.push('/journey' as Href)}
+              style={[styles.xpCard, styles.journeyPagerCard]}
+            >
+              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                <PeachPatch3D completedDays={completedJourneyDays} interactive={false} />
+              </View>
+              <LinearGradient
+                colors={['rgba(28,70,102,0.10)', 'rgba(22,55,82,0.72)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View className="flex-1 justify-end p-5">
+                <Text className="text-[10px] font-black uppercase tracking-[1.6px] text-white/75">
+                  day {completedJourneyDays} · {patchStage.title}
+                </Text>
+                <Text className="mt-1 text-2xl font-black text-white">your peach patch</Text>
+                <Text className="mt-1 text-xs font-bold text-white/75">
+                  {patchStage.farmers} farmers · {patchStage.peachTrees} peach trees
                 </Text>
               </View>
-              <Text className="mt-1.5 text-xs font-bold text-mink">
-                {journeyProgressPercent}% of your 90 day glute journey
-              </Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-lg font-black tabular-nums text-raspberry">{bootyProgress.xp} XP</Text>
-              <Text className="mt-0.5 text-xs font-black text-cocoa">🔥 {streakLabel}</Text>
-            </View>
+            </Pressable>
           </View>
+        </ScrollView>
 
-          <View style={styles.journeyGrid}>
-            {Array.from({ length: 9 }, (_, row) => (
-              <View key={row} style={styles.journeyRow}>
-                {Array.from({ length: 10 }, (_, column) => {
-                  const dayIndex = row * 10 + column;
-                  const complete = dayIndex < completedJourneyDays;
-
-                  return (
-                    <View
-                      key={column}
-                      style={[styles.journeyCell, complete && styles.journeyCellComplete]}
-                    />
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.peachProgressTrack}>
-            <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
-          </View>
-          <Text className="mt-2 text-xs font-bold text-mink" numberOfLines={1}>
-            {bootyProgress.nextLevel
-              ? `${bootyProgress.xpToNext} XP until ${bootyProgress.nextLevel.title}`
-              : 'Max level unlocked'}
-          </Text>
-        </LinearGradient>
-      </Pressable>
+        <View accessibilityRole="tablist" className="mt-2 flex-row justify-center gap-1.5">
+          {[0, 1].map((page) => (
+            <View
+              key={page}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: journeyCardPage === page }}
+              className={`h-1.5 rounded-full ${journeyCardPage === page ? 'w-5 bg-raspberry' : 'w-1.5 bg-raspberry/25'}`}
+            />
+          ))}
+        </View>
+      </View>
 
       <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
           {unlockPromptVisible ? (
@@ -651,57 +766,98 @@ export default function Home() {
                 )}
               </View>
             </Animated.View>
-          ) : (
+          ) : showUnlockedState ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Quick Squat'}
-              accessibilityHint={showUnlockedState ? undefined : 'Starts a squat session to earn Peaches'}
-              disabled={showUnlockedState}
-              onPress={() => void startQuickSquat()}
-              className={showUnlockedState ? 'px-7 py-6' : 'px-7 py-5'}
+              accessibilityLabel="All apps unlocked"
+              disabled
+              className="px-7 py-6"
             >
-              {showUnlockedState ? (
-                <View className="items-center">
-                  <View className="h-16 w-16 items-center justify-center rounded-[22px] bg-white/60">
-                    <Unlock size={38} stroke={colors.cocoa} strokeWidth={3} />
-                  </View>
-                  <Text
-                    className="mt-3 text-[40px] font-bold leading-[44px] text-cocoa"
-                    style={styles.homeStatusText}
-                  >
-                    {status}
-                  </Text>
+              <View className="items-center">
+                <View className="h-16 w-16 items-center justify-center rounded-[22px] bg-white/60">
+                  <Unlock size={38} stroke={colors.cocoa} strokeWidth={3} />
                 </View>
-              ) : (
                 <Text
-                  className="text-[34px] font-bold leading-[40px] text-white"
+                  className="mt-3 text-[40px] font-bold leading-[44px] text-cocoa"
                   style={styles.homeStatusText}
                 >
                   {status}
                 </Text>
-              )}
+              </View>
 
-              {showUnlockedState ? (
-                <View className="mt-5 rounded-[28px] bg-white/55 p-4">
-                  <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
-                    Remaining time
-                  </Text>
-                  <View
-                    accessible
-                    accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
-                    style={styles.homeCountdown}
-                  >
-                    <NativeRollingNumber
-                      value={formatBankDuration(usageWindowSeconds)}
-                      color={colors.cocoa}
-                      countsDown
-                      fontSize={36}
-                      fontWeight="900"
-                      style={styles.homeCountdownNumber}
-                    />
-                  </View>
+              <View className="mt-5 rounded-[28px] bg-white/55 p-4">
+                <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
+                  Remaining time
+                </Text>
+                <View
+                  accessible
+                  accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
+                  style={styles.homeCountdown}
+                >
+                  <NativeRollingNumber
+                    value={formatBankDuration(usageWindowSeconds)}
+                    color={colors.cocoa}
+                    countsDown
+                    fontSize={36}
+                    fontWeight="900"
+                    style={styles.homeCountdownNumber}
+                  />
                 </View>
-              ) : null}
+              </View>
+            </Pressable>
+          ) : quickSquatSelectorVisible ? (
+            <View className="px-5 py-4">
+              <View className="flex-row items-center justify-between gap-3">
+                <Text
+                  accessibilityLiveRegion="polite"
+                  className="text-2xl font-black tabular-nums text-white"
+                >
+                  {quickSquats} squats
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close squat selector"
+                  className="h-9 w-9 items-center justify-center rounded-full bg-white/15"
+                  onPress={() => setQuickSquatSelectorVisible(false)}
+                >
+                  <X size={18} stroke={colors.white} strokeWidth={3} />
+                </Pressable>
+              </View>
+              <Slider
+                accessibilityLabel="Number of squats"
+                accessibilityValue={{ min: 1, max: quickSquatMax, now: quickSquats, text: `${quickSquats} squats` }}
+                minimumValue={1}
+                maximumValue={quickSquatMax}
+                step={1}
+                value={quickSquats}
+                onValueChange={updateQuickSquats}
+                minimumTrackTintColor={colors.white}
+                maximumTrackTintColor="rgba(255, 255, 255, 0.32)"
+                thumbTintColor={colors.white}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Start ${quickSquats} squats to earn ${quickSquats * PEACHES_PER_SQUAT} Peaches`}
+                className="mt-2 h-11 items-center justify-center rounded-full bg-white"
+                onPress={() => void startQuickSquat()}
+              >
+                <Text className="text-base font-black text-raspberry">start squatting</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Quick Squat"
+              accessibilityHint="Opens a slider to choose how many squats to do"
+              onPress={showQuickSquatSelector}
+              className="px-7 py-5"
+            >
+              <Text
+                className="text-[34px] font-bold leading-[40px] text-white"
+                style={styles.homeStatusText}
+              >
+                {status}
+              </Text>
             </Pressable>
           )}
       </View>
@@ -787,6 +943,19 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     paddingHorizontal: 17,
     paddingTop: 16,
+  },
+  journeyPager: {
+    overflow: 'hidden',
+    width: '100%',
+  },
+  journeyPagerCard: {
+    borderRadius: 24,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   journeyGrid: {
     gap: 4,

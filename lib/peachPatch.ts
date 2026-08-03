@@ -23,7 +23,7 @@ const PATCH_STAGES = [
     hasBarn: false,
     hasPond: false,
     hasWindmill: false,
-    unlock: 'the peach shed',
+    unlock: 'the big barn',
   },
   {
     day: 7,

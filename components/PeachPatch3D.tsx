@@ -1,9 +1,9 @@
 import * as Haptics from 'expo-haptics';
 import { ExpoWebGLRenderingContext, GLView } from 'expo-gl';
-import Renderer from 'expo-three/build/Renderer';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import { Minus, Plus, RotateCcw } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as THREE from 'three';
 
@@ -39,6 +39,26 @@ const TREE_POSITIONS: Array<[number, number]> = [
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function createThreeRenderer(gl: ExpoWebGLRenderingContext, width: number, height: number) {
+  const canvas = {
+    addEventListener: () => {},
+    clientHeight: height,
+    clientWidth: width,
+    height,
+    removeEventListener: () => {},
+    setAttribute: () => {},
+    style: {},
+    width,
+  } as unknown as HTMLCanvasElement;
+
+  return new THREE.WebGLRenderer({
+    alpha: false,
+    antialias: true,
+    canvas,
+    context: gl as unknown as WebGLRenderingContext,
+  });
 }
 
 function standardMaterial(color: number, roughness = 0.86) {
@@ -291,19 +311,30 @@ function disposeWorld(world: THREE.Object3D) {
 
 type PeachPatch3DProps = {
   completedDays: number;
+  interactive?: boolean;
 };
 
-export function PeachPatch3D({ completedDays }: PeachPatch3DProps) {
+export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3DProps) {
+  const isScreenFocused = useIsFocused();
   const stage = useMemo(() => getPeachPatchStage(completedDays), [completedDays]);
   const cameraRef = useRef<CameraState>({ ...INITIAL_CAMERA });
   const panStartRef = useRef({ yaw: INITIAL_CAMERA.yaw, pitch: INITIAL_CAMERA.pitch });
   const pinchStartRef = useRef(INITIAL_CAMERA.distance);
   const frameRef = useRef<number | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const layoutSizeRef = useRef({ width: 0, height: 0 });
 
   useEffect(() => () => {
     cleanupRef.current?.();
   }, []);
+
+  useFocusEffect(useCallback(() => () => {
+    cleanupRef.current?.();
+  }, []));
+
+  useEffect(() => {
+    if (!isScreenFocused) cleanupRef.current?.();
+  }, [isScreenFocused]);
 
   const resetCamera = useCallback(() => {
     cameraRef.current = { ...INITIAL_CAMERA };
@@ -367,15 +398,15 @@ export function PeachPatch3D({ completedDays }: PeachPatch3DProps) {
   const handleContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     cleanupRef.current?.();
     let active = true;
-    const renderer = new Renderer({
-      gl: gl as unknown as WebGLRenderingContext,
-      antialias: true,
-      alpha: false,
-      width: gl.drawingBufferWidth,
-      height: gl.drawingBufferHeight,
-    });
+    const initialWidth = Platform.OS === 'web' && layoutSizeRef.current.width > 0
+      ? layoutSizeRef.current.width
+      : gl.drawingBufferWidth;
+    const initialHeight = Platform.OS === 'web' && layoutSizeRef.current.height > 0
+      ? layoutSizeRef.current.height
+      : gl.drawingBufferHeight;
+    const renderer = createThreeRenderer(gl, initialWidth, initialHeight);
     renderer.setPixelRatio(1);
-    renderer.setSize(gl.drawingBufferWidth, gl.drawingBufferHeight, false);
+    renderer.setSize(initialWidth, initialHeight, false);
     renderer.setClearColor(0x7DB8E8, 1);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -389,10 +420,12 @@ export function PeachPatch3D({ completedDays }: PeachPatch3DProps) {
 
     const camera = new THREE.PerspectiveCamera(
       43,
-      gl.drawingBufferWidth / Math.max(1, gl.drawingBufferHeight),
+      initialWidth / Math.max(1, initialHeight),
       0.1,
       100,
     );
+    let renderedWidth = initialWidth;
+    let renderedHeight = initialHeight;
 
     const ambient = new THREE.HemisphereLight(0xFFF7F0, 0x385C30, 2.3);
     scene.add(ambient);
@@ -421,6 +454,18 @@ export function PeachPatch3D({ completedDays }: PeachPatch3DProps) {
       const cameraState = cameraRef.current;
       const distance = cameraState.distance + (1 - introEase) * 6;
       const horizontalDistance = Math.cos(cameraState.pitch) * distance;
+
+      if (Platform.OS === 'web') {
+        const nextWidth = layoutSizeRef.current.width || renderedWidth;
+        const nextHeight = layoutSizeRef.current.height || renderedHeight;
+        if (nextWidth !== renderedWidth || nextHeight !== renderedHeight) {
+          renderedWidth = nextWidth;
+          renderedHeight = nextHeight;
+          renderer.setSize(renderedWidth, renderedHeight, false);
+          camera.aspect = renderedWidth / Math.max(1, renderedHeight);
+          camera.updateProjectionMatrix();
+        }
+      }
 
       camera.position.set(
         Math.sin(cameraState.yaw) * horizontalDistance,
@@ -460,45 +505,59 @@ export function PeachPatch3D({ completedDays }: PeachPatch3DProps) {
     render();
   }, [stage]);
 
-  return (
-    <View style={styles.container}>
-      <GestureDetector gesture={worldGesture}>
-        <GLView
-          key={`peach-patch-${stage.index}`}
-          accessibilityLabel={`Interactive 3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
-          accessibilityHint="Drag to orbit, pinch to zoom, or double tap to reset the camera"
-          onContextCreate={handleContextCreate}
-          msaaSamples={4}
-          style={styles.glView}
-        />
-      </GestureDetector>
+  const patchView = isScreenFocused ? (
+    <GLView
+      key={`peach-patch-${stage.index}`}
+      accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
+      accessibilityHint={interactive ? 'Drag to orbit, pinch to zoom, or double tap to reset the camera' : undefined}
+      onContextCreate={handleContextCreate}
+      msaaSamples={4}
+      style={styles.glView}
+    />
+  ) : (
+    <View style={styles.glView} />
+  );
 
-      <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Zoom in"
-          onPress={() => changeZoom(-2)}
-          style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-        >
-          <Plus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Zoom out"
-          onPress={() => changeZoom(2)}
-          style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-        >
-          <Minus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Reset 3D view"
-          onPress={resetCamera}
-          style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-        >
-          <RotateCcw size={18} stroke={colors.cocoa} strokeWidth={2.5} />
-        </Pressable>
-      </View>
+  return (
+    <View
+      onLayout={(event) => {
+        layoutSizeRef.current = {
+          width: event.nativeEvent.layout.width,
+          height: event.nativeEvent.layout.height,
+        };
+      }}
+      style={styles.container}
+    >
+      {interactive ? <GestureDetector gesture={worldGesture}>{patchView}</GestureDetector> : patchView}
+
+      {interactive ? (
+        <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Zoom in"
+            onPress={() => changeZoom(-2)}
+            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
+          >
+            <Plus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Zoom out"
+            onPress={() => changeZoom(2)}
+            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
+          >
+            <Minus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reset 3D view"
+            onPress={resetCamera}
+            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
+          >
+            <RotateCcw size={18} stroke={colors.cocoa} strokeWidth={2.5} />
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
