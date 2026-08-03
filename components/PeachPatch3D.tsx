@@ -1,14 +1,32 @@
 import * as Haptics from 'expo-haptics';
-import { ExpoWebGLRenderingContext, GLView } from 'expo-gl';
+import type { ExpoWebGLRenderingContext, GLViewProps } from 'expo-gl';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { Minus, Plus, RotateCcw } from 'lucide-react-native';
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import * as THREE from 'three';
+import type { BufferGeometry, Group, Material, Object3D } from 'three';
 
 import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
+
+function resolveGLView(): ComponentType<GLViewProps> | null {
+  if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoGL')) return null;
+
+  try {
+    return require('expo-gl').GLView as ComponentType<GLViewProps>;
+  } catch {
+    return null;
+  }
+}
+
+const OptionalGLView = resolveGLView();
+
+export const PEACH_PATCH_3D_SUPPORTED = OptionalGLView !== null;
+
+const THREE = (PEACH_PATCH_3D_SUPPORTED ? require('three') : null) as typeof import('three');
 
 type CameraState = {
   distance: number;
@@ -17,10 +35,10 @@ type CameraState = {
 };
 
 type AnimatedWorld = {
-  root: THREE.Group;
-  farmers: THREE.Group[];
-  peachTrees: THREE.Group[];
-  windmillBlades: THREE.Group | null;
+  root: Group;
+  farmers: Group[];
+  peachTrees: Group[];
+  windmillBlades: Group | null;
 };
 
 const INITIAL_CAMERA: CameraState = {
@@ -71,8 +89,8 @@ function standardMaterial(color: number, roughness = 0.86) {
 }
 
 function makeMesh(
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material,
+  geometry: BufferGeometry,
+  material: Material,
   position: [number, number, number],
   castShadow = true,
   receiveShadow = true,
@@ -85,10 +103,10 @@ function makeMesh(
 }
 
 function addBox(
-  parent: THREE.Object3D,
+  parent: Object3D,
   size: [number, number, number],
   position: [number, number, number],
-  material: THREE.Material,
+  material: Material,
   castShadow = true,
 ) {
   const mesh = makeMesh(new THREE.BoxGeometry(...size), material, position, castShadow, true);
@@ -96,7 +114,7 @@ function addBox(
   return mesh;
 }
 
-function addPeachTree(parent: THREE.Object3D, x: number, z: number, scale: number, materials: FarmMaterials) {
+function addPeachTree(parent: Object3D, x: number, z: number, scale: number, materials: FarmMaterials) {
   const tree = new THREE.Group();
   tree.position.set(x, 0, z);
   tree.scale.setScalar(scale);
@@ -115,7 +133,7 @@ function addPeachTree(parent: THREE.Object3D, x: number, z: number, scale: numbe
   return tree;
 }
 
-function addFarmer(parent: THREE.Object3D, index: number, materials: FarmMaterials) {
+function addFarmer(parent: Object3D, index: number, materials: FarmMaterials) {
   const farmer = new THREE.Group();
   const shirt = standardMaterial(FARMER_COLORS[index % FARMER_COLORS.length]);
 
@@ -136,7 +154,7 @@ function addFarmer(parent: THREE.Object3D, index: number, materials: FarmMateria
   return farmer;
 }
 
-function addBarn(parent: THREE.Object3D, materials: FarmMaterials) {
+function addBarn(parent: Object3D, materials: FarmMaterials) {
   const barn = new THREE.Group();
   barn.position.set(-3.25, 0, -2.65);
   addBox(barn, [2.25, 1.7, 1.7], [0, 0.85, 0], materials.barn);
@@ -150,7 +168,7 @@ function addBarn(parent: THREE.Object3D, materials: FarmMaterials) {
   parent.add(barn);
 }
 
-function addShed(parent: THREE.Object3D, materials: FarmMaterials) {
+function addShed(parent: Object3D, materials: FarmMaterials) {
   const shed = new THREE.Group();
   shed.position.set(-2.55, 0, -2.2);
   addBox(shed, [1.4, 1.04, 1.15], [0, 0.52, 0], materials.shed);
@@ -162,7 +180,7 @@ function addShed(parent: THREE.Object3D, materials: FarmMaterials) {
   parent.add(shed);
 }
 
-function addWindmill(parent: THREE.Object3D, materials: FarmMaterials) {
+function addWindmill(parent: Object3D, materials: FarmMaterials) {
   const windmill = new THREE.Group();
   windmill.position.set(4.1, 0, -3.65);
   addBox(windmill, [0.78, 2.4, 0.78], [0, 1.2, 0], materials.windmill);
@@ -186,7 +204,7 @@ function addWindmill(parent: THREE.Object3D, materials: FarmMaterials) {
   return blades;
 }
 
-function addFence(parent: THREE.Object3D, x: number, z: number, length: number, alongX: boolean, material: THREE.Material) {
+function addFence(parent: Object3D, x: number, z: number, length: number, alongX: boolean, material: Material) {
   const postCount = Math.max(2, Math.round(length / 1.1));
   for (let index = 0; index < postCount; index += 1) {
     const offset = -length / 2 + (index / (postCount - 1)) * length;
@@ -205,7 +223,7 @@ function addFence(parent: THREE.Object3D, x: number, z: number, length: number, 
   );
 }
 
-function addCloud(parent: THREE.Object3D, position: [number, number, number], scale: number, material: THREE.Material) {
+function addCloud(parent: Object3D, position: [number, number, number], scale: number, material: Material) {
   const cloud = new THREE.Group();
   cloud.position.set(...position);
   cloud.scale.setScalar(scale);
@@ -249,8 +267,8 @@ function createMaterials() {
 function buildWorld(stage: PeachPatchStage): AnimatedWorld {
   const root = new THREE.Group();
   const materials = createMaterials();
-  const farmers: THREE.Group[] = [];
-  const peachTrees: THREE.Group[] = [];
+  const farmers: Group[] = [];
+  const peachTrees: Group[] = [];
   const landSize = stage.landSize;
 
   addBox(root, [landSize + 0.35, 0.3, landSize + 0.35], [0, -0.66, 0], materials.islandBase, false);
@@ -298,8 +316,8 @@ function buildWorld(stage: PeachPatchStage): AnimatedWorld {
   return { root, farmers, peachTrees, windmillBlades };
 }
 
-function disposeWorld(world: THREE.Object3D) {
-  const materials = new Set<THREE.Material>();
+function disposeWorld(world: Object3D) {
+  const materials = new Set<Material>();
   world.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) return;
     child.geometry.dispose();
@@ -505,8 +523,8 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
     render();
   }, [stage]);
 
-  const patchView = isScreenFocused ? (
-    <GLView
+  const patchView = isScreenFocused && OptionalGLView ? (
+    <OptionalGLView
       key={`peach-patch-${stage.index}`}
       accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
       accessibilityHint={interactive ? 'Drag to orbit, pinch to zoom, or double tap to reset the camera' : undefined}
@@ -528,9 +546,11 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
       }}
       style={styles.container}
     >
-      {interactive ? <GestureDetector gesture={worldGesture}>{patchView}</GestureDetector> : patchView}
+      {interactive && OptionalGLView
+        ? <GestureDetector gesture={worldGesture}>{patchView}</GestureDetector>
+        : patchView}
 
-      {interactive ? (
+      {interactive && OptionalGLView ? (
         <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
           <Pressable
             accessibilityRole="button"

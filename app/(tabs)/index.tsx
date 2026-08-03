@@ -24,7 +24,7 @@ import { CelebrationOverlay } from '../../components/CelebrationOverlay';
 import { Header } from '../../components/Header';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
-import { PeachPatch3D } from '../../components/PeachPatch3D';
+import { PEACH_PATCH_3D_SUPPORTED, PeachPatch3D } from '../../components/PeachPatch3D';
 import { Screen } from '../../components/Screen';
 import {
   MAX_SQUAT_SESSION_PEACHES,
@@ -610,46 +610,50 @@ export default function Home() {
             </Pressable>
           </View>
 
-          <View style={{ height: journeyCardDisplayHeight, width: journeyCardWidth }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${patchStage.title}, day ${completedJourneyDays} of your Peach Patch`}
-              accessibilityHint="Opens the full-screen interactive Peach Patch"
-              onPress={() => router.push('/journey' as Href)}
-              style={[styles.xpCard, styles.journeyPagerCard]}
-            >
-              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                <PeachPatch3D completedDays={completedJourneyDays} interactive={false} />
-              </View>
-              <LinearGradient
-                colors={['rgba(28,70,102,0.10)', 'rgba(22,55,82,0.72)']}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View className="flex-1 justify-end p-5">
-                <Text className="text-[10px] font-black uppercase tracking-[1.6px] text-white/75">
-                  day {completedJourneyDays} · {patchStage.title}
-                </Text>
-                <Text className="mt-1 text-2xl font-black text-white">your peach patch</Text>
-                <Text className="mt-1 text-xs font-bold text-white/75">
-                  {patchStage.farmers} farmers · {patchStage.peachTrees} peach trees
-                </Text>
-              </View>
-            </Pressable>
-          </View>
+          {PEACH_PATCH_3D_SUPPORTED ? (
+            <View style={{ height: journeyCardDisplayHeight, width: journeyCardWidth }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${patchStage.title}, day ${completedJourneyDays} of your Peach Patch`}
+                accessibilityHint="Opens the full-screen interactive Peach Patch"
+                onPress={() => router.push('/journey' as Href)}
+                style={[styles.xpCard, styles.journeyPagerCard]}
+              >
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                  <PeachPatch3D completedDays={completedJourneyDays} interactive={false} />
+                </View>
+                <LinearGradient
+                  colors={['rgba(28,70,102,0.10)', 'rgba(22,55,82,0.72)']}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View className="flex-1 justify-end p-5">
+                  <Text className="text-[10px] font-black uppercase tracking-[1.6px] text-white/75">
+                    day {completedJourneyDays} · {patchStage.title}
+                  </Text>
+                  <Text className="mt-1 text-2xl font-black text-white">your peach patch</Text>
+                  <Text className="mt-1 text-xs font-bold text-white/75">
+                    {patchStage.farmers} farmers · {patchStage.peachTrees} peach trees
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
         </ScrollView>
 
-        <View accessibilityRole="tablist" className="mt-2 flex-row justify-center gap-1.5">
-          {[0, 1].map((page) => (
-            <View
-              key={page}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: journeyCardPage === page }}
-              className={`h-1.5 rounded-full ${journeyCardPage === page ? 'w-5 bg-raspberry' : 'w-1.5 bg-raspberry/25'}`}
-            />
-          ))}
-        </View>
+        {PEACH_PATCH_3D_SUPPORTED ? (
+          <View accessibilityRole="tablist" className="mt-2 flex-row justify-center gap-1.5">
+            {[0, 1].map((page) => (
+              <View
+                key={page}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: journeyCardPage === page }}
+                className={`h-1.5 rounded-full ${journeyCardPage === page ? 'w-5 bg-raspberry' : 'w-1.5 bg-raspberry/25'}`}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
