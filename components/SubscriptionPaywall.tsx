@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/theme';
 import { Text } from './AppText';
 
-const heroArt = require('../assets/onboarding/reclaimed-time-woman-clock.png');
+const heroArt = require('../assets/onboarding/body-transformation-transparent.png');
 const laurelWreath = require('../assets/onboarding/gold-laurel-wreath.png');
 
 type Props = {
@@ -206,15 +206,15 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
 
             <View style={[styles.benefits, compact && styles.benefitsCompact]}>
               <View style={styles.benefitRow}>
-                <LockKeyhole color={colors.white} size={17} strokeWidth={2.5} />
+                <LockKeyhole color={colors.white} size={19} strokeWidth={2.5} />
                 <Text style={styles.benefitText}>block distracting apps until you squat</Text>
               </View>
               <View style={styles.benefitRow}>
-                <Dumbbell color={colors.white} size={17} strokeWidth={2.5} />
+                <Dumbbell color={colors.white} size={19} strokeWidth={2.5} />
                 <Text style={styles.benefitText}>turn screen time into a stronger body</Text>
               </View>
               <View style={styles.benefitRow}>
-                <Check color={colors.white} size={18} strokeWidth={3} />
+                <Check color={colors.white} size={20} strokeWidth={3} />
                 <Text style={styles.benefitText}>build a routine that actually sticks</Text>
               </View>
             </View>
@@ -256,44 +256,46 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
               })}
             </View>
 
-            <Text style={styles.renewalCopy}>
-              {selectedTrial
-                ? `Subscription renews at ${selectedPackage.product.priceString}/yr${selectedWeeklyEquivalent ? ` (~${selectedWeeklyEquivalent}/week)` : ''}`
-                : `Subscription renews at ${selectedPackage.product.priceString}/${renewalUnit}`}
-            </Text>
-            {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+            <View style={styles.purchaseArea}>
+              <Text style={styles.renewalCopy}>
+                {selectedTrial
+                  ? `Subscription renews at ${selectedPackage.product.priceString}/yr${selectedWeeklyEquivalent ? ` (${selectedWeeklyEquivalent} per week)` : ''}`
+                  : `Subscription renews at ${selectedPackage.product.priceString}/${renewalUnit}${renewalUnit !== 'week' && selectedWeeklyEquivalent ? ` (${selectedWeeklyEquivalent} per week)` : ''}`}
+              </Text>
+              {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={Boolean(busyAction)}
-              onPress={purchase}
-              style={styles.continueButton}
-            >
-              {busyAction === 'purchase' ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <>
-                  <Text style={styles.continueText}>{selectedTrial ? 'Start free trial' : 'Continue'}</Text>
-                  <ChevronRight color={colors.white} size={20} strokeWidth={3} />
-                </>
-              )}
-            </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={Boolean(busyAction)}
+                onPress={purchase}
+                style={styles.continueButton}
+              >
+                {busyAction === 'purchase' ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <>
+                    <Text style={styles.continueText}>{selectedTrial ? 'Start free trial' : 'Continue'}</Text>
+                    <ChevronRight color={colors.white} size={20} strokeWidth={3} />
+                  </>
+                )}
+              </Pressable>
 
-            <Pressable
-              accessibilityRole="button"
-              disabled={Boolean(busyAction)}
-              onPress={restore}
-              style={styles.restoreButton}
-            >
-              {busyAction === 'restore' ? (
-                <ActivityIndicator color={colors.mink} size="small" />
-              ) : (
-                <>
-                  <RefreshCw color={colors.mink} size={12} strokeWidth={2.5} />
-                  <Text style={styles.restoreText}>Restore purchases</Text>
-                </>
-              )}
-            </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={Boolean(busyAction)}
+                onPress={restore}
+                style={styles.restoreButton}
+              >
+                {busyAction === 'restore' ? (
+                  <ActivityIndicator color={colors.mink} size="small" />
+                ) : (
+                  <>
+                    <RefreshCw color={colors.mink} size={12} strokeWidth={2.5} />
+                    <Text style={styles.restoreText}>Restore purchases</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
           </Animated.View>
         </ScrollView>
       </LinearGradient>
@@ -303,7 +305,7 @@ export function SubscriptionPaywall({ offering, onClose, onPurchase, onRestore }
 
 const styles = StyleSheet.create({
   benefitRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-  benefitText: { color: colors.white, flex: 1, fontSize: 14, fontWeight: '800', lineHeight: 18 },
+  benefitText: { color: colors.white, flex: 1, fontSize: 16, fontWeight: '800', lineHeight: 20 },
   benefits: { gap: 9, marginTop: 12 },
   benefitsCompact: { gap: 7, marginTop: 9 },
   body: { flex: 1 },
@@ -311,21 +313,21 @@ const styles = StyleSheet.create({
     alignItems: 'center', backgroundColor: 'rgba(58,31,44,0.54)', borderRadius: 999,
     height: 38, justifyContent: 'center', position: 'absolute', right: 15, width: 38, zIndex: 2,
   },
-  content: { flexGrow: 1, paddingHorizontal: 15, paddingTop: 2 },
+  content: { flexGrow: 1, paddingLeft: 18, paddingRight: 15, paddingTop: 2 },
   contentCompact: { paddingTop: 0 },
   continueButton: {
     alignItems: 'center', backgroundColor: colors.cherry, borderRadius: 999, flexDirection: 'row',
-    gap: 5, justifyContent: 'center', marginTop: 8, minHeight: 53,
+    gap: 5, justifyContent: 'center', marginTop: 5, minHeight: 53,
     shadowColor: colors.cherry, shadowOffset: { height: 8, width: 0 }, shadowOpacity: 0.22, shadowRadius: 12,
   },
   continueText: { color: colors.white, fontSize: 16, fontWeight: '900' },
   error: { color: colors.cherry, fontSize: 12, fontWeight: '800', marginTop: 4, textAlign: 'center' },
   hero: { backgroundColor: '#260017', height: '34%', minHeight: 244, overflow: 'hidden' },
   heroCompact: { minHeight: 210 },
-  heroImage: { height: '112%', left: 0, position: 'absolute', top: '-5%', width: '100%' },
+  heroImage: { height: '112%', left: 0, position: 'absolute', top: '1%', width: '100%' },
   plan: {
     alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.94)', borderColor: 'rgba(58,31,44,0.11)',
-    borderRadius: 14, borderWidth: 2, flexDirection: 'row', minHeight: 58, paddingHorizontal: 13, paddingVertical: 8,
+    borderRadius: 14, borderWidth: 2, flexDirection: 'row', minHeight: 66, paddingHorizontal: 13, paddingVertical: 10,
   },
   planBadge: { backgroundColor: colors.raspberry, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
   planBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
@@ -336,14 +338,15 @@ const styles = StyleSheet.create({
   planPrice: { color: colors.mink, fontSize: 12, fontWeight: '700', marginTop: 1 },
   planSelected: { borderColor: colors.cherry, shadowColor: colors.cherry, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.16, shadowRadius: 7 },
   ratingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginTop: -22 },
-  renewalCopy: { color: colors.cocoa, fontSize: 10, fontWeight: '700', marginTop: 7, opacity: 0.7, textAlign: 'center' },
-  restoreButton: { alignItems: 'center', flexDirection: 'row', gap: 5, justifyContent: 'center', minHeight: 30 },
+  purchaseArea: { marginTop: 5 },
+  renewalCopy: { color: colors.cocoa, fontSize: 10, fontWeight: '700', opacity: 0.7, textAlign: 'center' },
+  restoreButton: { alignItems: 'center', flexDirection: 'row', gap: 5, justifyContent: 'center', marginTop: 1, minHeight: 24 },
   restoreText: { color: colors.mink, fontSize: 10, fontWeight: '800' },
   screen: { backgroundColor: colors.raspberry, flex: 1 },
   socialProof: { bottom: -4, left: 0, position: 'absolute', right: 0 },
   stars: { color: colors.white, fontSize: 16, fontWeight: '900', letterSpacing: 1.3 },
-  title: { color: colors.white, fontSize: 29, fontWeight: '900', letterSpacing: -0.9, lineHeight: 30 },
-  titleCompact: { fontSize: 25, lineHeight: 26 },
+  title: { color: colors.white, fontSize: 32, fontWeight: '900', letterSpacing: -0.9, lineHeight: 33 },
+  titleCompact: { fontSize: 28, lineHeight: 29 },
   wreathCopy: { color: colors.white, fontSize: 20, fontWeight: '900', lineHeight: 22, marginHorizontal: -2, minWidth: 144, textAlign: 'center' },
   wreathRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', transform: [{ translateY: -12 }] },
 });
