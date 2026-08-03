@@ -1322,8 +1322,12 @@ function ScrollUnlockSlide({
 }
 
 export default function Insights() {
-  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
+  const { previewStep, resumeStep } = useLocalSearchParams<{ previewStep?: string; resumeStep?: string }>();
   const parsedPreviewStep = Number(previewStep);
+  const resumedStepEntry = Object.entries(insightStepMetadata).find(
+    ([, metadata]) => metadata.key === resumeStep,
+  );
+  const resumedStep = resumedStepEntry ? Number(resumedStepEntry[0]) : 6;
   const initialStep =
     Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 14
       ? parsedPreviewStep === 5
@@ -1331,22 +1335,28 @@ export default function Insights() {
         : parsedPreviewStep === 12
           ? 13
           : parsedPreviewStep
-      : 6;
-  const { ageRange, dailyScreenTimeHours, profileName } =
+      : resumedStep;
+  const {
+    ageRange,
+    dailyScreenTimeHours,
+    onboardingChoices,
+    profileName,
+    setOnboardingChoice,
+  } =
     useBootyblock();
   const posthog = usePostHog();
   const [step, setStep] = useState(initialStep);
-  const [selectedApps, setSelectedApps] = useState<string[]>(
-    previewStep ? ['TikTok'] : [],
-  );
+  const [selectedApps, setSelectedApps] = useState<string[]>(previewStep
+    ? ['TikTok']
+    : onboardingChoices.timeSinkApps ?? []);
   const [selectedReasons, setSelectedReasons] = useState<string[]>(
-    previewStep ? ['Addictive app design'] : [],
+    previewStep ? ['Addictive app design'] : onboardingChoices.habitFriction ?? [],
   );
   const [selectedFeelings, setSelectedFeelings] = useState<string[]>(
-    previewStep ? ['Mentally Drained'] : [],
+    previewStep ? ['Mentally Drained'] : onboardingChoices.usageFeelings ?? [],
   );
   const [selectedTried, setSelectedTried] = useState<string[]>(
-    previewStep ? ['Nothing yet'] : [],
+    previewStep ? ['Nothing yet'] : onboardingChoices.previousMethods ?? [],
   );
   const direction = useStepDirection(step);
   const stepMetadata = insightStepMetadata[step as keyof typeof insightStepMetadata];
@@ -1398,6 +1408,26 @@ export default function Insights() {
     stepMetadata.index,
     ONBOARDING_STEP_TOTAL,
   );
+
+  useEffect(() => {
+    if (previewStep) return;
+    setOnboardingChoice('timeSinkApps', selectedApps);
+  }, [previewStep, selectedApps, setOnboardingChoice]);
+
+  useEffect(() => {
+    if (previewStep) return;
+    setOnboardingChoice('habitFriction', selectedReasons);
+  }, [previewStep, selectedReasons, setOnboardingChoice]);
+
+  useEffect(() => {
+    if (previewStep) return;
+    setOnboardingChoice('usageFeelings', selectedFeelings);
+  }, [previewStep, selectedFeelings, setOnboardingChoice]);
+
+  useEffect(() => {
+    if (previewStep) return;
+    setOnboardingChoice('previousMethods', selectedTried);
+  }, [previewStep, selectedTried, setOnboardingChoice]);
 
   function toggle(
     label: string,

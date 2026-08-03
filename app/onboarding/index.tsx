@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowRight, Lock } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -46,9 +46,11 @@ const storySteps = [
 ] as const;
 
 export default function OnboardingStory() {
+  const { resumeStep } = useLocalSearchParams<{ resumeStep?: string }>();
+  const initialStep = Math.max(0, storySteps.findIndex(({ key }) => key === resumeStep));
   const { height } = useWindowDimensions();
   const posthog = usePostHog();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialStep);
   const [appsUnlocked, setAppsUnlocked] = useState(false);
   const [isSimpleFlowComplete, setIsSimpleFlowComplete] = useState(false);
   const pagerRef = useRef<StoryPagerHandle>(null);
@@ -202,6 +204,7 @@ export default function OnboardingStory() {
       <View style={styles.page}>
         <StoryPager
           ref={pagerRef}
+          initialPage={initialStep}
           onPageSelected={handlePageSelected}
           style={styles.pager}
         >

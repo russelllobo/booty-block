@@ -66,6 +66,8 @@ const RETURN_STANDING_SAMPLES = 1;
 const MIN_CALIBRATION_RANGE = 0.12;
 const STARTING_POSE_THRESHOLD = 0.16;
 const PREVIEW_HEIGHT = 380;
+const PREVIEW_TICK_MS = 40;
+const PREVIEW_PIPE_SPEED = 2.4;
 
 function median(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -88,10 +90,6 @@ function makePipe(id: number, x: number, height: number): Pipe {
 
 function makeInitialPipes(width: number, height: number) {
   return [0, 1, 2].map((index) => makePipe(index + 1, width + 120 + index * PIPE_SPACING, height));
-}
-
-function makePreviewPipes(width: number) {
-  return [makePipe(1, Math.max(180, width * 0.6), PREVIEW_HEIGHT)];
 }
 
 function calculateDepthFromPose(depth: number, visible: boolean, fallback: number) {
@@ -314,6 +312,38 @@ function FlappyScene({
 
       <FlappyPeachMascot centerX={72} centerY={birdCenterY} motionFrame={mascotMotionFrame} />
     </Svg>
+  );
+}
+
+function FlappyPreviewScene({ width }: { width: number }) {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((current) => (current + 1) % 100_000);
+    }, PREVIEW_TICK_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const pipeSpacing = Math.max(240, width * 0.75);
+  const pipeTrackLength = pipeSpacing * 2;
+  const pipeTravel = frame * PREVIEW_PIPE_SPEED;
+  const previewPipes = [0, 1].map((index) => ({
+    ...makePipe(index + 1, 0, PREVIEW_HEIGHT),
+    x: width + 40 - ((pipeTravel + index * pipeSpacing) % pipeTrackLength),
+    gapY: index === 0 ? 78 : 110,
+  }));
+  const flapPhase = (frame % 72) / 72;
+  const birdY = 160 + Math.sin(flapPhase * Math.PI * 2) * 20;
+
+  return (
+    <FlappyScene
+      width={width}
+      height={PREVIEW_HEIGHT}
+      birdY={birdY}
+      pipes={previewPipes}
+    />
   );
 }
 
@@ -782,8 +812,6 @@ export default function Games() {
     setStatus('calibratingStanding');
   }, [calibrationFillProgress, canPlay, permission?.granted, requestPermission, requestSubscriptionAccess, size.height, size.width]);
 
-  const previewPipes = makePreviewPipes(Math.max(size.width, 320));
-
   function handleGameLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
     setSize({ width, height });
@@ -937,12 +965,7 @@ export default function Games() {
                   },
                 ]}
               >
-                <FlappyScene
-                  width={Math.max(size.width, 1)}
-                  height={PREVIEW_HEIGHT}
-                  birdY={mapDepthToBirdY(0.42, PREVIEW_HEIGHT, BIRD_SIZE)}
-                  pipes={previewPipes}
-                />
+                <FlappyPreviewScene width={Math.max(size.width, 1)} />
               </Animated.View>
               <LinearGradient
                 colors={['rgba(58,31,44,0.02)', 'rgba(58,31,44,0.08)', 'rgba(58,31,44,0.76)']}

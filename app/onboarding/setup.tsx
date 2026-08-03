@@ -154,12 +154,16 @@ function DemoStage({
 }
 
 export default function Setup() {
-  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
+  const { previewStep, resumeStep } = useLocalSearchParams<{ previewStep?: string; resumeStep?: string }>();
   const parsedPreviewStep = Number(previewStep);
+  const resumedStep = Math.max(
+    0,
+    slides.findIndex(({ analyticsStep }) => analyticsStep.key === resumeStep),
+  );
   const initialStep =
     Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 0 && parsedPreviewStep < slides.length
       ? parsedPreviewStep
-      : 0;
+      : resumedStep;
   const [step, setStep] = useState(initialStep);
   const [introFinished, setIntroFinished] = useState(initialStep !== 0);
   const introEntranceX = useRef(new Animated.Value(initialStep === 0 ? 72 : 0)).current;

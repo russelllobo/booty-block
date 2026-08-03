@@ -1,8 +1,6 @@
 import { X } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Animated,
-  Easing,
   Modal,
   Platform,
   Pressable,
@@ -46,7 +44,6 @@ const TEXT = '#FFF8FC';
 const MUTED = '#B78C9F';
 const ACTIVE_TEXT = '#FF9FC4';
 const CELL_COLORS = ['#2A101F', '#70143F', '#AE1557', '#E51D70', '#FF7EAE'] as const;
-const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const YEAR_WEEKDAY_LABELS = ['M', '', 'W', '', 'F', '', 'S'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -96,11 +93,28 @@ function sumMonth(totals: Map<string, number>, year: number, month: number) {
   return total;
 }
 
-function buildMonths(totals: Map<string, number>, now: number): MonthActivity[] {
-  const today = startOfDay(now);
+export function firstActivityDate(history: UnlockHistoryEntry[], now: number) {
+  const firstCompletedAt = history.reduce<number | null>((earliest, entry) => {
+    if (entry.squats <= 0 || !Number.isFinite(entry.completedAt)) return earliest;
+    return earliest === null ? entry.completedAt : Math.min(earliest, entry.completedAt);
+  }, null);
 
-  return Array.from({ length: 6 }, (_, index) => {
-    const monthDate = new Date(today.getFullYear(), today.getMonth() - index, 1);
+  return startOfDay(Math.min(firstCompletedAt ?? now, now));
+}
+
+export function buildMonths(totals: Map<string, number>, start: Date, now: number): MonthActivity[] {
+  const today = startOfDay(now);
+  const firstMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+  const monthCount = Math.max(
+    1,
+    (today.getFullYear() - firstMonth.getFullYear()) * 12
+      + today.getMonth()
+      - firstMonth.getMonth()
+      + 1,
+  );
+
+  return Array.from({ length: monthCount }, (_, index) => {
+    const monthDate = new Date(firstMonth.getFullYear(), firstMonth.getMonth() + index, 1);
     const year = monthDate.getFullYear();
     const month = monthDate.getMonth();
     const firstWeekday = (monthDate.getDay() + 6) % 7;
@@ -128,11 +142,12 @@ function buildMonths(totals: Map<string, number>, now: number): MonthActivity[] 
   });
 }
 
-function buildYears(totals: Map<string, number>, now: number): YearActivity[] {
+export function buildYears(totals: Map<string, number>, start: Date, now: number): YearActivity[] {
   const currentYear = new Date(now).getFullYear();
+  const firstYear = Math.min(start.getFullYear(), currentYear);
 
-  return Array.from({ length: 5 }, (_, index) => {
-    const year = currentYear - index;
+  return Array.from({ length: currentYear - firstYear + 1 }, (_, index) => {
+    const year = firstYear + index;
     const gridStart = startOfWeek(new Date(year, 0, 1));
     const gridEnd = startOfWeek(new Date(year, 11, 31));
     const weekCount = Math.round((gridEnd.getTime() - gridStart.getTime()) / (7 * 86_400_000)) + 1;
@@ -383,8 +398,6 @@ export function StatisticsContent({
 }) {
   const { width } = useWindowDimensions();
   const [view, setView] = useState<StatsView>('months');
-  const contentOpacity = useRef(new Animated.Value(0)).current;
-  const contentTranslate = useRef(new Animated.Value(8)).current;
   const isWebPreview = Platform.OS === 'web'
     && history.length > 0
     && history.every((entry) => entry.id.startsWith('preview-'));
@@ -393,8 +406,14 @@ export function StatisticsContent({
     [history, isWebPreview, now],
   );
   const totals = useMemo(() => activityByDay(displayHistory), [displayHistory]);
-  const months = useMemo(() => buildMonths(totals, now), [now, totals]);
-  const years = useMemo(() => buildYears(totals, now), [now, totals]);
+  const activityStart = useMemo(() => firstActivityDate(displayHistory, now), [displayHistory, now]);
+  const monthStart = useMemo(() => {
+    if (!isWebPreview) return activityStart;
+    const today = new Date(now);
+    return new Date(today.getFullYear(), today.getMonth() - (MONTH_PREVIEW_TOTALS.length - 1), 1);
+  }, [activityStart, isWebPreview, now]);
+  const months = useMemo(() => buildMonths(totals, monthStart, now), [monthStart, now, totals]);
+  const years = useMemo(() => buildYears(totals, activityStart, now), [activityStart, now, totals]);
 
   const horizontalPadding = width < 430 ? 20 : 28;
   const monthGap = width < 430 ? 16 : 24;
@@ -409,56 +428,6 @@ export function StatisticsContent({
   );
   const monthMax = Math.max(1, ...months.flatMap((month) => month.cells.map((cell) => cell.squats)));
   const yearMax = Math.max(1, ...years.flatMap((year) => year.weeks.flatMap((week) => week.map((cell) => cell.squats))));
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(contentOpacity, {
-        toValue: 1,
-        duration: 360,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(contentTranslate, {
-        toValue: 0,
-        duration: 420,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start();
-  }, [contentOpacity, contentTranslate]);
-
-  function selectView(nextView: StatsView) {
-    if (nextView === view) return;
-    Animated.parallel([
-      Animated.timing(contentOpacity, {
-        toValue: 0,
-        duration: 130,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-      Animated.timing(contentTranslate, {
-        toValue: -5,
-        duration: 130,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    ]).start(() => {
-      setView(nextView);
-      contentTranslate.setValue(8);
-      Animated.parallel([
-        Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(contentTranslate, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-      ]).start();
-    });
-  }
 
   return (
     <Screen
@@ -495,7 +464,7 @@ export function StatisticsContent({
                 key={option}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
-                onPress={() => selectView(option)}
+                onPress={() => setView(option)}
                 style={({ pressed }) => [
                   styles.tab,
                   active && styles.activeTab,
@@ -510,15 +479,7 @@ export function StatisticsContent({
           })}
         </View>
 
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: contentOpacity,
-              transform: [{ translateY: contentTranslate }],
-            },
-          ]}
-        >
+        <View style={styles.content}>
           {view === 'months' ? (
             <ScrollView
               bounces={false}
@@ -561,7 +522,7 @@ export function StatisticsContent({
               <ActivityLegend compact />
             </ScrollView>
           )}
-        </Animated.View>
+        </View>
       </View>
     </Screen>
   );

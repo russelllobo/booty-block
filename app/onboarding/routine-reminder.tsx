@@ -123,7 +123,12 @@ export default function RoutineReminder() {
   );
 
   function setNativeDate(date: Date) {
-    setSelectedDate(dateFromReminderTime(date.getHours(), date.getMinutes()));
+    const nextDate = dateFromReminderTime(date.getHours(), date.getMinutes());
+    setSelectedDate(nextDate);
+    setRoutineReminderTime({
+      hour: nextDate.getHours(),
+      minute: nextDate.getMinutes(),
+    });
     void Haptics.selectionAsync();
   }
 

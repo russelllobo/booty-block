@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Image, View } from 'react-native';
 
 import { colors } from '../constants/theme';
+import { getOnboardingResumeHref } from '../lib/onboardingProgress';
 import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
@@ -21,7 +22,7 @@ export default function Index() {
     if (!hydrated || !subscriptionHydrated) return;
 
     if (!onboardingComplete) {
-      router.replace('/onboarding');
+      void getOnboardingResumeHref().then((href) => router.replace(href));
       return;
     }
 

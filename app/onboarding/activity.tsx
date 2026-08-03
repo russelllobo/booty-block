@@ -75,7 +75,10 @@ export default function Activity() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
                   selected={active}
-                  onPress={() => setSelected(value)}
+                  onPress={() => {
+                    setSelected(value);
+                    setExerciseFrequency(value);
+                  }}
                   className="min-h-[68px] flex-row items-center rounded-full border-2 px-5 py-3"
                 >
                   <Text className="flex-1 text-base font-bold text-cocoa">{label}</Text>

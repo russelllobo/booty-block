@@ -193,13 +193,13 @@ function GluteJourneyPreview({ name }: { name: string }) {
 }
 
 export default function Quiz() {
-  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
-  const initialStep = previewStep === '2' ? 2 : 1;
-  const { setOnboardingGoals, setProfileName } = useBootyblock();
+  const { previewStep, resumeStep } = useLocalSearchParams<{ previewStep?: string; resumeStep?: string }>();
+  const initialStep = previewStep === '2' || resumeStep === HIDDEN_ONBOARDING_STEPS.goals.key ? 2 : 1;
+  const { onboardingGoals, profileName, setOnboardingGoals, setProfileName } = useBootyblock();
   const posthog = usePostHog();
   const [step, setStep] = useState(initialStep);
-  const [name, setName] = useState(previewStep ? 'Russ' : '');
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [name, setName] = useState(previewStep ? 'Russ' : profileName);
+  const [selectedGoals, setSelectedGoals] = useState<string[]>(previewStep ? [] : onboardingGoals);
   const nameScrollRef = useRef<ScrollView>(null);
   const nameInputFocusedRef = useRef(false);
   const reduceMotion = useReducedMotion();
@@ -267,9 +267,13 @@ export default function Quiz() {
 
   function toggleGoal(label: string) {
     setSelectedGoals((current) => {
-      if (current.includes(label)) return current.filter((goal) => goal !== label);
-      if (current.length === 3) return current;
-      return [...current, label];
+      const next = current.includes(label)
+        ? current.filter((goal) => goal !== label)
+        : current.length === 3
+          ? current
+          : [...current, label];
+      if (!previewStep) setOnboardingGoals(next);
+      return next;
     });
   }
 
@@ -341,7 +345,10 @@ export default function Quiz() {
                       placeholderTextColor="rgba(125, 90, 103, 0.52)"
                       returnKeyType="next"
                       value={name}
-                      onChangeText={setName}
+                      onChangeText={(nextName) => {
+                        setName(nextName);
+                        if (!previewStep) setProfileName(nextName);
+                      }}
                       onFocus={() => {
                         nameInputFocusedRef.current = true;
                         requestAnimationFrame(() => {

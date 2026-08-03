@@ -12,6 +12,7 @@ import {
   PEACHES_PER_SQUAT,
 } from '../../constants/bootyblock';
 import { captureAnalytics, trackOnboardingStepViewed } from '../analytics';
+import { clearOnboardingCheckpoint } from '../onboardingProgress';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../onboardingSteps';
 import {
   getPaywallOfferingDiagnostics,
@@ -27,6 +28,7 @@ import {
 } from '../services/screenTime';
 import { tiktokService } from '../services/tiktok';
 import { calculateCurrentStreak } from '../streak';
+import { isSquatActivity } from '../squatActivity';
 import { migrateTenToOnePeaches, minutesToPeaches, resolveStoredPeachBalance } from '../peaches';
 
 type PeachEarnedSession = {
@@ -79,6 +81,7 @@ type BootyblockState = {
   hasAppAccess: boolean;
   profileName: string;
   onboardingGoals: string[];
+  onboardingChoices: Record<string, string[]>;
   ageRange: string;
   exerciseFrequency: string;
   dailyScreenTimeHours: number;
@@ -105,6 +108,7 @@ type BootyblockState = {
   completeOnboarding: () => Promise<void>;
   setProfileName: (name: string) => void;
   setOnboardingGoals: (goals: string[]) => void;
+  setOnboardingChoice: (key: string, choices: string[]) => void;
   setAgeRange: (ageRange: string) => void;
   setExerciseFrequency: (frequency: string) => void;
   setUsageTargets: (currentHours: number, goalHours: number) => void;
@@ -206,6 +210,7 @@ function defaultPayload() {
     onboardingComplete: webUiPreview,
     profileName: '',
     onboardingGoals: [] as string[],
+    onboardingChoices: {} as Record<string, string[]>,
     ageRange: '18-24',
     exerciseFrequency: '',
     dailyScreenTimeHours: 5,
@@ -474,6 +479,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     }
 
     setPayload((current) => ({ ...current, onboardingComplete: true }));
+    await clearOnboardingCheckpoint();
   }, []);
 
   const setProfileName = useCallback((name: string) => {
@@ -482,6 +488,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
 
   const setOnboardingGoals = useCallback((goals: string[]) => {
     setPayload((current) => ({ ...current, onboardingGoals: goals }));
+  }, []);
+
+  const setOnboardingChoice = useCallback((key: string, choices: string[]) => {
+    setPayload((current) => ({
+      ...current,
+      onboardingChoices: { ...current.onboardingChoices, [key]: choices },
+    }));
   }, []);
 
   const setAgeRange = useCallback((ageRange: string) => {
@@ -1157,6 +1170,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     setPayload(fresh);
     await AsyncStorage.setItem(RESET_SUBSCRIPTION_STATE_KEY, 'true');
     await AsyncStorage.removeItem(STORAGE_KEY);
+    await clearOnboardingCheckpoint();
   }, []);
 
   const value = useMemo<BootyblockState>(
@@ -1169,7 +1183,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           ? screenTimeService.formatSelectionSummary(payload.selectionSummary)
           : 'Selected apps configured'
         : 'No apps or categories selected',
-      currentStreak: calculateCurrentStreak(payload.unlockHistory ?? []),
+      currentStreak: calculateCurrentStreak((payload.unlockHistory ?? []).filter(isSquatActivity)),
       subscriptionHydrated,
       subscriptionConfigured,
       isSubscribed,
@@ -1179,6 +1193,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       completeOnboarding,
       setProfileName,
       setOnboardingGoals,
+      setOnboardingChoice,
       setAgeRange,
       setExerciseFrequency,
       setUsageTargets,
@@ -1212,6 +1227,8 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       xpRewardNotice,
       completeOnboarding,
       setProfileName,
+      setOnboardingGoals,
+      setOnboardingChoice,
       setAgeRange,
       setExerciseFrequency,
       setUsageTargets,

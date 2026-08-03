@@ -21,6 +21,7 @@ import {
   POSTHOG_HOST,
   screenAnalytics,
 } from '../lib/analytics';
+import { getOnboardingResumeHref } from '../lib/onboardingProgress';
 import { syncRoutineReminderNotification } from '../lib/services/routineReminder';
 import { screenTimeService } from '../lib/services/screenTime';
 import { tiktokService } from '../lib/services/tiktok';
@@ -77,7 +78,7 @@ function NotificationObserver() {
   }, [hydrated, routineReminderTime]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !hydrated) return;
 
     function openUnlockUrl(url: string | null) {
       const openedFromShield = Boolean(
@@ -86,9 +87,11 @@ function NotificationObserver() {
         || screenTimeService.consumeShieldOpenRequest(),
       );
       if (openedFromShield) {
-        router.push(onboardingComplete
-          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
-          : '/onboarding');
+        if (onboardingComplete) {
+          router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
+        } else {
+          void getOnboardingResumeHref().then((href) => router.push(href));
+        }
       }
     }
 
@@ -96,21 +99,23 @@ function NotificationObserver() {
     const subscription = Linking.addEventListener('url', ({ url }) => openUnlockUrl(url));
 
     return () => subscription.remove();
-  }, [onboardingComplete]);
+  }, [hydrated, onboardingComplete]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !hydrated) return;
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && screenTimeService.consumeShieldOpenRequest()) {
-        router.push(onboardingComplete
-          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
-          : '/onboarding');
+        if (onboardingComplete) {
+          router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
+        } else {
+          void getOnboardingResumeHref().then((href) => router.push(href));
+        }
       }
     });
 
     return () => subscription.remove();
-  }, [onboardingComplete]);
+  }, [hydrated, onboardingComplete]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -229,6 +234,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="plan" />
+              <Stack.Screen name="journey" />
               <Stack.Screen name="statistics" />
               <Stack.Screen name="session" />
               <Stack.Screen name="success" />

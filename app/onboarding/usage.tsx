@@ -147,8 +147,8 @@ function TimeSlider({
 }
 
 export default function Usage() {
-  const { previewStep } = useLocalSearchParams<{ previewStep?: string }>();
-  const { dailyScreenTimeHours, setAgeRange, setUsageTargets } =
+  const { previewStep, resumeStep } = useLocalSearchParams<{ previewStep?: string; resumeStep?: string }>();
+  const { ageRange, dailyScreenTimeHours, setAgeRange, setUsageTargets } =
     useBootyblock();
   const posthog = usePostHog();
   const initialCurrentHours = Math.min(
@@ -159,9 +159,9 @@ export default function Usage() {
   const initialStep =
     Number.isInteger(parsedPreviewStep) && parsedPreviewStep >= 1 && parsedPreviewStep <= 2
       ? parsedPreviewStep
-      : 1;
+      : resumeStep === ONBOARDING_STEPS.currentDailyScreenTime.key ? 2 : 1;
   const [step, setStep] = useState(initialStep);
-  const [selectedAgeRange, setSelectedAgeRange] = useState('');
+  const [selectedAgeRange, setSelectedAgeRange] = useState(ageRange);
   const [currentHours, setCurrentHours] = useState(initialCurrentHours);
   const direction = useStepDirection(step);
 
@@ -225,7 +225,10 @@ export default function Usage() {
                       accessibilityRole="radio"
                       accessibilityState={{ checked: selected }}
                       selected={selected}
-                      onPress={() => setSelectedAgeRange(option)}
+                      onPress={() => {
+                        setSelectedAgeRange(option);
+                        if (!previewStep) setAgeRange(option);
+                      }}
                       className="min-h-[60px] justify-center rounded-full border-2 px-5"
                       style={{ minHeight: 60 }}
                     >
@@ -263,7 +266,10 @@ export default function Usage() {
                     value={currentHours}
                     minimumValue={CURRENT_MIN_HOURS}
                     maximumValue={CURRENT_MAX_HOURS}
-                    onChange={setCurrentHours}
+                    onChange={(hours) => {
+                      setCurrentHours(hours);
+                      if (!previewStep) setUsageTargets(hours, halfOfCurrentHours(hours));
+                    }}
                     step={CURRENT_SLIDER_STEP}
                   />
                 </View>

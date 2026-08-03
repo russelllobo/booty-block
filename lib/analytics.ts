@@ -1,6 +1,7 @@
 import type { PostHog } from 'posthog-react-native';
 import { useEffect } from 'react';
 
+import { saveOnboardingCheckpoint } from './onboardingProgress';
 import type { ScreenTimeSelectionSummary, ScreenTimeStatus } from './services/screenTime';
 
 type AnalyticsValue = string | number | boolean | null | undefined;
@@ -65,6 +66,9 @@ export function useOnboardingStepAnalytics(
   stepCount?: number,
 ) {
   useEffect(() => {
+    if (posthog !== null) {
+      void saveOnboardingCheckpoint(route, stepKey);
+    }
     trackOnboardingStepViewed(posthog, route, stepKey, stepTitle, stepIndex, stepCount);
   }, [posthog, route, stepKey, stepTitle, stepIndex, stepCount]);
 }

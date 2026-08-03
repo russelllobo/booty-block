@@ -4,6 +4,7 @@ import {
   ReactNode,
   useCallback,
   useImperativeHandle,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -24,14 +25,20 @@ export type StoryPagerHandle = {
 type StoryPagerProps = {
   children: ReactNode;
   onPageSelected: (page: number) => void;
+  initialPage?: number;
   style?: StyleProp<ViewStyle>;
 };
 
 export const StoryPager = forwardRef<StoryPagerHandle, StoryPagerProps>(
-  function StoryPager({ children, onPageSelected, style }, forwardedRef) {
+  function StoryPager({ children, initialPage = 0, onPageSelected, style }, forwardedRef) {
     const scrollRef = useRef<ScrollView>(null);
-    const selectedPageRef = useRef(0);
+    const selectedPageRef = useRef(initialPage);
     const [pageWidth, setPageWidth] = useState(0);
+
+    useEffect(() => {
+      if (pageWidth <= 0 || initialPage <= 0) return;
+      scrollRef.current?.scrollTo({ x: initialPage * pageWidth, animated: false });
+    }, [initialPage, pageWidth]);
     const reportSelectedPage = useCallback(
       (page: number) => {
         if (selectedPageRef.current === page) return;

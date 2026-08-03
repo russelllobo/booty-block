@@ -1,5 +1,6 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
@@ -13,7 +14,6 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
@@ -31,43 +31,13 @@ import { colors } from '../../constants/theme';
 import { trackOnboardingStepViewed } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
 import { getBootyProgress } from '../../lib/progression';
+import { countSquatActivityDays, GLUTE_JOURNEY_DAYS } from '../../lib/squatActivity';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-const HOLD_TO_UNLOCK_MS = 920;
 const LOCKED_HOME_GRADIENT = ['#FFF1F6', '#FFF9F3', '#FFD6E7'] as const;
 const UNLOCKED_HOME_GRADIENT = ['#DDFBE7', '#F4FFF1', '#A8EFC2'] as const;
 
 type UnlockAction = 'spend' | 'earn';
-
-function RoughUnlockPrompt() {
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      pointerEvents="none"
-      style={styles.roughUnlockPrompt}
-    >
-      <Svg height="52" style={styles.roughUnlockArrow} viewBox="0 0 300 52" width="100%">
-        <Path
-          d="M 213 43 C 226 28, 209 11, 164 8"
-          fill="none"
-          stroke={colors.cocoa}
-          strokeLinecap="round"
-          strokeWidth={3.2}
-        />
-        <Path
-          d="M 164 8 C 174 10, 181 9, 189 5 M 164 8 C 171 16, 174 21, 175 28"
-          fill="none"
-          stroke={colors.cocoa}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={3.2}
-        />
-      </Svg>
-      <Text style={styles.roughUnlockText}>hold to unlock</Text>
-    </View>
-  );
-}
 
 function formatBankDuration(totalSeconds: number) {
   const roundedSeconds = Math.max(0, Math.round(totalSeconds));
@@ -131,19 +101,22 @@ export default function Home() {
   const [unlocking, setUnlocking] = useState(false);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [celebratingSubscription, setCelebratingSubscription] = useState(false);
-  const holdFill = useRef(new Animated.Value(0)).current;
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
   const blockedAppsEntry = useRef(new Animated.Value(0)).current;
   const blockedAppsGlow = useRef(new Animated.Value(0)).current;
-  const holdAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const holdCompleteRef = useRef(false);
   const shieldPromptHandledRef = useRef(false);
   const bootyProgress = useMemo(
     () => getBootyProgress(unlockHistory, currentStreak, bonusXp),
     [unlockHistory, currentStreak, bonusXp],
   );
   const bootyProgressPercent = `${Math.round(bootyProgress.progressRatio * 100)}%` as `${number}%`;
+  const completedJourneyDays = useMemo(
+    () => countSquatActivityDays(unlockHistory),
+    [unlockHistory],
+  );
+  const journeyProgressPercent = Math.round((completedJourneyDays / GLUTE_JOURNEY_DAYS) * 100);
+  const streakLabel = `${currentStreak} day${currentStreak === 1 ? '' : 's'} streak`;
 
   useEffect(() => {
     if (params.onboardingArrival !== '1') return;
@@ -237,12 +210,8 @@ export default function Home() {
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
-    return 'Locked';
+    return 'quick squat 💪';
   }, [hasUsageWindow]);
-  const holdFillHeight = holdFill.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
   const promptContentStyle = {
     transform: [
       {
@@ -285,10 +254,6 @@ export default function Home() {
   }
 
   function hideUnlockPrompt() {
-    holdAnimationRef.current?.stop();
-    holdAnimationRef.current = null;
-    holdCompleteRef.current = false;
-    holdFill.setValue(0);
     setUnlockAction(null);
     unlockSelectorProgress.setValue(0);
     Animated.timing(unlockPromptProgress, {
@@ -403,46 +368,13 @@ export default function Home() {
     }
   }
 
-  function startUnlockHold() {
+  async function startQuickSquat() {
     if (showUnlockedState) return;
-    if (!hasAppAccess) {
-      void openSubscriptionFlow();
-      return;
-    }
+    const canContinue = await ensureUnlockAccess();
+    if (!canContinue) return;
 
-    holdAnimationRef.current?.stop();
-    holdCompleteRef.current = false;
-    holdFill.setValue(0);
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
-    holdAnimationRef.current = Animated.timing(holdFill, {
-      toValue: 1,
-      duration: HOLD_TO_UNLOCK_MS,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    });
-    holdAnimationRef.current.start(({ finished }) => {
-      if (!finished) return;
-      holdCompleteRef.current = true;
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      showUnlockPrompt();
-    });
-  }
-
-  function cancelUnlockHold() {
-    holdAnimationRef.current?.stop();
-
-    if (holdCompleteRef.current) {
-      holdFill.setValue(0);
-      holdCompleteRef.current = false;
-      return;
-    }
-
-    Animated.timing(holdFill, {
-      toValue: 0,
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+    void Haptics.selectionAsync().catch(() => {});
+    router.push('/session');
   }
 
   if (needsBlockedApps) {
@@ -528,37 +460,81 @@ export default function Home() {
         logo
         centerLogo
         logoHeight={48}
+        rightAccessory={(
+          <View
+            accessible
+            accessibilityLabel={`${peachBalance} Peaches`}
+            className="h-11 flex-row items-center gap-1.5 rounded-full bg-white/75 px-3"
+          >
+            <PeachIcon size={25} />
+            <Text className="text-base font-black tabular-nums text-cocoa">{peachBalance}</Text>
+          </View>
+        )}
       />
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP`}
-        accessibilityHint="Opens statistics"
-        onPress={() => router.push('/statistics' as Href)}
-        className="-mt-10 rounded-[24px] bg-white px-5 py-4"
+        accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP, ${streakLabel}, ${completedJourneyDays} of ${GLUTE_JOURNEY_DAYS} journey days complete`}
+        accessibilityHint="Opens the 90 day journey and interactive peach patch"
+        onPress={() => router.push('/journey' as Href)}
+        className="-mt-10 overflow-hidden rounded-[24px]"
         style={({ pressed }) => [styles.xpCard, pressed ? styles.xpCardPressed : null]}
       >
-        <View className="flex-row items-center justify-between gap-4">
-          <View className="min-w-0 flex-1 flex-row items-center gap-2.5">
-            <View className="rounded-full bg-petal px-3 py-1.5">
-              <Text className="text-xs font-black text-raspberry">
-                Level {bootyProgress.currentLevel.level}
+        <LinearGradient
+          colors={['#FFE8F1', '#FFF1F5', '#FFC4DD']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.journeyCard}
+        >
+          <View className="flex-row items-start justify-between gap-4">
+            <View className="min-w-0 flex-1">
+              <View className="flex-row items-center gap-2.5">
+                <View className="rounded-full bg-white/75 px-3 py-1.5">
+                  <Text className="text-xs font-black text-raspberry">
+                    Level {bootyProgress.currentLevel.level}
+                  </Text>
+                </View>
+                <Text className="min-w-0 flex-1 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
+                  {bootyProgress.currentLevel.title}
+                </Text>
+              </View>
+              <Text className="mt-1.5 text-xs font-bold text-mink">
+                {journeyProgressPercent}% of your 90 day glute journey
               </Text>
             </View>
-            <Text className="min-w-0 flex-1 text-xl font-black text-cocoa" numberOfLines={1} adjustsFontSizeToFit>
-              {bootyProgress.currentLevel.title}
-            </Text>
+            <View className="items-end">
+              <Text className="text-lg font-black tabular-nums text-raspberry">{bootyProgress.xp} XP</Text>
+              <Text className="mt-0.5 text-xs font-black text-cocoa">🔥 {streakLabel}</Text>
+            </View>
           </View>
-          <Text className="text-lg font-black tabular-nums text-raspberry">{bootyProgress.xp} XP</Text>
-        </View>
-        <View style={styles.peachProgressTrack}>
-          <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
-        </View>
-        <Text className="mt-2 text-xs font-bold text-mink" numberOfLines={1}>
-          {bootyProgress.nextLevel
-            ? `${bootyProgress.xpToNext} XP until ${bootyProgress.nextLevel.title}`
-            : 'Max level unlocked'}
-        </Text>
+
+          <View style={styles.journeyGrid}>
+            {Array.from({ length: 9 }, (_, row) => (
+              <View key={row} style={styles.journeyRow}>
+                {Array.from({ length: 10 }, (_, column) => {
+                  const dayIndex = row * 10 + column;
+                  const complete = dayIndex < completedJourneyDays;
+
+                  return (
+                    <View
+                      key={column}
+                      style={[styles.journeyCell, complete && styles.journeyCellComplete]}
+                    />
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.peachProgressTrack}>
+            <View style={[styles.peachProgressFill, { width: bootyProgressPercent }]} />
+          </View>
+          <Text className="mt-2 text-xs font-bold text-mink" numberOfLines={1}>
+            {bootyProgress.nextLevel
+              ? `${bootyProgress.xpToNext} XP until ${bootyProgress.nextLevel.title}`
+              : 'Max level unlocked'}
+          </Text>
+        </LinearGradient>
       </Pressable>
 
       <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
@@ -678,46 +654,38 @@ export default function Home() {
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Hold to unlock'}
-              accessibilityHint={showUnlockedState ? undefined : 'Hold until the card fills to choose how to unlock'}
+              accessibilityLabel={showUnlockedState ? 'All apps unlocked' : 'Quick Squat'}
+              accessibilityHint={showUnlockedState ? undefined : 'Starts a squat session to earn Peaches'}
               disabled={showUnlockedState}
-              onPressIn={startUnlockHold}
-              onPressOut={cancelUnlockHold}
-              className={showUnlockedState ? 'px-7 py-6' : 'p-7'}
+              onPress={() => void startQuickSquat()}
+              className={showUnlockedState ? 'px-7 py-6' : 'px-7 py-5'}
             >
-              {!showUnlockedState ? (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.holdFill, { height: holdFillHeight }]}
-                />
-              ) : null}
-              <View className="items-center">
-                <View
-                  className={`items-center justify-center ${
-                    showUnlockedState
-                      ? 'h-16 w-16 rounded-[22px] bg-white/60'
-                      : 'h-20 w-20 rounded-[28px] bg-white/15'
-                  }`}
-                >
-                  {showUnlockedState ? (
+              {showUnlockedState ? (
+                <View className="items-center">
+                  <View className="h-16 w-16 items-center justify-center rounded-[22px] bg-white/60">
                     <Unlock size={38} stroke={colors.cocoa} strokeWidth={3} />
-                  ) : (
-                    <Lock size={38} stroke={colors.white} strokeWidth={3} />
-                  )}
+                  </View>
+                  <Text
+                    className="mt-3 text-[40px] font-bold leading-[44px] text-cocoa"
+                    style={styles.homeStatusText}
+                  >
+                    {status}
+                  </Text>
                 </View>
+              ) : (
                 <Text
-                  className={`${showUnlockedState ? 'mt-3 text-[40px] leading-[44px] text-cocoa' : 'mt-4 text-5xl text-white'} font-bold`}
+                  className="text-[34px] font-bold leading-[40px] text-white"
                   style={styles.homeStatusText}
                 >
                   {status}
                 </Text>
-              </View>
+              )}
 
-              <View className={`${showUnlockedState ? 'mt-5' : 'mt-6'} rounded-[28px] p-4 ${showUnlockedState ? 'bg-white/55' : 'bg-white/15'}`}>
-                <Text className={`text-xs font-black uppercase tracking-[1.4px] ${showUnlockedState ? 'text-mink' : 'text-white/75'}`}>
-                  {showUnlockedState ? 'Remaining time' : 'Peaches'}
-                </Text>
-                {showUnlockedState ? (
+              {showUnlockedState ? (
+                <View className="mt-5 rounded-[28px] bg-white/55 p-4">
+                  <Text className="text-xs font-black uppercase tracking-[1.4px] text-mink">
+                    Remaining time
+                  </Text>
                   <View
                     accessible
                     accessibilityLabel={remainingTimeAccessibilityLabel(usageWindowSeconds)}
@@ -732,20 +700,11 @@ export default function Home() {
                       style={styles.homeCountdownNumber}
                     />
                   </View>
-                ) : (
-                  <View className="mt-1 flex-row items-center gap-2">
-                    <PeachIcon size={38} />
-                    <Text className="text-4xl font-black tabular-nums text-white" accessibilityLabel={`${peachBalance} Peaches`}>
-                      {peachBalance}
-                    </Text>
-                  </View>
-                )}
-              </View>
+                </View>
+              ) : null}
             </Pressable>
           )}
       </View>
-
-      {!showUnlockedState && !unlockPromptVisible ? <RoughUnlockPrompt /> : null}
 
       {!hasAppAccess ? (
         <View className="mt-4">
@@ -795,13 +754,6 @@ const styles = StyleSheet.create({
     height: 150,
     width: 220,
   },
-  holdFill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
   unlockSelectorValue: {
     height: 82,
     width: 130,
@@ -831,6 +783,31 @@ const styles = StyleSheet.create({
     opacity: 0.86,
     transform: [{ scale: 0.99 }],
   },
+  journeyCard: {
+    paddingBottom: 15,
+    paddingHorizontal: 17,
+    paddingTop: 16,
+  },
+  journeyGrid: {
+    gap: 4,
+    marginTop: 14,
+  },
+  journeyRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  journeyCell: {
+    aspectRatio: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderColor: 'rgba(233, 30, 115, 0.18)',
+    borderRadius: 3,
+    borderWidth: 1,
+    flex: 1,
+  },
+  journeyCellComplete: {
+    backgroundColor: colors.raspberry,
+    borderColor: colors.raspberry,
+  },
   peachProgressTrack: {
     backgroundColor: colors.blush,
     borderRadius: 999,
@@ -842,28 +819,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.raspberry,
     borderRadius: 999,
     height: '100%',
-  },
-  roughUnlockPrompt: {
-    alignSelf: 'center',
-    height: 78,
-    marginTop: 2,
-    position: 'relative',
-    width: '100%',
-  },
-  roughUnlockArrow: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: -5,
-  },
-  roughUnlockText: {
-    bottom: 1,
-    color: colors.cocoa,
-    fontSize: 23,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    position: 'absolute',
-    right: 34,
-    transform: [{ rotate: '-2deg' }],
   },
 });
