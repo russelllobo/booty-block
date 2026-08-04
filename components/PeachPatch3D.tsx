@@ -340,6 +340,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
   const [isAppActive, setIsAppActive] = useState(() => AppState.currentState === 'active');
   const stage = useMemo(() => getPeachPatchStage(completedDays), [completedDays]);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [layoutSize, setLayoutSize] = useState({ width: 0, height: 0 });
   const cameraRef = useRef<CameraState>({ ...INITIAL_CAMERA });
   const panStartRef = useRef({ yaw: INITIAL_CAMERA.yaw, pitch: INITIAL_CAMERA.pitch });
   const pinchStartRef = useRef(INITIAL_CAMERA.distance);
@@ -440,7 +441,8 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     let renderer: WebGLRenderer;
     try {
       renderer = createThreeRenderer(gl, initialWidth, initialHeight);
-    } catch {
+    } catch (error) {
+      console.error('Peach Patch renderer failed to start:', error);
       setRenderFailed(true);
       return;
     }
@@ -537,7 +539,8 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       try {
         renderer.render(scene, camera);
         gl.endFrameEXP();
-      } catch {
+      } catch (error) {
+        console.error('Peach Patch renderer failed to draw:', error);
         active = false;
         setRenderFailed(true);
         return;
@@ -560,10 +563,11 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     render();
   }, [stage]);
 
-  const shouldRender = isScreenFocused && active && isAppActive && OptionalGLView;
+  const shouldRender = Boolean(isScreenFocused && active && isAppActive && OptionalGLView);
+  const hasMeasuredLayout = layoutSize.width > 0 && layoutSize.height > 0;
   const patchView = renderFailed && shouldRender ? (
     <View accessibilityLabel="Peach Patch preview unavailable" style={styles.glFallback} />
-  ) : shouldRender ? (
+  ) : shouldRender && hasMeasuredLayout && OptionalGLView ? (
     <OptionalGLView
       key={`peach-patch-buffer-size-${stage.index}`}
       accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
@@ -578,17 +582,24 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
 
   const renderedPatchView = interactive && shouldRender ? (
     <GestureDetector gesture={worldGesture}>
-      <View style={StyleSheet.absoluteFill}>{patchView}</View>
+      <View style={styles.glContainer}>{patchView}</View>
     </GestureDetector>
   ) : patchView;
 
   return (
     <View
       onLayout={(event) => {
-        layoutSizeRef.current = {
+        const nextLayoutSize = {
           width: event.nativeEvent.layout.width,
           height: event.nativeEvent.layout.height,
         };
+        layoutSizeRef.current = nextLayoutSize;
+        setLayoutSize((currentLayoutSize) => (
+          currentLayoutSize.width === nextLayoutSize.width
+            && currentLayoutSize.height === nextLayoutSize.height
+            ? currentLayoutSize
+            : nextLayoutSize
+        ));
       }}
       style={styles.container}
     >
@@ -633,11 +644,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   glView: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
+    flex: 1,
+  },
+  glContainer: {
+    flex: 1,
   },
   glFallback: {
     backgroundColor: '#7DB8E8',
