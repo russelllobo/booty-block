@@ -564,7 +564,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     render();
   }, [stage]);
 
-  const shouldRenderNative = Platform.OS === 'ios' && isScreenFocused && active && isAppActive;
+  const shouldRenderNative = Platform.OS === 'ios' && isScreenFocused;
   const shouldRenderGL = Boolean(
     Platform.OS !== 'ios' && isScreenFocused && active && isAppActive && OptionalGLView,
   );
