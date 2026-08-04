@@ -98,14 +98,19 @@ function WreathHalf({ compact, side }: { compact: boolean; side: 'left' | 'right
   );
 }
 
-export default function SocialProof() {
+export function SocialProofScreen({
+  mode = 'onboarding',
+}: {
+  mode?: 'onboarding' | 'return-offer';
+}) {
   const posthog = usePostHog();
   const { height } = useWindowDimensions();
   const compact = height < 720;
+  const isReturnOffer = mode === 'return-offer';
 
   useOnboardingStepAnalytics(
     posthog,
-    '/onboarding/social-proof',
+    isReturnOffer ? '/return-offer/reviews' : '/onboarding/social-proof',
     ONBOARDING_STEPS.socialProof.key,
     ONBOARDING_STEPS.socialProof.title,
     ONBOARDING_STEPS.socialProof.index,
@@ -121,7 +126,13 @@ export default function SocialProof() {
       <StatusBar style="dark" animated />
       <OnboardingProgress
         step={ONBOARDING_STEPS.socialProof.index}
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(isReturnOffer ? '/return-offer' : '/onboarding/notifications');
+          }
+        }}
         showBar={false}
       />
 
@@ -176,12 +187,18 @@ export default function SocialProof() {
 
           <Button
             label="Join bootyblock 🙏"
-            onPress={() => router.replace('/onboarding/calculating')}
+            onPress={() => router.push(
+              isReturnOffer ? '/return-offer/wellbeing-plan' : '/onboarding/calculating',
+            )}
           />
         </View>
       </SlidePanel>
     </Screen>
   );
+}
+
+export default function SocialProof() {
+  return <SocialProofScreen />;
 }
 
 const styles = StyleSheet.create({

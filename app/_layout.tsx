@@ -22,6 +22,7 @@ import {
   screenAnalytics,
 } from '../lib/analytics';
 import { getOnboardingResumeHref } from '../lib/onboardingProgress';
+import { shouldShowReturnOffer } from '../lib/returnOffer';
 import { syncRoutineReminderNotification } from '../lib/services/routineReminder';
 import { screenTimeService } from '../lib/services/screenTime';
 import { tiktokService } from '../lib/services/tiktok';
@@ -65,7 +66,13 @@ function LaunchSplashController() {
 }
 
 function NotificationObserver() {
-  const { hydrated, onboardingComplete, routineReminderTime } = useBootyblock();
+  const {
+    hydrated,
+    isSubscribed,
+    onboardingComplete,
+    routineReminderTime,
+  } = useBootyblock();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (Platform.OS === 'web' || !hydrated) return;
@@ -80,7 +87,7 @@ function NotificationObserver() {
   useEffect(() => {
     if (Platform.OS === 'web' || !hydrated) return;
 
-    function openUnlockUrl(url: string | null) {
+    async function openUnlockUrl(url: string | null) {
       const openedFromShield = Boolean(
         url?.startsWith('device-activity://')
         || url?.startsWith('bootyblock://unlock')
@@ -88,56 +95,80 @@ function NotificationObserver() {
       );
       if (openedFromShield) {
         if (onboardingComplete) {
+          if (!isSubscribed && await shouldShowReturnOffer()) {
+            router.replace('/return-offer');
+            return;
+          }
           router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
         } else {
-          void getOnboardingResumeHref().then((href) => router.push(href));
+          const href = await getOnboardingResumeHref();
+          router.push(href);
         }
       }
     }
 
-    void Linking.getInitialURL().then(openUnlockUrl);
-    const subscription = Linking.addEventListener('url', ({ url }) => openUnlockUrl(url));
+    void Linking.getInitialURL().then((url) => openUnlockUrl(url));
+    const subscription = Linking.addEventListener('url', ({ url }) => void openUnlockUrl(url));
 
     return () => subscription.remove();
-  }, [hydrated, onboardingComplete]);
+  }, [hydrated, isSubscribed, onboardingComplete]);
 
   useEffect(() => {
     if (Platform.OS === 'web' || !hydrated) return;
 
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && screenTimeService.consumeShieldOpenRequest()) {
+      if (state !== 'active') return;
+
+      void (async () => {
+        if (
+          onboardingComplete
+          && !isSubscribed
+          && !pathname.startsWith('/return-offer')
+          && await shouldShowReturnOffer()
+        ) {
+          router.replace('/return-offer');
+          return;
+        }
+
+        if (!screenTimeService.consumeShieldOpenRequest()) return;
         if (onboardingComplete) {
           router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
-        } else {
-          void getOnboardingResumeHref().then((href) => router.push(href));
+          return;
         }
-      }
+
+        const href = await getOnboardingResumeHref();
+        router.push(href);
+      })();
     });
 
     return () => subscription.remove();
-  }, [hydrated, onboardingComplete]);
+  }, [hydrated, isSubscribed, onboardingComplete, pathname]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    function openNotification(notification: Notifications.Notification) {
+    async function openNotification(notification: Notifications.Notification) {
       const url = notification.request.content.data?.url;
       if (url === '/plan' || url === '/(tabs)/plan') {
+        if (onboardingComplete && !isSubscribed && await shouldShowReturnOffer()) {
+          router.replace('/return-offer');
+          return;
+        }
         router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
       }
     }
 
     const lastResponse = Notifications.getLastNotificationResponse();
     if (lastResponse?.notification) {
-      openNotification(lastResponse.notification);
+      void openNotification(lastResponse.notification);
     }
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      openNotification(response.notification);
+      void openNotification(response.notification);
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [isSubscribed, onboardingComplete]);
 
   return null;
 }
@@ -232,6 +263,9 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding/calculating" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/wellbeing-plan" options={onboardingScreenOptions} />
               <Stack.Screen name="onboarding/apps" options={onboardingScreenOptions} />
+              <Stack.Screen name="return-offer/index" options={onboardingScreenOptions} />
+              <Stack.Screen name="return-offer/reviews" options={onboardingScreenOptions} />
+              <Stack.Screen name="return-offer/wellbeing-plan" options={onboardingScreenOptions} />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="plan" />
               <Stack.Screen name="journey" />

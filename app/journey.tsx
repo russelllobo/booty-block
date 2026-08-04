@@ -51,7 +51,6 @@ export default function Journey() {
         </View>
 
         <View pointerEvents="none" style={styles.gestureHint}>
-          <Text style={styles.gestureHintText}>drag to orbit · pinch to zoom</Text>
           <Text style={styles.unlockHint}>
             {patchStage.nextUnlockDay
               ? `${patchStage.nextUnlock} unlocks on day ${patchStage.nextUnlockDay}`
@@ -163,16 +162,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
   },
-  gestureHintText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-  },
   unlockHint: {
     color: 'rgba(255,255,255,0.72)',
     fontSize: 9,
     fontWeight: '700',
-    marginTop: 2,
   },
   buttonPressed: {
     opacity: 0.72,

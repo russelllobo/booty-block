@@ -2,14 +2,12 @@ import * as Haptics from 'expo-haptics';
 import type { ExpoWebGLRenderingContext, GLViewProps } from 'expo-gl';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useFocusEffect, useIsFocused } from 'expo-router';
-import { Minus, Plus, RotateCcw } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { BufferGeometry, Group, Material, Object3D, WebGLRenderer } from 'three';
 
-import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
 import {
   createPeachPatchNativeGLRenderer,
@@ -382,11 +380,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     void Haptics.selectionAsync().catch(() => {});
   }, []);
 
-  const changeZoom = useCallback((amount: number) => {
-    cameraRef.current.distance = clamp(cameraRef.current.distance + amount, 9.5, 27);
-    void Haptics.selectionAsync().catch(() => {});
-  }, []);
-
   const panGesture = useMemo(
     () => Gesture.Pan()
       .maxPointers(1)
@@ -623,35 +616,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       style={styles.container}
     >
       {renderedPatchView}
-
-      {interactive && shouldRenderGL ? (
-        <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom in"
-            onPress={() => changeZoom(-2)}
-            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-          >
-            <Plus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Zoom out"
-            onPress={() => changeZoom(2)}
-            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-          >
-            <Minus size={19} stroke={colors.cocoa} strokeWidth={2.7} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Reset 3D view"
-            onPress={resetCamera}
-            style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
-          >
-            <RotateCcw size={18} stroke={colors.cocoa} strokeWidth={2.5} />
-          </Pressable>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -675,29 +639,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
-  },
-  cameraControls: {
-    gap: 8,
-    position: 'absolute',
-    right: 16,
-    top: 18,
-  },
-  cameraButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 249, 246, 0.9)',
-    borderColor: 'rgba(91, 43, 62, 0.11)',
-    borderRadius: 16,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    shadowColor: '#5B2B3E',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    width: 42,
-  },
-  cameraButtonPressed: {
-    opacity: 0.78,
-    transform: [{ scale: 0.96 }],
   },
 });

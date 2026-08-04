@@ -5,6 +5,7 @@ import { Image, View } from 'react-native';
 
 import { colors } from '../constants/theme';
 import { getOnboardingResumeHref } from '../lib/onboardingProgress';
+import { shouldShowReturnOffer } from '../lib/returnOffer';
 import { screenTimeService } from '../lib/services/screenTime';
 import { useBootyblock } from '../lib/store/BootyblockProvider';
 
@@ -13,6 +14,7 @@ const splashLogo = require('../assets/splash-icon.png');
 export default function Index() {
   const {
     hydrated,
+    isSubscribed,
     onboardingComplete,
     subscriptionHydrated,
   } = useBootyblock();
@@ -21,21 +23,37 @@ export default function Index() {
   useEffect(() => {
     if (!hydrated || !subscriptionHydrated) return;
 
-    if (!onboardingComplete) {
-      void getOnboardingResumeHref().then((href) => router.replace(href));
-      return;
-    }
+    let active = true;
+    void (async () => {
+      if (!onboardingComplete) {
+        const href = await getOnboardingResumeHref();
+        if (active) router.replace(href);
+        return;
+      }
 
-    const openedFromShield = Boolean(
-      linkingUrl?.startsWith('device-activity://')
-      || linkingUrl?.startsWith('bootyblock://unlock')
-      || screenTimeService.consumeShieldOpenRequest(),
-    );
-    router.replace(openedFromShield
-      ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
-      : '/(tabs)');
+      if (!isSubscribed && await shouldShowReturnOffer()) {
+        if (active) router.replace('/return-offer');
+        return;
+      }
+
+      const openedFromShield = Boolean(
+        linkingUrl?.startsWith('device-activity://')
+        || linkingUrl?.startsWith('bootyblock://unlock')
+        || screenTimeService.consumeShieldOpenRequest(),
+      );
+      if (active) {
+        router.replace(openedFromShield
+          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
+          : '/(tabs)');
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [
     hydrated,
+    isSubscribed,
     linkingUrl,
     onboardingComplete,
     subscriptionHydrated,

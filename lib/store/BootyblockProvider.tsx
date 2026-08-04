@@ -14,6 +14,7 @@ import {
 import { captureAnalytics, trackOnboardingStepViewed } from '../analytics';
 import { clearOnboardingCheckpoint } from '../onboardingProgress';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../onboardingSteps';
+import { clearReturnOfferState } from '../returnOffer';
 import {
   getPaywallOfferingDiagnostics,
   hasActiveEntitlement,
@@ -478,7 +479,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       });
     }
 
-    setPayload((current) => ({ ...current, onboardingComplete: true }));
+    const completedPayload = { ...payloadRef.current, onboardingComplete: true };
+    payloadRef.current = completedPayload;
+    setPayload(completedPayload);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(completedPayload));
     await clearOnboardingCheckpoint();
   }, []);
 
@@ -1171,6 +1175,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     await AsyncStorage.setItem(RESET_SUBSCRIPTION_STATE_KEY, 'true');
     await AsyncStorage.removeItem(STORAGE_KEY);
     await clearOnboardingCheckpoint();
+    await clearReturnOfferState();
   }, []);
 
   const value = useMemo<BootyblockState>(

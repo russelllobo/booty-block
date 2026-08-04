@@ -1,7 +1,7 @@
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { type Href, router, useLocalSearchParams } from 'expo-router';
+import { type Href, router, useGlobalSearchParams, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Flame, Lock, Unlock, X } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -9,12 +9,12 @@ import {
   Alert,
   Animated,
   Easing,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Text } from '../../components/AppText';
@@ -22,6 +22,7 @@ import { Text } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { CelebrationOverlay } from '../../components/CelebrationOverlay';
 import { Header } from '../../components/Header';
+import { HomeShowcase, type HomeShowcaseStep } from '../../components/HomeShowcase';
 import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
 import { PEACH_PATCH_3D_SUPPORTED, PeachPatch3D } from '../../components/PeachPatch3D';
@@ -77,10 +78,12 @@ function remainingTimeAccessibilityLabel(totalSeconds: number) {
 }
 
 export default function Home() {
+  const { width: windowWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{
     onboardingArrival?: '1';
     openUnlock?: '1' | 'spend';
   }>();
+  const previewParams = useGlobalSearchParams<{ postPurchasePreview?: '1' }>();
   const posthog = usePostHog();
   const {
     peachBalance,
@@ -115,12 +118,15 @@ export default function Home() {
   const [unlocking, setUnlocking] = useState(false);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [celebratingSubscription, setCelebratingSubscription] = useState(false);
-  const [journeyCardWidth, setJourneyCardWidth] = useState(0);
+  const [showcaseStep, setShowcaseStep] = useState<HomeShowcaseStep | null>(null);
+  const [journeyCardWidth, setJourneyCardWidth] = useState(() => Math.max(0, windowWidth - 48));
   const [journeyCardPage, setJourneyCardPage] = useState(0);
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
-  const blockedAppsEntry = useRef(new Animated.Value(0)).current;
-  const blockedAppsGlow = useRef(new Animated.Value(0)).current;
+  const journeyShowcaseTargetRef = useRef<View>(null);
+  const blockingShowcaseTargetRef = useRef<View>(null);
+  const journeyPagerRef = useRef<ScrollView>(null);
+  const postPurchasePreviewHandledRef = useRef(false);
   const shieldPromptHandledRef = useRef(false);
   const journeyCardPageRef = useRef(0);
   const bootyProgress = useMemo(
@@ -153,6 +159,23 @@ export default function Home() {
   }, [params.onboardingArrival, posthog]);
 
   useEffect(() => {
+    if (
+      previewParams.postPurchasePreview !== '1'
+      ||
+      journeyCardWidth <= 0
+      || postPurchasePreviewHandledRef.current
+    ) return;
+
+    postPurchasePreviewHandledRef.current = true;
+    const firstStep: HomeShowcaseStep = PEACH_PATCH_3D_SUPPORTED ? 'patch' : 'journey';
+    const page = firstStep === 'patch' ? 1 : 0;
+    journeyPagerRef.current?.scrollTo({ animated: false, x: page * journeyCardWidth, y: 0 });
+    journeyCardPageRef.current = page;
+    setJourneyCardPage(page);
+    setShowcaseStep(firstStep);
+  }, [journeyCardWidth, previewParams.postPurchasePreview]);
+
+  useEffect(() => {
     syncUsageWindow();
     setTick(Date.now());
     const interval = setInterval(() => {
@@ -177,43 +200,6 @@ export default function Home() {
     : `Do ${Math.ceil(selectedPeaches / PEACHES_PER_SQUAT)} squats`;
 
   useEffect(() => {
-    if (!needsBlockedApps) return;
-
-    blockedAppsEntry.setValue(0);
-    blockedAppsGlow.setValue(0);
-    const entrance = Animated.spring(blockedAppsEntry, {
-      toValue: 1,
-      friction: 7,
-      tension: 72,
-      useNativeDriver: true,
-    });
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blockedAppsGlow, {
-          toValue: 1,
-          duration: 950,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(blockedAppsGlow, {
-          toValue: 0,
-          duration: 950,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    entrance.start();
-    glow.start();
-
-    return () => {
-      entrance.stop();
-      glow.stop();
-    };
-  }, [blockedAppsEntry, blockedAppsGlow, needsBlockedApps]);
-
-  useEffect(() => {
     if (!subscriptionCelebrationPending) return;
     if (!needsBlockedApps) {
       consumeSubscriptionCelebration();
@@ -224,11 +210,18 @@ export default function Home() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     const timeout = setTimeout(() => {
       setCelebratingSubscription(false);
+      const firstStep: HomeShowcaseStep = PEACH_PATCH_3D_SUPPORTED ? 'patch' : 'journey';
+      if (firstStep === 'patch' && journeyCardWidth > 0) {
+        journeyPagerRef.current?.scrollTo({ animated: false, x: journeyCardWidth, y: 0 });
+        journeyCardPageRef.current = 1;
+        setJourneyCardPage(1);
+      }
+      setShowcaseStep(firstStep);
       consumeSubscriptionCelebration();
     }, 1700);
 
     return () => clearTimeout(timeout);
-  }, [consumeSubscriptionCelebration, needsBlockedApps, subscriptionCelebrationPending]);
+  }, [consumeSubscriptionCelebration, journeyCardWidth, needsBlockedApps, subscriptionCelebrationPending]);
 
   const status = useMemo(() => {
     if (hasUsageWindow) return 'All apps unlocked';
@@ -428,77 +421,21 @@ export default function Home() {
     void Haptics.selectionAsync().catch(() => {});
   }
 
-  if (needsBlockedApps) {
-    const entryStyle = {
-      opacity: blockedAppsEntry,
-      transform: [
-        {
-          translateY: blockedAppsEntry.interpolate({
-            inputRange: [0, 1],
-            outputRange: [24, 0],
-          }),
-        },
-        {
-          scale: blockedAppsEntry.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.94, 1],
-          }),
-        },
-      ],
-    };
-    const glowStyle = {
-      opacity: blockedAppsGlow.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.2, 0.62],
-      }),
-      transform: [
-        {
-          scale: blockedAppsGlow.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1.015, 1.075],
-          }),
-        },
-      ],
-    };
+  function advanceShowcase(step: HomeShowcaseStep) {
+    if (step === 'patch') {
+      journeyPagerRef.current?.scrollTo({ animated: true, x: 0, y: 0 });
+      journeyCardPageRef.current = 0;
+      setJourneyCardPage(0);
+      setShowcaseStep('journey');
+      return;
+    }
 
-    return (
-      <Screen>
-        <View className="flex-1 justify-center">
-          <Animated.View style={entryStyle}>
-            <View style={styles.blockedAppsCtaWrap}>
-              <Animated.View pointerEvents="none" style={[styles.blockedAppsGlow, glowStyle]} />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Choose blocked apps"
-                accessibilityHint="Opens the Screen Time app picker"
-                onPress={() => router.push('/onboarding/apps')}
-                className="items-center justify-center rounded-[40px] bg-raspberry px-8 py-10"
-                style={({ pressed }) => pressed ? styles.blockedAppsCtaPressed : null}
-              >
-                <Text className="text-center text-xs font-black uppercase tracking-[2px] text-white/75">
-                  bootyblock Pro unlocked
-                </Text>
-                <View style={styles.paywallArtFrame}>
-                  <Image
-                    accessibilityIgnoresInvertColors
-                    resizeMode="contain"
-                    source={require('../../assets/paywall-apps.png')}
-                    style={styles.paywallArt}
-                  />
-                </View>
-                <Text className="mt-5 text-center text-[34px] font-black leading-[38px] text-white">
-                  Choose blocked apps
-                </Text>
-                <Text className="mt-3 text-center text-base font-bold leading-6 text-white/80">
-                  Pick the apps you want bootyblock to protect.
-                </Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-        </View>
-        <CelebrationOverlay visible={celebratingSubscription} showBadge={false} />
-      </Screen>
-    );
+    setShowcaseStep('blocking');
+  }
+
+  function chooseAppsFromShowcase() {
+    setShowcaseStep(null);
+    router.push('/onboarding/apps');
   }
 
   return (
@@ -524,10 +461,13 @@ export default function Home() {
       />
 
       <View
+        ref={journeyShowcaseTargetRef}
+        collapsable={false}
         className="-mt-10"
         onLayout={(event) => setJourneyCardWidth(event.nativeEvent.layout.width)}
       >
         <ScrollView
+          ref={journeyPagerRef}
           horizontal
           pagingEnabled
           bounces={false}
@@ -656,7 +596,11 @@ export default function Home() {
         ) : null}
       </View>
 
-      <View className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}>
+      <View
+        ref={blockingShowcaseTargetRef}
+        collapsable={false}
+        className={`mt-8 overflow-hidden rounded-[40px] ${showUnlockedState ? 'bg-mint' : 'bg-raspberry'}`}
+      >
           {unlockPromptVisible ? (
             <Animated.View className="p-7" style={promptContentStyle}>
               {unlockAction !== 'earn' ? (
@@ -866,54 +810,37 @@ export default function Home() {
           )}
       </View>
 
-      {!hasAppAccess ? (
+      {!hasAppAccess || needsBlockedApps ? (
         <View className="mt-4">
           <Button
             label="Choose blocked apps"
             icon={Lock}
             loading={subscriptionBusy}
             disabled={subscriptionBusy}
-            onPress={() => void openSubscriptionFlow()}
+            onPress={() => {
+              if (needsBlockedApps) {
+                router.push('/onboarding/apps');
+                return;
+              }
+              void openSubscriptionFlow();
+            }}
           />
         </View>
       ) : null}
+
+      <CelebrationOverlay visible={celebratingSubscription} showBadge={false} />
+      <HomeShowcase
+        step={showcaseStep}
+        targetRef={showcaseStep === 'blocking' ? blockingShowcaseTargetRef : journeyShowcaseTargetRef}
+        onAdvance={advanceShowcase}
+        onChooseApps={chooseAppsFromShowcase}
+      />
 
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  blockedAppsCtaWrap: {
-    position: 'relative',
-  },
-  blockedAppsGlow: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.bubble,
-    borderRadius: 40,
-    shadowColor: colors.raspberry,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 30,
-    elevation: 14,
-  },
-  blockedAppsCtaPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.985 }],
-  },
-  paywallArtFrame: {
-    alignItems: 'center',
-    backgroundColor: '#100911',
-    borderRadius: 28,
-    height: 150,
-    justifyContent: 'center',
-    marginTop: 18,
-    overflow: 'hidden',
-    width: 220,
-  },
-  paywallArt: {
-    height: 150,
-    width: 220,
-  },
   unlockSelectorValue: {
     height: 82,
     width: 130,

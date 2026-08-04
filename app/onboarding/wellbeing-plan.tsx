@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
+import { getLocales } from 'expo-localization';
 import { StatusBar } from 'expo-status-bar';
-import { Heart, Quote, Star } from 'lucide-react-native';
+import { Check, Heart, Quote, Star } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/AppText';
 
 import { Button } from '../../components/Button';
@@ -18,6 +19,11 @@ import {
 } from '../../constants/theme';
 import { useOnboardingStepAnalytics } from '../../lib/analytics';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../../lib/onboardingSteps';
+import {
+  markOnboardingPaywallSeen,
+  markReturnOfferFlowCompleted,
+} from '../../lib/returnOffer';
+import { revenueCatService } from '../../lib/services/revenueCat';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const gold = '#FFD76A';
@@ -27,6 +33,50 @@ type PlanItem = {
   title: string;
   body: string;
 };
+
+type WellbeingPlanMode = 'onboarding' | 'return-offer';
+
+type ReturnOfferPricing = {
+  annualPrice: string;
+  weeklyPrice: string;
+  zeroPrice: string;
+};
+
+function fallbackReturnOfferPricing(): ReturnOfferPricing {
+  const locale = getLocales()[0];
+  const isBritish = locale?.regionCode === 'GB';
+  return {
+    annualPrice: isBritish ? '£39.99' : '$39.99',
+    weeklyPrice: isBritish ? '£0.77' : '$0.77',
+    zeroPrice: isBritish ? '£0.00' : '$0.00',
+  };
+}
+
+function zeroPriceForCurrency(currencyCode: string) {
+  try {
+    return new Intl.NumberFormat(getLocales()[0]?.languageTag ?? 'en-GB', {
+      currency: currencyCode,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: 2,
+      style: 'currency',
+    }).format(0);
+  } catch {
+    return fallbackReturnOfferPricing().zeroPrice;
+  }
+}
+
+function priceForCurrency(value: number, currencyCode: string) {
+  try {
+    return new Intl.NumberFormat(getLocales()[0]?.languageTag ?? 'en-GB', {
+      currency: currencyCode,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: 2,
+      style: 'currency',
+    }).format(value);
+  } catch {
+    return value.toFixed(2);
+  }
+}
 
 function FadeInStage({ children, delay }: { children: ReactNode; delay: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -99,13 +149,20 @@ function TimelineCard({
   );
 }
 
-export default function WellbeingPlan() {
+export function WellbeingPlanScreen({ mode = 'onboarding' }: { mode?: WellbeingPlanMode }) {
   const posthog = usePostHog();
   const {
     completeOnboarding,
+    isSubscribed,
+    presentSubscriptionPaywall,
     requestOnboardingSubscriptionAccess,
+    subscriptionConfigured,
   } = useBootyblock();
   const [starting, setStarting] = useState(false);
+  const [returnOfferPricing, setReturnOfferPricing] = useState<ReturnOfferPricing | null>(
+    Platform.OS === 'web' ? fallbackReturnOfferPricing : null,
+  );
+  const isReturnOffer = mode === 'return-offer';
 
   function back() {
     if (router.canGoBack()) {
@@ -113,27 +170,67 @@ export default function WellbeingPlan() {
       return;
     }
 
-    router.replace('/onboarding/notifications');
+    router.replace(isReturnOffer ? '/return-offer/reviews' : '/onboarding/notifications');
   }
 
   useOnboardingStepAnalytics(
     posthog,
-    '/onboarding/wellbeing-plan',
+    isReturnOffer ? '/return-offer/wellbeing-plan' : '/onboarding/wellbeing-plan',
     ONBOARDING_STEPS.firstWeekWellbeingPlan.key,
     ONBOARDING_STEPS.firstWeekWellbeingPlan.title,
     ONBOARDING_STEPS.firstWeekWellbeingPlan.index,
     ONBOARDING_STEP_TOTAL,
   );
 
+  useEffect(() => {
+    if (!isReturnOffer || !subscriptionConfigured) return;
+
+    let mounted = true;
+    void revenueCatService.getNormalPaywallOffering()
+      .then((offering) => {
+        const annual = offering.availablePackages.find((item) => (
+          item.product.subscriptionPeriod === 'P1Y'
+          && item.product.introPrice?.price === 0
+        )) ?? offering.availablePackages.find((item) => item.product.subscriptionPeriod === 'P1Y');
+        if (!mounted || !annual) return;
+
+        setReturnOfferPricing({
+          annualPrice: annual.product.priceString,
+          weeklyPrice: annual.product.pricePerWeekString
+            ?? priceForCurrency(annual.product.price / 52, annual.product.currencyCode),
+          zeroPrice: zeroPriceForCurrency(annual.product.currencyCode),
+        });
+      })
+      .catch(() => {
+        // The paywall itself remains the source of truth if StoreKit is temporarily unavailable.
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isReturnOffer, subscriptionConfigured]);
+
   async function startBuilding() {
     if (starting) return;
 
     setStarting(true);
     try {
+      if (isReturnOffer) {
+        await markReturnOfferFlowCompleted();
+        const active = await presentSubscriptionPaywall({ force: true });
+        if (active) {
+          router.replace({ pathname: '/(tabs)', params: { onboardingArrival: '1' } });
+        }
+        return;
+      }
+
+      await completeOnboarding();
+      if (!isSubscribed) {
+        await markOnboardingPaywallSeen();
+      }
       const subscriptionStatus = await requestOnboardingSubscriptionAccess();
       if (subscriptionStatus === 'unavailable') return;
 
-      await completeOnboarding();
       router.replace({ pathname: '/(tabs)', params: { onboardingArrival: '1' } });
     } finally {
       setStarting(false);
@@ -258,12 +355,29 @@ export default function WellbeingPlan() {
           </ScrollView>
 
           <View className="border-t border-cocoa/10 bg-white/45 pt-3">
+            {isReturnOffer && returnOfferPricing ? (
+              <View style={styles.noPaymentRow}>
+                <View style={styles.checkCircle}>
+                  <Check color={colors.white} size={12} strokeWidth={3.2} />
+                </View>
+                <Text style={styles.noPaymentText}>no payment due now</Text>
+              </View>
+            ) : null}
             <Button
-              label="join bootyblock"
+              label={isReturnOffer
+                ? returnOfferPricing
+                  ? `try for ${returnOfferPricing.zeroPrice}`
+                  : 'loading free trial…'
+                : 'join bootyblock'}
               loading={starting}
-              disabled={starting}
+              disabled={starting || (isReturnOffer && !returnOfferPricing)}
               onPress={() => void startBuilding()}
             />
+            {isReturnOffer && returnOfferPricing ? (
+              <Text style={styles.renewalText}>
+                just {returnOfferPricing.annualPrice} per year ({returnOfferPricing.weeklyPrice} per week)
+              </Text>
+            ) : null}
           </View>
         </View>
       </SlidePanel>
@@ -283,4 +397,37 @@ const styles = StyleSheet.create({
     marginTop: 24,
     width: '74%',
   },
+  checkCircle: {
+    alignItems: 'center',
+    backgroundColor: colors.raspberry,
+    borderRadius: 999,
+    height: 18,
+    justifyContent: 'center',
+    width: 18,
+  },
+  noPaymentRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    paddingBottom: 8,
+  },
+  noPaymentText: {
+    color: colors.cocoa,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  renewalText: {
+    color: colors.mink,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 6,
+    textAlign: 'center',
+  },
 });
+
+export default function WellbeingPlan() {
+  return <WellbeingPlanScreen />;
+}
