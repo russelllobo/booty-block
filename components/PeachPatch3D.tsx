@@ -11,7 +11,6 @@ import type { BufferGeometry, Group, Material, Object3D, WebGLRenderer } from 't
 
 import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
-import { PeachPatchNativeIllustration } from './PeachPatchNativeIllustration';
 
 function resolveGLView(): ComponentType<GLViewProps> | null {
   if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoGL')) return null;
@@ -58,31 +57,6 @@ const TREE_POSITIONS: Array<[number, number]> = [
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
-}
-
-function framebufferHasGeometry(gl: ExpoWebGLRenderingContext) {
-  const pixel = new Uint8Array(4);
-  const colors = new Set<string>();
-  const sampleColumns = [0.18, 0.34, 0.5, 0.66, 0.82];
-  const sampleRows = [0.24, 0.4, 0.56, 0.72];
-
-  for (const column of sampleColumns) {
-    for (const row of sampleRows) {
-      gl.readPixels(
-        Math.floor(gl.drawingBufferWidth * column),
-        Math.floor(gl.drawingBufferHeight * row),
-        1,
-        1,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        pixel,
-      );
-      if (pixel[3] > 0) colors.add(`${pixel[0] >> 4}:${pixel[1] >> 4}:${pixel[2] >> 4}`);
-      if (colors.size > 1) return true;
-    }
-  }
-
-  return false;
 }
 
 function createThreeRenderer(gl: ExpoWebGLRenderingContext, width: number, height: number) {
@@ -366,7 +340,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
   const [isAppActive, setIsAppActive] = useState(() => AppState.currentState === 'active');
   const stage = useMemo(() => getPeachPatchStage(completedDays), [completedDays]);
   const [renderFailed, setRenderFailed] = useState(false);
-  const [nativeGeometryReady, setNativeGeometryReady] = useState(false);
   const [layoutSize, setLayoutSize] = useState({ width: 0, height: 0 });
   const cameraRef = useRef<CameraState>({ ...INITIAL_CAMERA });
   const panStartRef = useRef({ yaw: INITIAL_CAMERA.yaw, pitch: INITIAL_CAMERA.pitch });
@@ -399,10 +372,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
   useEffect(() => {
     if (active && isAppActive) setRenderFailed(false);
   }, [active, isAppActive, stage.index]);
-
-  useEffect(() => {
-    if (Platform.OS === 'ios') setNativeGeometryReady(false);
-  }, [stage.index]);
 
   const resetCamera = useCallback(() => {
     cameraRef.current = { ...INITIAL_CAMERA };
@@ -465,7 +434,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
 
   const handleContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     cleanupRef.current?.();
-    if (Platform.OS === 'ios') setNativeGeometryReady(false);
     let active = true;
     const initialWidth = Math.max(1, gl.drawingBufferWidth);
     const initialHeight = Math.max(1, gl.drawingBufferHeight);
@@ -477,7 +445,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       renderer = createThreeRenderer(gl, initialWidth, initialHeight);
     } catch (error) {
       console.error('Peach Patch renderer failed to start:', error);
-      if (Platform.OS === 'ios') setNativeGeometryReady(false);
       setRenderFailed(true);
       return;
     }
@@ -521,8 +488,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     const world = buildWorld(stage);
     scene.add(world.root);
     const startedAt = Date.now();
-    let geometryProbeFrames = 0;
-    let geometryReadyReported = false;
 
     const render = () => {
       if (!active) return;
@@ -575,18 +540,10 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
 
       try {
         renderer.render(scene, camera);
-        if (Platform.OS === 'ios' && !geometryReadyReported && geometryProbeFrames < 60) {
-          geometryProbeFrames += 1;
-          if (geometryProbeFrames % 4 === 0 && framebufferHasGeometry(gl)) {
-            geometryReadyReported = true;
-            setNativeGeometryReady(true);
-          }
-        }
         gl.endFrameEXP();
       } catch (error) {
         console.error('Peach Patch renderer failed to draw:', error);
         active = false;
-        if (Platform.OS === 'ios') setNativeGeometryReady(false);
         setRenderFailed(true);
         return;
       }
@@ -615,9 +572,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
   );
   const hasMeasuredLayout = layoutSize.width > 0 && layoutSize.height > 0;
   const patchView = renderFailed && shouldRenderGL ? (
-    Platform.OS === 'ios'
-      ? <PeachPatchNativeIllustration stage={stage} />
-      : <View accessibilityLabel="Peach Patch preview unavailable" style={styles.glFallback} />
+    <View accessibilityLabel="Peach Patch preview unavailable" style={styles.glFallback} />
   ) : shouldRenderGL && hasMeasuredLayout && OptionalGLView ? (
     <OptionalGLView
       key={`peach-patch-buffer-size-${stage.index}`}
@@ -655,12 +610,6 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       style={styles.container}
     >
       {renderedPatchView}
-
-      {Platform.OS === 'ios' && shouldRenderGL && !nativeGeometryReady && !renderFailed ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <PeachPatchNativeIllustration stage={stage} />
-        </View>
-      ) : null}
 
       {interactive && shouldRenderGL ? (
         <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
