@@ -4,10 +4,10 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { useFocusEffect, useIsFocused } from 'expo-router';
 import { Minus, Plus, RotateCcw } from 'lucide-react-native';
 import type { ComponentType } from 'react';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import type { BufferGeometry, Group, Material, Object3D } from 'three';
+import type { BufferGeometry, Group, Material, Object3D, WebGLRenderer } from 'three';
 
 import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
@@ -62,21 +62,23 @@ function clamp(value: number, minimum: number, maximum: number) {
 function createThreeRenderer(gl: ExpoWebGLRenderingContext, width: number, height: number) {
   const canvas = {
     addEventListener: () => {},
-    clientHeight: height,
-    clientWidth: width,
-    height,
+    clientWidth: gl.drawingBufferWidth,
+    clientHeight: gl.drawingBufferHeight,
+    height: gl.drawingBufferHeight,
     removeEventListener: () => {},
-    setAttribute: () => {},
     style: {},
-    width,
+    width: gl.drawingBufferWidth,
   } as unknown as HTMLCanvasElement;
 
-  return new THREE.WebGLRenderer({
+  const renderer = new THREE.WebGLRenderer({
     alpha: false,
     antialias: true,
     canvas,
     context: gl as unknown as WebGLRenderingContext,
   });
+  renderer.setPixelRatio(1);
+  renderer.setSize(width, height, false);
+  return renderer;
 }
 
 function standardMaterial(color: number, roughness = 0.86) {
@@ -329,12 +331,15 @@ function disposeWorld(world: Object3D) {
 
 type PeachPatch3DProps = {
   completedDays: number;
+  active?: boolean;
   interactive?: boolean;
 };
 
-export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3DProps) {
+export function PeachPatch3D({ completedDays, active = true, interactive = true }: PeachPatch3DProps) {
   const isScreenFocused = useIsFocused();
+  const [isAppActive, setIsAppActive] = useState(() => AppState.currentState === 'active');
   const stage = useMemo(() => getPeachPatchStage(completedDays), [completedDays]);
+  const [renderFailed, setRenderFailed] = useState(false);
   const cameraRef = useRef<CameraState>({ ...INITIAL_CAMERA });
   const panStartRef = useRef({ yaw: INITIAL_CAMERA.yaw, pitch: INITIAL_CAMERA.pitch });
   const pinchStartRef = useRef(INITIAL_CAMERA.distance);
@@ -346,13 +351,24 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
     cleanupRef.current?.();
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      setIsAppActive(nextState === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
+
   useFocusEffect(useCallback(() => () => {
     cleanupRef.current?.();
   }, []));
 
   useEffect(() => {
-    if (!isScreenFocused) cleanupRef.current?.();
-  }, [isScreenFocused]);
+    if (!isScreenFocused || !active || !isAppActive) cleanupRef.current?.();
+  }, [active, isAppActive, isScreenFocused]);
+
+  useEffect(() => {
+    if (active && isAppActive) setRenderFailed(false);
+  }, [active, isAppActive, stage.index]);
 
   const resetCamera = useCallback(() => {
     cameraRef.current = { ...INITIAL_CAMERA };
@@ -416,13 +432,18 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
   const handleContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     cleanupRef.current?.();
     let active = true;
-    const initialWidth = Platform.OS === 'web' && layoutSizeRef.current.width > 0
-      ? layoutSizeRef.current.width
-      : gl.drawingBufferWidth;
-    const initialHeight = Platform.OS === 'web' && layoutSizeRef.current.height > 0
-      ? layoutSizeRef.current.height
-      : gl.drawingBufferHeight;
-    const renderer = createThreeRenderer(gl, initialWidth, initialHeight);
+    const initialWidth = Math.max(1, gl.drawingBufferWidth);
+    const initialHeight = Math.max(1, gl.drawingBufferHeight);
+    const initialAspect = layoutSizeRef.current.width > 0 && layoutSizeRef.current.height > 0
+      ? layoutSizeRef.current.width / layoutSizeRef.current.height
+      : initialWidth / initialHeight;
+    let renderer: WebGLRenderer;
+    try {
+      renderer = createThreeRenderer(gl, initialWidth, initialHeight);
+    } catch {
+      setRenderFailed(true);
+      return;
+    }
     renderer.setPixelRatio(1);
     renderer.setSize(initialWidth, initialHeight, false);
     renderer.setClearColor(0x7DB8E8, 1);
@@ -438,12 +459,13 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
 
     const camera = new THREE.PerspectiveCamera(
       43,
-      initialWidth / Math.max(1, initialHeight),
+      initialAspect,
       0.1,
       100,
     );
     let renderedWidth = initialWidth;
     let renderedHeight = initialHeight;
+    let renderedAspect = initialAspect;
 
     const ambient = new THREE.HemisphereLight(0xFFF7F0, 0x385C30, 2.3);
     scene.add(ambient);
@@ -473,16 +495,21 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
       const distance = cameraState.distance + (1 - introEase) * 6;
       const horizontalDistance = Math.cos(cameraState.pitch) * distance;
 
-      if (Platform.OS === 'web') {
-        const nextWidth = layoutSizeRef.current.width || renderedWidth;
-        const nextHeight = layoutSizeRef.current.height || renderedHeight;
-        if (nextWidth !== renderedWidth || nextHeight !== renderedHeight) {
-          renderedWidth = nextWidth;
-          renderedHeight = nextHeight;
-          renderer.setSize(renderedWidth, renderedHeight, false);
-          camera.aspect = renderedWidth / Math.max(1, renderedHeight);
-          camera.updateProjectionMatrix();
-        }
+      const nextWidth = Math.max(1, gl.drawingBufferWidth);
+      const nextHeight = Math.max(1, gl.drawingBufferHeight);
+      if (nextWidth !== renderedWidth || nextHeight !== renderedHeight) {
+        renderedWidth = nextWidth;
+        renderedHeight = nextHeight;
+        renderer.setSize(renderedWidth, renderedHeight, false);
+      }
+
+      const nextAspect = layoutSizeRef.current.width > 0 && layoutSizeRef.current.height > 0
+        ? layoutSizeRef.current.width / layoutSizeRef.current.height
+        : renderedWidth / renderedHeight;
+      if (Math.abs(nextAspect - renderedAspect) > 0.001) {
+        renderedAspect = nextAspect;
+        camera.aspect = renderedAspect;
+        camera.updateProjectionMatrix();
       }
 
       camera.position.set(
@@ -507,8 +534,14 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
       });
       if (world.windmillBlades) world.windmillBlades.rotation.z = elapsedSeconds * 0.72;
 
-      renderer.render(scene, camera);
-      gl.endFrameEXP();
+      try {
+        renderer.render(scene, camera);
+        gl.endFrameEXP();
+      } catch {
+        active = false;
+        setRenderFailed(true);
+        return;
+      }
       frameRef.current = requestAnimationFrame(render);
     };
 
@@ -516,16 +549,23 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
       if (!active) return;
       active = false;
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-      disposeWorld(world.root);
-      renderer.dispose();
+      // On iOS, GLView owns context destruction. Issuing disposal calls while
+      // its native view is unmounting can race the context teardown.
+      if (Platform.OS !== 'ios') {
+        disposeWorld(world.root);
+        renderer.dispose();
+      }
     };
 
     render();
   }, [stage]);
 
-  const patchView = isScreenFocused && OptionalGLView ? (
+  const shouldRender = isScreenFocused && active && isAppActive && OptionalGLView;
+  const patchView = renderFailed && shouldRender ? (
+    <View accessibilityLabel="Peach Patch preview unavailable" style={styles.glFallback} />
+  ) : shouldRender ? (
     <OptionalGLView
-      key={`peach-patch-${stage.index}`}
+      key={`peach-patch-buffer-size-${stage.index}`}
       accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
       accessibilityHint={interactive ? 'Drag to orbit, pinch to zoom, or double tap to reset the camera' : undefined}
       onContextCreate={handleContextCreate}
@@ -535,6 +575,12 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
   ) : (
     <View style={styles.glView} />
   );
+
+  const renderedPatchView = interactive && shouldRender ? (
+    <GestureDetector gesture={worldGesture}>
+      <View style={StyleSheet.absoluteFill}>{patchView}</View>
+    </GestureDetector>
+  ) : patchView;
 
   return (
     <View
@@ -546,11 +592,9 @@ export function PeachPatch3D({ completedDays, interactive = true }: PeachPatch3D
       }}
       style={styles.container}
     >
-      {interactive && OptionalGLView
-        ? <GestureDetector gesture={worldGesture}>{patchView}</GestureDetector>
-        : patchView}
+      {renderedPatchView}
 
-      {interactive && OptionalGLView ? (
+      {interactive && shouldRender ? (
         <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
           <Pressable
             accessibilityRole="button"
@@ -586,9 +630,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
+    width: '100%',
   },
   glView: {
-    flex: 1,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  glFallback: {
+    backgroundColor: '#7DB8E8',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   cameraControls: {
     gap: 8,

@@ -620,7 +620,7 @@ export default function Home() {
                 style={[styles.xpCard, styles.journeyPagerCard]}
               >
                 <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                  <PeachPatch3D completedDays={completedJourneyDays} interactive={false} />
+                  <PeachPatch3D active={journeyCardPage === 1} completedDays={completedJourneyDays} interactive={false} />
                 </View>
                 <LinearGradient
                   colors={['rgba(28,70,102,0.10)', 'rgba(22,55,82,0.72)']}
