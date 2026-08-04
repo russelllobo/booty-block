@@ -11,6 +11,10 @@ import type { BufferGeometry, Group, Material, Object3D, WebGLRenderer } from 't
 
 import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
+import {
+  createPeachPatchNativeGLRenderer,
+  type PeachPatchNativeGLRenderer,
+} from './PeachPatchNativeGLRenderer';
 
 function resolveGLView(): ComponentType<GLViewProps> | null {
   if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoGL')) return null;
@@ -440,22 +444,29 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     const initialAspect = layoutSizeRef.current.width > 0 && layoutSizeRef.current.height > 0
       ? layoutSizeRef.current.width / layoutSizeRef.current.height
       : initialWidth / initialHeight;
-    let renderer: WebGLRenderer;
+    let renderer: WebGLRenderer | null = null;
+    let nativeRenderer: PeachPatchNativeGLRenderer | null = null;
     try {
-      renderer = createThreeRenderer(gl, initialWidth, initialHeight);
+      if (Platform.OS === 'ios') {
+        nativeRenderer = createPeachPatchNativeGLRenderer(gl);
+      } else {
+        renderer = createThreeRenderer(gl, initialWidth, initialHeight);
+      }
     } catch (error) {
       console.error('Peach Patch renderer failed to start:', error);
       setRenderFailed(true);
       return;
     }
-    renderer.setPixelRatio(1);
-    renderer.setSize(initialWidth, initialHeight, false);
-    renderer.setClearColor(0x7DB8E8, 1);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    if (renderer) {
+      renderer.setPixelRatio(1);
+      renderer.setSize(initialWidth, initialHeight, false);
+      renderer.setClearColor(0x7DB8E8, 1);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.15;
+    }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x7DB8E8);
@@ -504,7 +515,8 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       if (nextWidth !== renderedWidth || nextHeight !== renderedHeight) {
         renderedWidth = nextWidth;
         renderedHeight = nextHeight;
-        renderer.setSize(renderedWidth, renderedHeight, false);
+        if (renderer) renderer.setSize(renderedWidth, renderedHeight, false);
+        else nativeRenderer?.setSize(renderedWidth, renderedHeight);
       }
 
       const nextAspect = layoutSizeRef.current.width > 0 && layoutSizeRef.current.height > 0
@@ -539,7 +551,8 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       if (world.windmillBlades) world.windmillBlades.rotation.z = elapsedSeconds * 0.72;
 
       try {
-        renderer.render(scene, camera);
+        if (renderer) renderer.render(scene, camera);
+        else nativeRenderer?.render(scene, camera);
         gl.endFrameEXP();
       } catch (error) {
         console.error('Peach Patch renderer failed to draw:', error);
@@ -558,7 +571,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       // its native view is unmounting can race the context teardown.
       if (Platform.OS !== 'ios') {
         disposeWorld(world.root);
-        renderer.dispose();
+        renderer?.dispose();
       }
     };
 
@@ -579,7 +592,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
       accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
       accessibilityHint={interactive ? 'Drag to orbit, pinch to zoom, or double tap to reset the camera' : undefined}
       onContextCreate={handleContextCreate}
-      msaaSamples={Platform.OS === 'ios' ? 0 : 4}
+      msaaSamples={4}
       style={styles.glView}
     />
   ) : (
