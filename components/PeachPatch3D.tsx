@@ -11,6 +11,7 @@ import type { BufferGeometry, Group, Material, Object3D, WebGLRenderer } from 't
 
 import { colors } from '../constants/theme';
 import { getPeachPatchStage, PeachPatchStage } from '../lib/peachPatch';
+import { PeachPatchNativeIllustration } from './PeachPatchNativeIllustration';
 
 function resolveGLView(): ComponentType<GLViewProps> | null {
   if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoGL')) return null;
@@ -563,11 +564,17 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     render();
   }, [stage]);
 
-  const shouldRender = Boolean(isScreenFocused && active && isAppActive && OptionalGLView);
+  const shouldRenderNative = Platform.OS === 'ios' && isScreenFocused && active && isAppActive;
+  const shouldRenderGL = Boolean(
+    Platform.OS !== 'ios' && isScreenFocused && active && isAppActive && OptionalGLView,
+  );
+  const shouldRender = shouldRenderNative || shouldRenderGL;
   const hasMeasuredLayout = layoutSize.width > 0 && layoutSize.height > 0;
-  const patchView = renderFailed && shouldRender ? (
+  const patchView = shouldRenderNative ? (
+    <PeachPatchNativeIllustration stage={stage} />
+  ) : renderFailed && shouldRenderGL ? (
     <View accessibilityLabel="Peach Patch preview unavailable" style={styles.glFallback} />
-  ) : shouldRender && hasMeasuredLayout && OptionalGLView ? (
+  ) : shouldRenderGL && hasMeasuredLayout && OptionalGLView ? (
     <OptionalGLView
       key={`peach-patch-buffer-size-${stage.index}`}
       accessibilityLabel={`${interactive ? 'Interactive ' : ''}3D ${stage.title} with ${stage.farmers} farmers and ${stage.peachTrees} peach trees`}
@@ -580,7 +587,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     <View style={styles.glView} />
   );
 
-  const renderedPatchView = interactive && shouldRender ? (
+  const renderedPatchView = interactive && shouldRenderGL ? (
     <GestureDetector gesture={worldGesture}>
       <View style={styles.glContainer}>{patchView}</View>
     </GestureDetector>
@@ -605,7 +612,7 @@ export function PeachPatch3D({ completedDays, active = true, interactive = true 
     >
       {renderedPatchView}
 
-      {interactive && shouldRender ? (
+      {interactive && shouldRenderGL ? (
         <View accessibilityRole="toolbar" pointerEvents="box-none" style={styles.cameraControls}>
           <Pressable
             accessibilityRole="button"
