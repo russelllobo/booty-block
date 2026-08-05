@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
-index 414d011..a3ca898 100644
+index 414d011..eccc0ff 100644
 --- a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
 +++ b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivity.types.d.ts
 @@ -16,6 +16,11 @@ export type ActivitySelectionMetadata = {
@@ -15,7 +15,7 @@ index 414d011..a3ca898 100644
  };
  export type ActivitySelectionWithMetadata = {
 diff --git a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
-index df7207f..37dcca6 100644
+index df7207f..a2e88e5 100644
 --- a/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
 +++ b/node_modules/react-native-device-activity/build/ReactNativeDeviceActivityModule.js
 @@ -30,6 +30,7 @@ const warnFnActivitySelectionWithMetadata = () => {
@@ -35,7 +35,7 @@ index df7207f..37dcca6 100644
      };
  };
 diff --git a/node_modules/react-native-device-activity/build/index.d.ts b/node_modules/react-native-device-activity/build/index.d.ts
-index cb17cf5..020c9c6 100644
+index cb17cf5..f83a5ac 100644
 --- a/node_modules/react-native-device-activity/build/index.d.ts
 +++ b/node_modules/react-native-device-activity/build/index.d.ts
 @@ -27,6 +27,7 @@ export declare const difference: (familyActivitySelection: ActivitySelectionInpu
@@ -47,7 +47,7 @@ index cb17cf5..020c9c6 100644
      activityName: string;
      callbackName: CallbackName;
 diff --git a/node_modules/react-native-device-activity/build/index.js b/node_modules/react-native-device-activity/build/index.js
-index 67bb113..65eba36 100644
+index 67bb113..74fb9f5 100644
 --- a/node_modules/react-native-device-activity/build/index.js
 +++ b/node_modules/react-native-device-activity/build/index.js
 @@ -136,6 +136,9 @@ export const activitySelectionMetadata = (activitySelection) => {
@@ -60,6 +60,103 @@ index 67bb113..65eba36 100644
  export const configureActions = ({ activityName, callbackName, actions, eventName, }) => {
      const key = eventName
          ? `actions_for_${activityName}_${callbackName}_${eventName}`
+diff --git a/node_modules/react-native-device-activity/expo-module.config.json b/node_modules/react-native-device-activity/expo-module.config.json
+index aadad61..fd9b237 100644
+--- a/node_modules/react-native-device-activity/expo-module.config.json
++++ b/node_modules/react-native-device-activity/expo-module.config.json
+@@ -1,6 +1,10 @@
+ {
+   "platforms": ["ios"],
+   "ios": {
+-    "modules": ["ReactNativeDeviceActivityModule", "ReactNativeDeviceActivityViewPersistedModule"]
++    "modules": [
++      "ReactNativeDeviceActivityModule",
++      "ReactNativeDeviceActivityViewPersistedModule",
++      "ReactNativeDeviceActivityIconsModule"
++    ]
+   }
+ }
+diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityIconsView.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityIconsView.swift
+new file mode 100644
+index 0000000..0a8812c
+--- /dev/null
++++ b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityIconsView.swift
+@@ -0,0 +1,75 @@
++import ExpoModulesCore
++import FamilyControls
++import SwiftUI
++
++@available(iOS 15.0, *)
++private struct PersistedApplicationIcons: View {
++  let tokens: [ApplicationToken]
++
++  var body: some View {
++    HStack(spacing: 10) {
++      ForEach(Array(tokens.enumerated()), id: \.offset) { _, token in
++        Label(token)
++          .labelStyle(.iconOnly)
++          .frame(width: 48, height: 48)
++          .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
++      }
++    }
++    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
++  }
++}
++
++@available(iOS 15.0, *)
++final class ReactNativeDeviceActivityIconsView: ExpoView {
++  private var selectionId = ""
++  private var maximumIconCount = 5
++  private let contentView = UIHostingController(rootView: PersistedApplicationIcons(tokens: []))
++
++  required init(appContext: AppContext? = nil) {
++    super.init(appContext: appContext)
++    clipsToBounds = true
++    backgroundColor = .clear
++    isUserInteractionEnabled = false
++    contentView.view.backgroundColor = .clear
++    contentView.view.isUserInteractionEnabled = false
++    addSubview(contentView.view)
++  }
++
++  override func layoutSubviews() {
++    super.layoutSubviews()
++    contentView.view.frame = bounds
++  }
++
++  func setSelectionId(_ value: String) {
++    selectionId = value
++    refreshIcons()
++  }
++
++  func setMaximumIconCount(_ value: Int?) {
++    maximumIconCount = max(1, value ?? 5)
++    refreshIcons()
++  }
++
++  private func refreshIcons() {
++    let selection = getFamilyActivitySelectionById(id: selectionId) ?? FamilyActivitySelection()
++    contentView.rootView = PersistedApplicationIcons(
++      tokens: Array(selection.applicationTokens.prefix(maximumIconCount))
++    )
++  }
++}
++
++@available(iOS 15.0, *)
++public final class ReactNativeDeviceActivityIconsModule: Module {
++  public func definition() -> ModuleDefinition {
++    Name("ReactNativeDeviceActivityIconsModule")
++
++    View(ReactNativeDeviceActivityIconsView.self) {
++      Prop("familyActivitySelectionId") { (view: ReactNativeDeviceActivityIconsView, value: String) in
++        view.setSelectionId(value)
++      }
++      Prop("maximumIconCount") { (view: ReactNativeDeviceActivityIconsView, value: Int?) in
++        view.setMaximumIconCount(value)
++      }
++    }
++  }
++}
 diff --git a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift b/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift
 index 8aee1f2..daea8eb 100644
 --- a/node_modules/react-native-device-activity/ios/ReactNativeDeviceActivityModule.swift

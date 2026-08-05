@@ -8,6 +8,7 @@ jest.mock('react-native-device-activity', () => ({
   resetBlocks: jest.fn(),
   stopMonitoring: jest.fn(),
   userDefaultsClear: jest.fn(),
+  userDefaultsRemove: jest.fn(),
 }));
 
 import {
@@ -25,11 +26,7 @@ describe('screenTimeService.releaseAllBlocks', () => {
   it('removes restrictions and monitoring without deleting the saved app selection', () => {
     screenTimeService.releaseAllBlocks();
 
-    expect(DeviceActivity.stopMonitoring).toHaveBeenCalledWith([
-      ALWAYS_BLOCK_ACTIVITY,
-      UNLOCK_ACTIVITY,
-      BANKED_USAGE_ACTIVITY,
-    ]);
+    expect(DeviceActivity.stopMonitoring).toHaveBeenCalledWith();
     expect(DeviceActivity.cleanUpAfterActivity).toHaveBeenCalledWith(ALWAYS_BLOCK_ACTIVITY);
     expect(DeviceActivity.cleanUpAfterActivity).toHaveBeenCalledWith(UNLOCK_ACTIVITY);
     expect(DeviceActivity.cleanUpAfterActivity).toHaveBeenCalledWith(BANKED_USAGE_ACTIVITY);

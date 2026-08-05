@@ -43,7 +43,7 @@ export default function Index() {
       );
       if (active) {
         router.replace(openedFromShield
-          ? { pathname: '/(tabs)', params: { openUnlock: '1' } }
+          ? { pathname: '/session', params: { purpose: 'unlock' } }
           : '/(tabs)');
       }
     })();

@@ -1,5 +1,5 @@
 import { DeviceActivitySelectionViewPersisted } from 'react-native-device-activity';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { AppWindow, Check } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
@@ -26,6 +26,7 @@ import { tiktokService } from '../../lib/services/tiktok';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 export default function Apps() {
+  const params = useLocalSearchParams<{ continueShowcase?: '1' }>();
   const {
     completeOnboarding,
     requestSubscriptionAccess,
@@ -110,14 +111,18 @@ export default function Apps() {
     captureAnalytics(posthog, 'blocked_apps_selected', analyticsProperties);
     tiktokService.trackBlockedAppsSelected(analyticsProperties);
     if (onboardingComplete && isSubscribed) {
-      router.replace('/(tabs)');
+      router.replace(params.continueShowcase === '1'
+        ? { pathname: '/(tabs)/lock-list', params: { showcase: 'timings' } }
+        : '/(tabs)');
       return;
     }
 
     if (!onboardingComplete) {
       await completeOnboarding();
     }
-    router.replace('/(tabs)');
+    router.replace(params.continueShowcase === '1'
+      ? { pathname: '/(tabs)/lock-list', params: { showcase: 'timings' } }
+      : '/(tabs)');
   }
 
   if (!subscriptionGateReady) {

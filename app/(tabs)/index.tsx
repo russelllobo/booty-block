@@ -124,6 +124,7 @@ export default function Home() {
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
   const unlockSelectorProgress = useRef(new Animated.Value(0)).current;
   const journeyShowcaseTargetRef = useRef<View>(null);
+  const patchShowcaseTargetRef = useRef<View>(null);
   const blockingShowcaseTargetRef = useRef<View>(null);
   const journeyPagerRef = useRef<ScrollView>(null);
   const postPurchasePreviewHandledRef = useRef(false);
@@ -435,7 +436,7 @@ export default function Home() {
 
   function chooseAppsFromShowcase() {
     setShowcaseStep(null);
-    router.push('/onboarding/apps');
+    router.push({ pathname: '/onboarding/apps', params: { continueShowcase: '1' } });
   }
 
   return (
@@ -461,8 +462,6 @@ export default function Home() {
       />
 
       <View
-        ref={journeyShowcaseTargetRef}
-        collapsable={false}
         className="-mt-10"
         onLayout={(event) => setJourneyCardWidth(event.nativeEvent.layout.width)}
       >
@@ -486,6 +485,8 @@ export default function Home() {
             }}
           >
             <Pressable
+              ref={journeyShowcaseTargetRef}
+              collapsable={false}
               accessibilityRole="button"
               accessibilityLabel={`Level ${bootyProgress.currentLevel.level}, ${bootyProgress.currentLevel.title}, ${bootyProgress.xp} Booty XP, ${streakLabel}, ${completedJourneyDays} of ${GLUTE_JOURNEY_DAYS} journey days complete`}
               accessibilityHint="Opens full activity with month and year views"
@@ -553,6 +554,8 @@ export default function Home() {
           {PEACH_PATCH_3D_SUPPORTED ? (
             <View style={{ height: journeyCardDisplayHeight, width: journeyCardWidth }}>
               <Pressable
+                ref={patchShowcaseTargetRef}
+                collapsable={false}
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${patchStage.title}, day ${completedJourneyDays} of your Peach Patch`}
                 accessibilityHint="Opens the full-screen interactive Peach Patch"
@@ -694,15 +697,6 @@ export default function Home() {
                   </Animated.View>
                 ) : (
                   <View className="gap-3">
-                    {canSpendPeaches ? (
-                      <Button
-                        label="Use Peaches"
-                        icon={Flame}
-                        size="large"
-                        variant="secondary"
-                        onPress={() => chooseUnlockAction('spend')}
-                      />
-                    ) : null}
                     <Button
                       label="Earn More"
                       size="large"
@@ -831,7 +825,11 @@ export default function Home() {
       <CelebrationOverlay visible={celebratingSubscription} showBadge={false} />
       <HomeShowcase
         step={showcaseStep}
-        targetRef={showcaseStep === 'blocking' ? blockingShowcaseTargetRef : journeyShowcaseTargetRef}
+        targetRef={showcaseStep === 'patch'
+          ? patchShowcaseTargetRef
+          : showcaseStep === 'blocking'
+            ? blockingShowcaseTargetRef
+            : journeyShowcaseTargetRef}
         onAdvance={advanceShowcase}
         onChooseApps={chooseAppsFromShowcase}
       />

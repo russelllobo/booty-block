@@ -13,7 +13,9 @@ import {
   UNLOCK_ACTIVITY,
   USAGE_WINDOW_DEPLETED_EVENT,
   USAGE_WINDOW_PROGRESS_EVENT_PREFIX,
+  BOOTY_LOCK_ACTIVITY_PREFIX,
 } from '../../constants/bootyblock';
+import type { BootyLock } from '../bootyLocks';
 
 export type ScreenTimeStatus = 'unavailable' | 'notDetermined' | 'denied' | 'approved';
 export type ScreenTimeSelectionSummary = {
@@ -47,10 +49,11 @@ const denied = 1;
 const notDetermined = 0;
 const PROGRESS_INTERVAL_SECONDS = 60;
 const SHIELD_OPEN_REQUEST_TTL_MS = 120_000;
+const BOOTY_LOCK_SCHEDULE_FINGERPRINT_KEY = 'bootyblock_daily_lock_schedule_v1';
 const SHIELD_LOGO_FILE_NAME = 'bootyblock-shield-logo.png';
 const SHIELD_TITLE_VARIANTS = [
   '{applicationOrDomainDisplayName} can wait. Glutes first.',
-  '{applicationOrDomainDisplayName} is expensive today: 12 squats.',
+  '{applicationOrDomainDisplayName} can wait for 10 squats.',
   'Your thumb has done enough. Legs now.',
   'Doomscrolling tax: paid in squats.',
 ];
@@ -190,7 +193,7 @@ function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfig
   const configuration: ShieldConfigurationWithVariants = {
     title: 'Blocked for your booty',
     titleVariants: SHIELD_TITLE_VARIANTS,
-    subtitle: 'Open bootyblock, knock out your squats, and earn this app back.',
+    subtitle: 'Open bootyblock, complete 10 squats, and unlock your apps.',
     primaryButtonLabel: 'Open bootyblock',
     iconSystemName: useLogo ? undefined : 'figure.strengthtraining.traditional',
     iconAppGroupRelativePath: useLogo ? SHIELD_LOGO_FILE_NAME : undefined,
@@ -300,20 +303,90 @@ export const screenTimeService = {
 
   releaseAllBlocks() {
     if (!isAvailable()) return;
-    DeviceActivity.stopMonitoring([ALWAYS_BLOCK_ACTIVITY, UNLOCK_ACTIVITY, BANKED_USAGE_ACTIVITY]);
+    DeviceActivity.stopMonitoring();
     DeviceActivity.cleanUpAfterActivity(ALWAYS_BLOCK_ACTIVITY);
     DeviceActivity.cleanUpAfterActivity(UNLOCK_ACTIVITY);
     DeviceActivity.cleanUpAfterActivity(BANKED_USAGE_ACTIVITY);
     DeviceActivity.clearWhitelist();
     DeviceActivity.resetBlocks('bootyblock-pro-access-inactive');
     DeviceActivity.refreshManagedSettingsStore();
+    DeviceActivity.userDefaultsRemove(BOOTY_LOCK_SCHEDULE_FINGERPRINT_KEY);
   },
 
   saveNativeSelectionConfigured() {
     if (!isAvailable()) return;
     getNormalizedStoredSelection();
     this.configureShield();
-    this.applyDefaultBlock();
+  },
+
+  async syncBootyLockSchedules(locks: BootyLock[]) {
+    if (!isAvailable()) return;
+
+    const enabledLocks = locks.filter((lock) => lock.enabled);
+    const fingerprint = JSON.stringify(enabledLocks.map(({ id, hour, minute }) => ({ id, hour, minute })));
+    if (DeviceActivity.userDefaultsGet<string>(BOOTY_LOCK_SCHEDULE_FINGERPRINT_KEY) === fingerprint) {
+      return;
+    }
+
+    this.configureShield();
+    DeviceActivity.stopMonitoring();
+    DeviceActivity.clearWhitelist();
+
+    if (enabledLocks.length === 0) {
+      const serializedSelection = getNormalizedStoredSelection();
+      if (serializedSelection) {
+        DeviceActivity.unblockSelection(
+          { activitySelectionToken: serializedSelection },
+          'bootyblock-all-daily-locks-disabled',
+        );
+        DeviceActivity.refreshManagedSettingsStore();
+      }
+    }
+
+    for (const lock of enabledLocks) {
+      const activityName = `${BOOTY_LOCK_ACTIVITY_PREFIX}${lock.id}`;
+      const endMinutes = lock.hour * 60 + lock.minute + 15;
+
+      DeviceActivity.configureActions({
+        activityName,
+        callbackName: 'intervalDidStart',
+        actions: [
+          {
+            type: 'blockSelection',
+            familyActivitySelectionId: SELECTION_ID,
+            shieldId: SHIELD_ID,
+          },
+        ],
+      });
+
+      await DeviceActivity.startMonitoring(
+        activityName,
+        {
+          intervalStart: { hour: lock.hour, minute: lock.minute, second: 0 },
+          intervalEnd: {
+            hour: Math.floor(endMinutes / 60) % 24,
+            minute: endMinutes % 60,
+            second: 0,
+          },
+          repeats: true,
+        },
+        [],
+      );
+    }
+
+    DeviceActivity.userDefaultsSet(BOOTY_LOCK_SCHEDULE_FINGERPRINT_KEY, fingerprint);
+  },
+
+  unlockUntilNextBootyLock() {
+    if (!isAvailable()) return;
+    const serializedSelection = getNormalizedStoredSelection();
+    if (!serializedSelection) return;
+
+    DeviceActivity.unblockSelection(
+      { activitySelectionToken: serializedSelection },
+      'bootyblock-squats-complete',
+    );
+    DeviceActivity.refreshManagedSettingsStore();
   },
 
   hasUsageBankDepleted(startedAt: number | null | undefined) {

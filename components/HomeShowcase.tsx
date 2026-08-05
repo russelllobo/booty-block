@@ -10,11 +10,13 @@ import {
   View,
   type View as ViewType,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { Text } from './AppText';
 
 import { colors } from '../constants/theme';
 
-export type HomeShowcaseStep = 'patch' | 'journey' | 'blocking';
+export type HomeShowcaseStep = 'patch' | 'journey' | 'blocking' | 'timings' | 'support';
 
 type SpotlightRect = {
   height: number;
@@ -25,7 +27,7 @@ type SpotlightRect = {
 
 type HomeShowcaseProps = {
   onAdvance: (step: HomeShowcaseStep) => void;
-  onChooseApps: () => void;
+  onChooseApps?: () => void;
   step: HomeShowcaseStep | null;
   targetRef: RefObject<ViewType | null>;
 };
@@ -46,13 +48,49 @@ const COPY: Record<HomeShowcaseStep, { body: string; button: string; title: stri
     body: 'pick the apps that pull you away. bootyblock keeps them locked until you earn your scroll with squats.',
     button: 'choose apps to block',
   },
+  timings: {
+    title: 'your booty lock 🔒',
+    body: 'choose the times your apps lock each day. tap any time to change it, or switch a booty lock off whenever you need to.',
+    button: 'got it',
+  },
+  support: {
+    title: "we're here for you 💌",
+    body: 'have an idea, a question, or something not working quite right? send us feedback straight from settings.',
+    button: 'got it',
+  },
 };
 
-const SPOTLIGHT_GUTTER = 6;
-const CARD_HEIGHT = 205;
+const SPOTLIGHT_RADIUS = 24;
+const CARD_EDGE_GAP = 18;
+
+function roundedSpotlightPath(
+  windowWidth: number,
+  windowHeight: number,
+  spotlight: SpotlightRect,
+) {
+  const { height, width, x, y } = spotlight;
+  const radius = Math.min(SPOTLIGHT_RADIUS, width / 2, height / 2);
+  const right = x + width;
+  const bottom = y + height;
+
+  return [
+    `M 0 0 H ${windowWidth} V ${windowHeight} H 0 Z`,
+    `M ${x + radius} ${y}`,
+    `H ${right - radius}`,
+    `A ${radius} ${radius} 0 0 1 ${right} ${y + radius}`,
+    `V ${bottom - radius}`,
+    `A ${radius} ${radius} 0 0 1 ${right - radius} ${bottom}`,
+    `H ${x + radius}`,
+    `A ${radius} ${radius} 0 0 1 ${x} ${bottom - radius}`,
+    `V ${y + radius}`,
+    `A ${radius} ${radius} 0 0 1 ${x + radius} ${y}`,
+    'Z',
+  ].join(' ');
+}
 
 export function HomeShowcase({ onAdvance, onChooseApps, step, targetRef }: HomeShowcaseProps) {
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
 
@@ -70,10 +108,10 @@ export function HomeShowcase({ onAdvance, onChooseApps, step, targetRef }: HomeS
       targetRef.current?.measureInWindow((x, y, width, height) => {
         if (cancelled || width <= 0 || height <= 0) return;
         setSpotlight({
-          x: Math.max(0, x - SPOTLIGHT_GUTTER),
-          y: Math.max(0, y - SPOTLIGHT_GUTTER),
-          width: Math.min(windowWidth, width + SPOTLIGHT_GUTTER * 2),
-          height: Math.min(windowHeight, height + SPOTLIGHT_GUTTER * 2),
+          x: Math.max(0, x),
+          y: Math.max(0, y),
+          width: Math.min(windowWidth - Math.max(0, x), width),
+          height: Math.min(windowHeight - Math.max(0, y), height),
         });
       });
     };
@@ -102,22 +140,11 @@ export function HomeShowcase({ onAdvance, onChooseApps, step, targetRef }: HomeS
   }, [entrance, step, targetRef, windowHeight, windowWidth]);
 
   const centered = step === 'blocking';
+  const placeCardAtTop = step === 'timings' || step === 'support';
   if (!step || (!centered && !spotlight)) return null;
 
   const currentStep = step;
   const copy = COPY[currentStep];
-  const roomBelow = spotlight ? windowHeight - (spotlight.y + spotlight.height) : 0;
-  const cardTop = spotlight
-    ? roomBelow >= CARD_HEIGHT + 18
-      ? spotlight.y + spotlight.height + 12
-      : Math.max(18, spotlight.y - CARD_HEIGHT - 12)
-    : 0;
-  const spotlightBottom = spotlight
-    ? Math.min(windowHeight, spotlight.y + spotlight.height)
-    : 0;
-  const spotlightRight = spotlight
-    ? Math.min(windowWidth, spotlight.x + spotlight.width)
-    : 0;
   const dimColor = 'rgba(28, 24, 27, 0.68)';
   const entranceTranslateY = entrance.interpolate({
     inputRange: [0, 1],
@@ -127,7 +154,7 @@ export function HomeShowcase({ onAdvance, onChooseApps, step, targetRef }: HomeS
   function continueShowcase() {
     void Haptics.selectionAsync().catch(() => {});
     if (currentStep === 'blocking') {
-      onChooseApps();
+      onChooseApps?.();
       return;
     }
     onAdvance(currentStep);
@@ -147,86 +174,69 @@ export function HomeShowcase({ onAdvance, onChooseApps, step, targetRef }: HomeS
         {centered ? (
           <View pointerEvents="none" style={[styles.fullDim, { backgroundColor: dimColor }]} />
         ) : spotlight ? (
-          <>
-            <View
-              pointerEvents="none"
-              style={[styles.dim, {
-                backgroundColor: dimColor,
-                height: spotlight.y,
-                left: 0,
-                top: 0,
-                width: windowWidth,
-              }]}
+          <Svg
+            height={windowHeight}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+            width={windowWidth}
+          >
+            <Path
+              d={roundedSpotlightPath(windowWidth, windowHeight, spotlight)}
+              fill={dimColor}
+              fillRule="evenodd"
             />
-            <View
-              pointerEvents="none"
-              style={[styles.dim, {
-                backgroundColor: dimColor,
-                height: spotlight.height,
-                left: 0,
-                top: spotlight.y,
-                width: spotlight.x,
-              }]}
+            <Rect
+              fill="transparent"
+              height={Math.max(0, spotlight.height - 2)}
+              rx={Math.max(0, SPOTLIGHT_RADIUS - 1)}
+              ry={Math.max(0, SPOTLIGHT_RADIUS - 1)}
+              stroke="rgba(255, 255, 255, 0.9)"
+              strokeWidth={2}
+              width={Math.max(0, spotlight.width - 2)}
+              x={spotlight.x + 1}
+              y={spotlight.y + 1}
             />
-            <View
-              pointerEvents="none"
-              style={[styles.dim, {
-                backgroundColor: dimColor,
-                height: spotlight.height,
-                left: spotlightRight,
-                right: 0,
-                top: spotlight.y,
-              }]}
-            />
-            <View
-              pointerEvents="none"
-              style={[styles.dim, {
-                backgroundColor: dimColor,
-                bottom: 0,
-                left: 0,
-                top: spotlightBottom,
-                width: windowWidth,
-              }]}
-            />
-            <View
-              pointerEvents="none"
-              style={[
-                styles.spotlightBorder,
-                {
-                  height: spotlight.height,
-                  left: spotlight.x,
-                  top: spotlight.y,
-                  width: spotlight.width,
-                },
-              ]}
-            />
-          </>
+          </Svg>
         ) : null}
 
-        <Animated.View
-          accessibilityLiveRegion="polite"
+        <View
+          pointerEvents="box-none"
           style={[
-            styles.card,
-            centered ? styles.centeredCard : { top: cardTop },
+            styles.cardLayer,
+            centered
+              ? styles.centeredCardLayer
+              : placeCardAtTop
+                ? styles.topCardLayer
+                : styles.bottomCardLayer,
             {
-              opacity: entrance,
-              transform: centered
-                ? [{ translateY: -CARD_HEIGHT / 2 }, { translateY: entranceTranslateY }]
-                : [{ translateY: entranceTranslateY }],
+              paddingBottom: Math.max(CARD_EDGE_GAP, insets.bottom + CARD_EDGE_GAP),
+              paddingTop: Math.max(CARD_EDGE_GAP, insets.top + CARD_EDGE_GAP),
             },
           ]}
         >
-          <Text style={styles.title}>{copy.title}</Text>
-          <Text style={styles.body}>{copy.body}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.button}
-            onPress={continueShowcase}
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          <Animated.View
+            style={[
+              styles.cardSurface,
+              {
+                opacity: entrance,
+                transform: [{ translateY: entranceTranslateY }],
+              },
+            ]}
           >
-            <Text style={styles.buttonText}>{copy.button}</Text>
-          </Pressable>
-        </Animated.View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${copy.title}. ${copy.body}. ${copy.button}`}
+              onPress={continueShowcase}
+              style={({ pressed }) => [styles.cardContent, pressed && styles.cardPressed]}
+            >
+              <Text maxFontSizeMultiplier={1.15} style={styles.title}>{copy.title}</Text>
+              <Text maxFontSizeMultiplier={1.15} style={styles.body}>{copy.body}</Text>
+              <View style={styles.button}>
+                <Text maxFontSizeMultiplier={1.15} style={styles.buttonText}>{copy.button}</Text>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </View>
       </View>
     </Modal>
   );
@@ -236,40 +246,43 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
   },
-  dim: {
-    position: 'absolute',
-  },
   fullDim: {
     ...StyleSheet.absoluteFill,
   },
-  spotlightBorder: {
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 30,
-    borderWidth: 2,
-    position: 'absolute',
-    shadowColor: colors.white,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
+  cardLayer: {
+    ...StyleSheet.absoluteFill,
+    paddingHorizontal: CARD_EDGE_GAP,
   },
-  card: {
+  bottomCardLayer: {
+    justifyContent: 'flex-end',
+  },
+  topCardLayer: {
+    justifyContent: 'flex-start',
+  },
+  centeredCardLayer: {
+    justifyContent: 'center',
+  },
+  cardSurface: {
     backgroundColor: '#FFFDFC',
     borderColor: colors.cocoa,
     borderRadius: 24,
     borderWidth: 2,
-    left: 14,
-    minHeight: CARD_HEIGHT,
-    padding: 15,
-    position: 'absolute',
-    right: 14,
     shadowColor: '#1E1319',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
     shadowRadius: 18,
     elevation: 18,
   },
-  centeredCard: {
-    top: '50%',
+  cardContent: {
+    backgroundColor: '#FFFDFC',
+    borderRadius: 22,
+    paddingBottom: 24,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+  },
+  cardPressed: {
+    opacity: 0.96,
+    transform: [{ scale: 0.995 }],
   },
   title: {
     color: colors.cocoa,
@@ -283,25 +296,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
-    marginHorizontal: 5,
-    marginTop: 8,
+    marginTop: 10,
     textAlign: 'center',
   },
   button: {
     alignItems: 'center',
     backgroundColor: colors.raspberry,
     borderRadius: 16,
+    height: 52,
     justifyContent: 'center',
-    marginTop: 14,
-    minHeight: 48,
+    marginTop: 18,
     shadowColor: colors.cherry,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 0,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    transform: [{ translateY: 2 }],
   },
   buttonText: {
     color: colors.white,

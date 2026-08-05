@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, ChevronLeft } from 'lucide-react-native';
 import { usePostHog } from 'posthog-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -26,11 +26,14 @@ export default function Session() {
   const {
     requestedPeaches,
     earnPeaches,
+    unlockUntilNextBootyLock,
     subscriptionHydrated,
     isSubscribed,
   } = useBootyblock();
+  const params = useLocalSearchParams<{ purpose?: 'unlock' }>();
+  const unlockingScheduledApps = params.purpose === 'unlock';
   const posthog = usePostHog();
-  const target = Math.ceil(requestedPeaches / PEACHES_PER_SQUAT);
+  const target = unlockingScheduledApps ? 10 : Math.ceil(requestedPeaches / PEACHES_PER_SQUAT);
   const unlockMinutes = requestedPeaches / PEACHES_PER_MINUTE;
   const [permission, requestPermission] = useCameraPermissions();
   const [sessionActive, setSessionActive] = useState(true);
@@ -59,44 +62,49 @@ export default function Session() {
     unlockStarted.current = true;
     setSessionActive(false);
     setCelebrating(true);
-    captureAnalytics(posthog, 'unlock_earned', {
-      minutes: unlockMinutes,
-      peaches: requestedPeaches,
+    captureAnalytics(posthog, unlockingScheduledApps ? 'scheduled_unlock_completed' : 'unlock_earned', {
+      purpose: unlockingScheduledApps ? 'scheduled_unlock' : 'quick_squat',
+      minutes: unlockingScheduledApps ? 0 : unlockMinutes,
+      peaches: unlockingScheduledApps ? 0 : requestedPeaches,
       squats: target,
     });
 
     let cancelled = false;
     const startedAt = Date.now();
-    void earnPeaches(requestedPeaches)
+    const completion = unlockingScheduledApps
+      ? unlockUntilNextBootyLock()
+      : earnPeaches(requestedPeaches);
+    void completion
       .then(() => {
         if (cancelled) return;
         const elapsed = Date.now() - startedAt;
         const remaining = Math.max(0, 1800 - elapsed);
         setTimeout(() => {
           if (cancelled) return;
-          router.replace('/success');
+          router.replace(unlockingScheduledApps ? '/success?purpose=unlock' : '/success');
         }, remaining);
       })
       .catch((error) => {
         if (cancelled) return;
         unlockStarted.current = false;
-        console.error('Failed to grant earned unlock:', error);
+        console.error('Failed to complete squat session:', error);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [earnPeaches, pose.count, posthog, requestedPeaches, subscriptionReady, target, unlockMinutes]);
+  }, [earnPeaches, pose.count, posthog, requestedPeaches, subscriptionReady, target, unlockMinutes, unlockUntilNextBootyLock, unlockingScheduledApps]);
 
   useEffect(() => {
     if (!subscriptionReady) return;
 
     captureAnalytics(posthog, 'session_started', {
+      purpose: unlockingScheduledApps ? 'scheduled_unlock' : 'quick_squat',
       minutes: unlockMinutes,
       peaches: requestedPeaches,
       target_squats: target,
     });
-  }, [posthog, requestedPeaches, subscriptionReady, target, unlockMinutes]);
+  }, [posthog, requestedPeaches, subscriptionReady, target, unlockMinutes, unlockingScheduledApps]);
 
   useEffect(() => {
     const previous = prevCountRef.current;

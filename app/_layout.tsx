@@ -99,7 +99,7 @@ function NotificationObserver() {
             router.replace('/return-offer');
             return;
           }
-          router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
+          router.push({ pathname: '/session', params: { purpose: 'unlock' } });
         } else {
           const href = await getOnboardingResumeHref();
           router.push(href);
@@ -132,7 +132,7 @@ function NotificationObserver() {
 
         if (!screenTimeService.consumeShieldOpenRequest()) return;
         if (onboardingComplete) {
-          router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
+          router.push({ pathname: '/session', params: { purpose: 'unlock' } });
           return;
         }
 
@@ -154,7 +154,7 @@ function NotificationObserver() {
           router.replace('/return-offer');
           return;
         }
-        router.push({ pathname: '/(tabs)', params: { openUnlock: '1' } });
+        router.push({ pathname: '/session', params: { purpose: 'unlock' } });
       }
     }
 

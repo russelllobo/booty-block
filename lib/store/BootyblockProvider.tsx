@@ -12,6 +12,12 @@ import {
   PEACHES_PER_SQUAT,
 } from '../../constants/bootyblock';
 import { captureAnalytics, trackOnboardingStepViewed } from '../analytics';
+import {
+  DEFAULT_BOOTY_LOCKS,
+  MAX_BOOTY_LOCKS,
+  normalizeBootyLocks,
+  type BootyLock,
+} from '../bootyLocks';
 import { clearOnboardingCheckpoint } from '../onboardingProgress';
 import { ONBOARDING_STEP_TOTAL, ONBOARDING_STEPS } from '../onboardingSteps';
 import { clearReturnOfferState } from '../returnOffer';
@@ -92,6 +98,7 @@ type BootyblockState = {
   selectedAppsConfigured: boolean;
   selectionSummary: ScreenTimeSelectionSummary | null;
   selectedAppsLabel: string;
+  bootyLocks: BootyLock[];
   requestedPeaches: number;
   peachBalance: number;
   usageWindow: UsageWindow | null;
@@ -116,6 +123,10 @@ type BootyblockState = {
   setRoutineReminderTime: (time: RoutineReminderTime | null) => void;
   requestScreenTime: () => Promise<ScreenTimeStatus>;
   markSelectionConfigured: () => Promise<boolean>;
+  setBootyLockEnabled: (id: string, enabled: boolean) => void;
+  setBootyLockTime: (id: string, hour: number, minute: number) => void;
+  addBootyLock: () => void;
+  unlockUntilNextBootyLock: () => Promise<void>;
   setRequestedPeaches: (peaches: number) => void;
   earnPeaches: (peaches: number) => Promise<PeachEarnedSession>;
   earnGamePeaches: (input: { peaches: number; gameId: string; score: number; durationSeconds: number }) => Promise<GamePeachSession>;
@@ -187,7 +198,7 @@ function errorAnalyticsProperties(error: unknown) {
 const STORAGE_KEY = 'bootyblock:v1';
 const RESET_SUBSCRIPTION_STATE_KEY = 'bootyblock:subscription-reset';
 const USAGE_WINDOW_MONITOR_VERSION = 1;
-const STORAGE_SCHEMA_VERSION = 3;
+const STORAGE_SCHEMA_VERSION = 4;
 const BLOCKED_APPS_XP = 100;
 const GAME_COMPLETION_XP = 50;
 const BLOCKED_APPS_MILESTONE = 'blocked_apps_configured';
@@ -220,8 +231,18 @@ function defaultPayload() {
     screenTimeStatus: webUiPreview ? 'approved' as ScreenTimeStatus : screenTimeService.getAuthorizationStatus(),
     selectedAppsConfigured: webUiPreview,
     selectionSummary: webUiPreview
-      ? { applicationCount: 3, categoryCount: 1, webDomainCount: 0 }
+      ? {
+          applicationCount: 3,
+          categoryCount: 0,
+          webDomainCount: 0,
+          applications: [
+            { id: 'instagram', displayName: 'Instagram' },
+            { id: 'tiktok', displayName: 'TikTok' },
+            { id: 'youtube', displayName: 'YouTube' },
+          ],
+        }
       : null as ScreenTimeSelectionSummary | null,
+    bootyLocks: DEFAULT_BOOTY_LOCKS.map((lock) => ({ ...lock })),
     schemaVersion: STORAGE_SCHEMA_VERSION,
     requestedPeaches: 10,
     peachBalance: webUiPreview ? 12 : 0,
@@ -397,12 +418,13 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           selectionSummary: webUiPreview
             ? stored.selectionSummary ?? defaultPayload().selectionSummary
             : selectionSummary ?? stored.selectionSummary ?? null,
+          bootyLocks: normalizeBootyLocks(parsedPayload.bootyLocks),
           requestedPeaches,
           peachBalance,
           unlockHistory,
-          usageWindow,
-          usageWindowSeconds,
-          usageWindowMonitorVersion: usageWindow ? USAGE_WINDOW_MONITOR_VERSION : 0,
+          usageWindow: null,
+          usageWindowSeconds: 0,
+          usageWindowMonitorVersion: 0,
         });
       })
       .finally(() => mounted && setHydrated(true));
@@ -556,7 +578,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     if (!selectionSummary) return false;
 
     screenTimeService.saveNativeSelectionConfigured();
-    await screenTimeService.startAlwaysBlockMonitor();
+    await screenTimeService.syncBootyLockSchedules(payloadRef.current.bootyLocks);
     const shouldAwardXp = !payloadRef.current.earnedXpMilestones.includes(BLOCKED_APPS_MILESTONE);
     setPayload((current) => ({
       ...current,
@@ -576,6 +598,65 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       });
     }
     return true;
+  }, [isSubscribed]);
+
+  const setBootyLockEnabled = useCallback((id: string, enabled: boolean) => {
+    setPayload((current) => ({
+      ...current,
+      bootyLocks: current.bootyLocks.map((lock) => (
+        lock.id === id ? { ...lock, enabled } : lock
+      )),
+    }));
+  }, []);
+
+  const setBootyLockTime = useCallback((id: string, hour: number, minute: number) => {
+    setPayload((current) => ({
+      ...current,
+      bootyLocks: current.bootyLocks.map((lock) => (
+        lock.id === id
+          ? {
+              ...lock,
+              hour: Math.min(23, Math.max(0, Math.floor(hour))),
+              minute: Math.min(59, Math.max(0, Math.floor(minute))),
+            }
+          : lock
+      )),
+    }));
+  }, []);
+
+  const addBootyLock = useCallback(() => {
+    setPayload((current) => {
+      if (current.bootyLocks.length >= MAX_BOOTY_LOCKS) return current;
+
+      return {
+        ...current,
+        bootyLocks: [
+          ...current.bootyLocks,
+          { id: `custom-${Date.now()}`, hour: 21, minute: 0, enabled: true },
+        ],
+      };
+    });
+  }, []);
+
+  const unlockUntilNextBootyLock = useCallback(async () => {
+    if (!hasSubscriptionAccess(isSubscribed)) {
+      throw new Error('bootyblock Pro is required to unlock protected apps.');
+    }
+
+    const completedAt = Date.now();
+    const historyEntry: UnlockHistoryEntry = {
+      id: `${completedAt}-${Math.random().toString(36).slice(2)}`,
+      peaches: 0,
+      squats: 10,
+      completedAt,
+      source: 'squat_session',
+    };
+
+    screenTimeService.unlockUntilNextBootyLock();
+    setPayload((current) => ({
+      ...current,
+      unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
+    }));
   }, [isSubscribed]);
 
   const setRequestedPeaches = useCallback((peaches: number) => {
@@ -612,7 +693,6 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
         unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
       };
     });
-    screenTimeService.applyDefaultBlock();
     return {
       peaches: safePeaches,
       squats,
@@ -660,7 +740,6 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       unlockHistory: [historyEntry, ...(current.unlockHistory ?? [])],
       bonusXp: current.bonusXp + GAME_COMPLETION_XP,
     }));
-    screenTimeService.applyDefaultBlock();
 
     return {
       peaches: safePeaches,
@@ -760,11 +839,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
     if (!hydrated || !subscriptionHydrated) return;
 
     if (hasSubscriptionAccess(isSubscribed)) {
-      const currentUsageWindow = payloadRef.current.usageWindow;
-      if (currentUsageWindow?.seconds) {
-        void screenTimeService.startUsageWindow(currentUsageWindow.seconds);
-      } else {
-        screenTimeService.applyDefaultBlock();
+      if (payloadRef.current.selectedAppsConfigured) {
+        void screenTimeService.syncBootyLockSchedules(payloadRef.current.bootyLocks).catch((error) => {
+          console.error('Unable to configure booty lock schedules:', error);
+        });
       }
       return;
     }
@@ -780,7 +858,7 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
           }
         : current
     ));
-  }, [hydrated, isSubscribed, subscriptionHydrated]);
+  }, [hydrated, isSubscribed, payload.bootyLocks, payload.selectedAppsConfigured, subscriptionHydrated]);
 
   useEffect(() => {
     syncUsageWindow();
@@ -1205,6 +1283,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
+      setBootyLockEnabled,
+      setBootyLockTime,
+      addBootyLock,
+      unlockUntilNextBootyLock,
       setRequestedPeaches,
       earnPeaches,
       earnGamePeaches,
@@ -1240,6 +1322,10 @@ export function BootyblockProvider({ children }: PropsWithChildren) {
       setRoutineReminderTime,
       requestScreenTime,
       markSelectionConfigured,
+      setBootyLockEnabled,
+      setBootyLockTime,
+      addBootyLock,
+      unlockUntilNextBootyLock,
       setRequestedPeaches,
       earnPeaches,
       earnGamePeaches,

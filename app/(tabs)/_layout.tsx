@@ -42,6 +42,13 @@ export default function TabsLayout() {
           />
           <NativeTabs.Trigger.Label>Games</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="lock-list">
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'lock', selected: 'lock.fill' }}
+            md={{ default: 'lock_outline', selected: 'lock' }}
+          />
+          <NativeTabs.Trigger.Label>Lock List</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="settings">
           <NativeTabs.Trigger.Icon
             sf={{ default: 'gearshape', selected: 'gearshape.fill' }}

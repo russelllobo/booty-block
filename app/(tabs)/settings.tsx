@@ -1,13 +1,14 @@
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
-import { AppWindow, ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ChevronRight, FileText, LifeBuoy, RefreshCcw, RotateCcw, Sparkles } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { Text } from '../../components/AppText';
 
 import { Header } from '../../components/Header';
+import { HomeShowcase, type HomeShowcaseStep } from '../../components/HomeShowcase';
 import { Screen } from '../../components/Screen';
 import { colors } from '../../constants/theme';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
@@ -104,6 +105,7 @@ function SettingsRow({
 }
 
 export default function Settings() {
+  const params = useLocalSearchParams<{ showcase?: 'support' }>();
   const {
     subscriptionConfigured,
     isSubscribed,
@@ -112,9 +114,14 @@ export default function Settings() {
     requestSubscriptionAccess,
     openSubscriptionManagement,
     resetAppData,
-    selectedAppsLabel,
   } = useBootyblock();
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
+  const [showcaseStep, setShowcaseStep] = useState<HomeShowcaseStep | null>(null);
+  const supportShowcaseTargetRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (params.showcase === 'support') setShowcaseStep('support');
+  }, [params.showcase]);
 
   const reset = () => {
     Alert.alert(
@@ -153,31 +160,6 @@ export default function Settings() {
     }
   }
 
-  async function chooseBlockedApps() {
-    if (isSubscribed) {
-      router.push('/onboarding/apps');
-      return;
-    }
-
-    setSubscriptionBusy(true);
-    try {
-      const subscribed = await requestSubscriptionAccess();
-      if (subscribed) {
-        router.push('/onboarding/apps');
-        return;
-      }
-
-      if (!subscriptionConfigured) {
-        Alert.alert(
-          'RevenueCat setup needed',
-          subscriptionError ?? 'Add your RevenueCat API key before testing subscriptions on device.',
-        );
-      }
-    } finally {
-      setSubscriptionBusy(false);
-    }
-  }
-
   async function restore() {
     setSubscriptionBusy(true);
     try {
@@ -198,18 +180,6 @@ export default function Settings() {
       <Header title="Settings" />
 
       <View className="gap-7">
-        <SettingsGroup title="Blocking">
-          <SettingsRow
-            title="Choose blocked apps"
-            subtitle={selectedAppsLabel}
-            icon={AppWindow}
-            iconBackground={colors.cocoa}
-            loading={subscriptionBusy && !isSubscribed}
-            last
-            onPress={chooseBlockedApps}
-          />
-        </SettingsGroup>
-
         <SettingsGroup title="Subscription">
           <SettingsRow
             title={isSubscribed ? 'bootyblock Pro' : subscriptionConfigured ? 'Not Subscribed' : 'Setup Needed'}
@@ -235,21 +205,27 @@ export default function Settings() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Privacy & Support">
+        <SettingsGroup title="Privacy">
           <SettingsRow
             title="Privacy Policy"
             icon={FileText}
             iconBackground="#007AFF"
+            last
             onPress={() => void Linking.openURL('https://bootyblock.app/privacy')}
           />
-          <SettingsRow
-            title="Support"
-            icon={LifeBuoy}
-            iconBackground="#5856D6"
-            last
-            onPress={() => void Linking.openURL('https://bootyblock.app/support')}
-          />
         </SettingsGroup>
+
+        <View ref={supportShowcaseTargetRef} collapsable={false}>
+          <SettingsGroup title="Support">
+            <SettingsRow
+              title="Send Feedback"
+              icon={LifeBuoy}
+              iconBackground="#5856D6"
+              last
+              onPress={() => void Linking.openURL('mailto:r.lobo2003@gmail.com')}
+            />
+          </SettingsGroup>
+        </View>
 
         <SettingsGroup>
           <SettingsRow
@@ -262,6 +238,15 @@ export default function Settings() {
           />
         </SettingsGroup>
       </View>
+
+      <HomeShowcase
+        step={showcaseStep}
+        targetRef={supportShowcaseTargetRef}
+        onAdvance={() => {
+          setShowcaseStep(null);
+          router.setParams({ showcase: undefined });
+        }}
+      />
 
     </Screen>
   );
