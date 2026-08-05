@@ -244,7 +244,7 @@ export default function Settings() {
         targetRef={supportShowcaseTargetRef}
         onAdvance={() => {
           setShowcaseStep(null);
-          router.setParams({ showcase: undefined });
+          router.replace('/(tabs)');
         }}
       />
 

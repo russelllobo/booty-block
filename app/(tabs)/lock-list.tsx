@@ -7,8 +7,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  ImageSourcePropType,
   Modal,
   Platform,
   Pressable,
@@ -20,45 +18,17 @@ import {
 import { Text } from '../../components/AppText';
 import { HomeShowcase, type HomeShowcaseStep } from '../../components/HomeShowcase';
 import { Screen } from '../../components/Screen';
-import { ScreenTimeAppIcons } from '../../components/ScreenTimeAppIcons';
-import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors, shadow } from '../../constants/theme';
 import { formatBootyLockTime, MAX_BOOTY_LOCKS, type BootyLock } from '../../lib/bootyLocks';
-import type { ScreenTimeApplicationMetadata } from '../../lib/services/screenTime';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
-const previewIcons: Record<string, ImageSourcePropType> = {
-  instagram: require('../../assets/onboarding/app-icons/instagram.png'),
-  tiktok: require('../../assets/onboarding/app-icons/tiktok.png'),
-  youtube: require('../../assets/onboarding/app-icons/youtube.png'),
-};
+const wordSizes = [20, 16, 18, 15, 17, 14, 16, 13];
+const wordColors = [colors.raspberry, colors.cocoa, colors.mink];
 
 function dateFromLock(lock: BootyLock) {
   const date = new Date();
   date.setHours(lock.hour, lock.minute, 0, 0);
   return date;
-}
-
-function LockedAppIcon({ app }: { app: ScreenTimeApplicationMetadata }) {
-  const previewSource = previewIcons[app.id.toLowerCase()];
-  const source = app.iconDataUri ? { uri: app.iconDataUri } : previewSource;
-
-  return (
-    <View style={styles.appIconFrame}>
-      {source ? (
-        <Image source={source} style={styles.appIcon} accessibilityLabel={app.displayName ?? 'Locked app'} />
-      ) : (
-        <View style={styles.appFallback}>
-          <Text className="text-xl font-black text-raspberry">
-            {(app.displayName ?? 'A').slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
-      )}
-      <View style={styles.appLockBadge}>
-        <LockKeyhole size={9} stroke={colors.raspberry} strokeWidth={3} />
-      </View>
-    </View>
-  );
 }
 
 function LockTimeRow({
@@ -125,10 +95,11 @@ export default function LockList() {
   const totalSelected = selectionSummary
     ? selectionSummary.applicationCount + selectionSummary.categoryCount + selectionSummary.webDomainCount
     : 0;
-  const displayedApps = useMemo(() => selectionSummary?.applications?.slice(0, 4) ?? [], [selectionSummary]);
-  const displayedAppCount = Platform.OS === 'ios'
-    ? Math.min(selectionSummary?.applicationCount ?? 0, 4)
-    : displayedApps.length;
+  const displayedApps = useMemo(
+    () => selectionSummary?.applications?.filter((app) => app.displayName).slice(0, 8) ?? [],
+    [selectionSummary],
+  );
+  const displayedAppCount = displayedApps.length;
 
   useEffect(() => {
     if (params.showcase === 'timings') setShowcaseStep('timings');
@@ -230,30 +201,39 @@ export default function LockList() {
             </View>
           </View>
 
-          <View className="min-h-[74px] flex-row items-center gap-3 px-4 pb-3">
-            {Platform.OS === 'ios' && (selectionSummary?.applicationCount ?? 0) > 0 ? (
-              <ScreenTimeAppIcons
-                familyActivitySelectionId={SELECTION_ID}
-                maximumIconCount={4}
-                style={styles.nativeAppIcons}
-              />
-            ) : displayedApps.length > 0 ? displayedApps.map((app) => (
-              <LockedAppIcon key={app.id} app={app} />
-            )) : (
+          <View className="min-h-[74px] px-4 pb-4">
+            {displayedApps.length > 0 ? (
+              <View
+                style={styles.appWordCloud}
+                accessibilityLabel={`Locked apps: ${displayedApps.map((app) => app.displayName).join(', ')}`}
+              >
+                {displayedApps.map((app, index) => (
+                  <Text
+                    key={app.id}
+                    style={{
+                      color: wordColors[index % wordColors.length],
+                      fontSize: wordSizes[index % wordSizes.length],
+                      fontWeight: index < 3 ? '900' : '800',
+                      lineHeight: wordSizes[index % wordSizes.length] + 7,
+                    }}
+                  >
+                    {app.displayName}
+                  </Text>
+                ))}
+                {totalSelected > displayedAppCount ? (
+                  <Text className="text-sm font-black text-raspberry">+{totalSelected - displayedAppCount} more</Text>
+                ) : null}
+              </View>
+            ) : (
               <View className="flex-row items-center gap-3">
                 <View style={styles.emptyAppIcon}>
                   <AppWindow size={25} stroke={colors.mink} strokeWidth={2.2} />
                 </View>
                 <Text className="text-sm font-bold text-mink">
-                  {selectedAppsConfigured ? 'categories and websites selected' : 'no apps selected yet'}
+                  {selectedAppsConfigured ? 'app names unavailable' : 'no apps selected yet'}
                 </Text>
               </View>
             )}
-            {totalSelected > displayedAppCount && displayedAppCount > 0 ? (
-              <View style={styles.moreApps}>
-                <Text className="text-sm font-black text-raspberry">+{totalSelected - displayedAppCount}</Text>
-              </View>
-            ) : null}
           </View>
 
           <Pressable
@@ -390,33 +370,8 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
   },
-  appIconFrame: {
-    position: 'relative',
-    height: 58,
-    width: 58,
-    borderRadius: 17,
-    backgroundColor: '#F4F1F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appIcon: { height: 46, width: 46, borderRadius: 12 },
-  nativeAppIcons: { height: 58, width: 222 },
-  appFallback: { height: 46, width: 46, borderRadius: 12, backgroundColor: colors.petal, alignItems: 'center', justifyContent: 'center' },
-  appLockBadge: {
-    position: 'absolute',
-    right: 1,
-    top: 1,
-    height: 18,
-    width: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: colors.white,
-    backgroundColor: '#FFF3F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  appWordCloud: { minHeight: 58, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 14, rowGap: 3 },
   emptyAppIcon: { height: 58, width: 58, borderRadius: 17, backgroundColor: '#F2EEF0', alignItems: 'center', justifyContent: 'center' },
-  moreApps: { height: 48, minWidth: 48, paddingHorizontal: 8, borderRadius: 15, backgroundColor: colors.petal, alignItems: 'center', justifyContent: 'center' },
   updateButton: {
     marginHorizontal: 12,
     marginBottom: 12,

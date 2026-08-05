@@ -270,6 +270,7 @@ export default function RootLayout() {
               <Stack.Screen name="plan" />
               <Stack.Screen name="journey" />
               <Stack.Screen name="statistics" />
+              <Stack.Screen name="peach-hopper" options={{ animation: 'fade' }} />
               <Stack.Screen name="session" />
               <Stack.Screen name="success" />
             </Stack>

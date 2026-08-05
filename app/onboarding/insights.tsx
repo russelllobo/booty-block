@@ -849,29 +849,35 @@ function ExerciseSlide({
 }) {
   return (
     <View className="flex-1">
-      <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
-        <View className="w-full items-center px-8 pt-2">
-          <Text
-            className="text-center text-[26px] font-bold leading-[32px]"
-            allowFontScaling={false}
-            style={{ color: colors.cocoa }}
-          >
-            you can save up screen{'\n'}
-            time by <Text style={{ color: exercisePink }}>squatting</Text>{'\n'}
-            whenever you want.
-          </Text>
-        </View>
-      </SwipeInStage>
-
       <View className="flex-1 items-center justify-center">
         <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
-          <Image
-            source={require('../../assets/onboarding/squat-static-transparent.png')}
-            accessibilityLabel="Woman holding a squat"
-            resizeMode="contain"
-            fadeDuration={0}
-            style={{ width: 336, height: 336 }}
-          />
+          <View className="w-full items-center px-8">
+            <Text
+              className="mb-2 text-center text-[48px] font-black leading-[52px]"
+              allowFontScaling={false}
+              style={{ color: '#000000' }}
+            >
+              1
+            </Text>
+
+            <Image
+              source={require('../../assets/onboarding/squat-head-on-transparent.png')}
+              accessibilityLabel="Woman squatting while facing forward"
+              resizeMode="contain"
+              fadeDuration={0}
+              style={{ width: 300, height: 300 }}
+            />
+
+            <Text
+              className="mt-4 text-center text-[26px] font-bold leading-[32px]"
+              allowFontScaling={false}
+              style={{ color: colors.cocoa }}
+            >
+              you can save up{'\n'}
+              screen time by <Text style={{ color: exercisePink }}>squatting</Text>{'\n'}
+              whenever you want.
+            </Text>
+          </View>
         </SwipeInStage>
       </View>
 
@@ -880,406 +886,6 @@ function ExerciseSlide({
           <Button label="continue" onPress={onContinue} />
         </View>
       </FadeInStage>
-    </View>
-  );
-}
-
-const scrollingFeedCards = [
-  { colors: ['#54203D', '#E91E78'] as const, accent: '#FFBDD9', orbTop: 32, orbLeft: 25 },
-  { colors: ['#182339', '#5866E9'] as const, accent: '#BBC4FF', orbTop: 82, orbLeft: 62 },
-  { colors: ['#54203D', '#E91E78'] as const, accent: '#FFBDD9', orbTop: 32, orbLeft: 25 },
-];
-
-function ScrollingFeedCard({
-  colors: cardColors,
-  accent,
-  orbTop,
-  orbLeft,
-}: (typeof scrollingFeedCards)[number]) {
-  return (
-    <View style={{ height: 220, paddingHorizontal: 10, paddingTop: 8 }}>
-      <LinearGradient
-        colors={cardColors}
-        start={{ x: 0.08, y: 0 }}
-        end={{ x: 0.92, y: 1 }}
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          borderRadius: 19,
-          padding: 12,
-        }}
-      >
-        <View
-          style={{
-            position: 'absolute',
-            top: orbTop,
-            left: orbLeft,
-            width: 100,
-            height: 100,
-            borderRadius: 50,
-            backgroundColor: accent,
-            opacity: 0.22,
-          }}
-        />
-        <View
-          style={{
-            position: 'absolute',
-            right: -24,
-            bottom: 22,
-            width: 116,
-            height: 116,
-            borderRadius: 58,
-            borderWidth: 18,
-            borderColor: accent,
-            opacity: 0.16,
-          }}
-        />
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: accent,
-              opacity: 0.9,
-            }}
-          />
-          <View style={{ gap: 4 }}>
-            <View
-              style={{
-                width: 54,
-                height: 5,
-                borderRadius: 3,
-                backgroundColor: 'rgba(255,255,255,0.82)',
-              }}
-            />
-            <View
-              style={{
-                width: 32,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: 'rgba(255,255,255,0.38)',
-              }}
-            />
-          </View>
-        </View>
-
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              borderWidth: 2,
-              borderColor: 'rgba(255,255,255,0.7)',
-              backgroundColor: 'rgba(255,255,255,0.18)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Play size={21} stroke="#FFFFFF" strokeWidth={3} />
-          </View>
-        </View>
-
-        <View style={{ gap: 6 }}>
-          <View
-            style={{
-              width: 102,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: 'rgba(255,255,255,0.84)',
-            }}
-          />
-          <View
-            style={{
-              width: 72,
-              height: 5,
-              borderRadius: 3,
-              backgroundColor: 'rgba(255,255,255,0.42)',
-            }}
-          />
-        </View>
-      </LinearGradient>
-    </View>
-  );
-}
-
-function ScrollUnlockIllustration() {
-  const feedPosition = useRef(new Animated.Value(0)).current;
-  const swipePosition = useRef(new Animated.Value(0)).current;
-  const swipeOpacity = useRef(new Animated.Value(0)).current;
-  const glow = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const swipeUp = () => Animated.parallel([
-      Animated.sequence([
-        Animated.timing(swipeOpacity, {
-          toValue: 1,
-          duration: 120,
-          useNativeDriver: true,
-        }),
-        Animated.delay(360),
-        Animated.timing(swipeOpacity, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(swipePosition, {
-        toValue: 1,
-        duration: 660,
-        easing: Easing.bezier(0.22, 0.85, 0.28, 1),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.delay(700),
-        Animated.parallel([
-          swipeUp(),
-          Animated.timing(feedPosition, {
-            toValue: 1,
-            duration: 760,
-            easing: Easing.bezier(0.22, 0.85, 0.28, 1),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.delay(900),
-        Animated.timing(swipePosition, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.parallel([
-          swipeUp(),
-          Animated.timing(feedPosition, {
-            toValue: 2,
-            duration: 760,
-            easing: Easing.bezier(0.22, 0.85, 0.28, 1),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.delay(900),
-        Animated.timing(feedPosition, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(swipePosition, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    const glowAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glow, {
-          toValue: 0,
-          duration: 1200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    glowAnimation.start();
-
-    return () => {
-      animation.stop();
-      glowAnimation.stop();
-    };
-  }, [feedPosition, glow, swipeOpacity, swipePosition]);
-
-  const feedTranslateY = feedPosition.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: [0, -220, -440],
-  });
-  const fingerTranslateY = swipePosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [78, -78],
-  });
-  const fingerScale = swipePosition.interpolate({
-    inputRange: [0, 0.16, 1],
-    outputRange: [0.88, 1, 0.92],
-  });
-  const glowOpacity = glow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.2, 0.5],
-  });
-  const glowScale = glow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.96, 1.08],
-  });
-
-  return (
-    <View className="items-center">
-      <View style={{ width: 294, height: 326, alignItems: 'center' }}>
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 15,
-            width: 204,
-            height: 270,
-            borderRadius: 62,
-            backgroundColor: 'rgba(233, 30, 120, 0.22)',
-            opacity: glowOpacity,
-            shadowColor: exercisePink,
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.32,
-            shadowRadius: 34,
-            transform: [{ scale: glowScale }],
-          }}
-        />
-
-        <View
-          style={{
-            width: 178,
-            height: 286,
-            borderRadius: 38,
-            borderWidth: 3,
-            borderColor: exercisePink,
-            backgroundColor: '#09070B',
-            padding: 8,
-            shadowColor: exercisePink,
-            shadowOffset: { width: 0, height: 12 },
-            shadowOpacity: 0.22,
-            shadowRadius: 24,
-            elevation: 7,
-          }}
-        >
-          <View
-            style={{
-              flex: 1,
-              overflow: 'hidden',
-              borderRadius: 29,
-              backgroundColor: '#120A10',
-            }}
-          >
-            <View
-              style={{
-                height: 36,
-                zIndex: 3,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 12,
-                backgroundColor: '#120A10',
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    borderWidth: 1.5,
-                    borderColor: exercisePink,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 9, fontWeight: '900', color: exercisePink }}>s</Text>
-                </View>
-                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '900' }}>for you</Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 3 }}>
-                {[0, 1, 2].map((dot) => (
-                  <View
-                    key={dot}
-                    style={{
-                      width: 3,
-                      height: 3,
-                      borderRadius: 2,
-                      backgroundColor: 'rgba(255,255,255,0.5)',
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={{ flex: 1, overflow: 'hidden' }}>
-              <Animated.View style={{ transform: [{ translateY: feedTranslateY }] }}>
-                {scrollingFeedCards.map((card, index) => (
-                  <ScrollingFeedCard key={index} {...card} />
-                ))}
-              </Animated.View>
-
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(18,10,16,0)', '#120A10']}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 24,
-                }}
-              />
-            </View>
-          </View>
-
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 66,
-              width: 46,
-              height: 5,
-              borderRadius: 3,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              zIndex: 5,
-            }}
-          />
-        </View>
-
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            right: 35,
-            top: 136,
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            borderWidth: 2,
-            borderColor: 'rgba(255,255,255,0.72)',
-            backgroundColor: exercisePink,
-            opacity: swipeOpacity,
-            shadowColor: exercisePink,
-            shadowOffset: { width: 0, height: 5 },
-            shadowOpacity: 0.36,
-            shadowRadius: 12,
-            elevation: 5,
-            transform: [{ translateY: fingerTranslateY }, { scale: fingerScale }],
-          }}
-        >
-          <View
-            style={{
-              position: 'absolute',
-              top: 6,
-              left: 10,
-              width: 20,
-              height: 12,
-              borderRadius: 8,
-              backgroundColor: 'rgba(255,255,255,0.34)',
-            }}
-          />
-        </Animated.View>
-      </View>
-
     </View>
   );
 }
@@ -1293,22 +899,35 @@ function ScrollUnlockSlide({
 }) {
   return (
     <View className="flex-1">
-      <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
-        <View className="w-full items-center px-2 pt-2">
-          <Text
-            className="text-center text-[26px] font-bold leading-[32px]"
-            allowFontScaling={false}
-            style={{ color: colors.cocoa }}
-          >
-            you can use your saved-up{'\n'}
-            screen time <Text style={{ color: exercisePink }}>anytime.</Text>
-          </Text>
-        </View>
-      </SwipeInStage>
-
       <View className="flex-1 items-center justify-center">
         <SwipeInStage delay={currentStateStageDelay.current} direction={direction}>
-          <ScrollUnlockIllustration />
+          <View className="w-full items-center px-8">
+            <Text
+              className="mb-2 text-center text-[48px] font-black leading-[52px]"
+              allowFontScaling={false}
+              style={{ color: '#000000' }}
+            >
+              2
+            </Text>
+
+            <Image
+              source={require('../../assets/onboarding/scroll-phone-transparent.png')}
+              accessibilityLabel="Phone showing a short-video social feed"
+              resizeMode="contain"
+              fadeDuration={0}
+              style={{ width: 210, height: 372 }}
+            />
+
+            <Text
+              className="mt-4 text-center text-[26px] font-bold leading-[32px]"
+              allowFontScaling={false}
+              style={{ color: colors.cocoa }}
+            >
+              you can use your{'\n'}
+              saved-up screen time{'\n'}
+              <Text style={{ color: exercisePink }}>anytime.</Text>
+            </Text>
+          </View>
         </SwipeInStage>
       </View>
 
