@@ -244,7 +244,7 @@ export default function Settings() {
         targetRef={supportShowcaseTargetRef}
         onAdvance={() => {
           setShowcaseStep(null);
-          router.replace('/(tabs)');
+          router.replace({ pathname: '/(tabs)', params: { unlockGuide: '1' } });
         }}
       />
 

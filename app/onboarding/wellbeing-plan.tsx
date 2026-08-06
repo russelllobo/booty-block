@@ -24,6 +24,7 @@ import {
   markReturnOfferFlowCompleted,
 } from '../../lib/returnOffer';
 import { revenueCatService } from '../../lib/services/revenueCat';
+import { syncRoutineReminderNotification } from '../../lib/services/routineReminder';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const gold = '#FFD76A';
@@ -217,6 +218,11 @@ export function WellbeingPlanScreen({ mode = 'onboarding' }: { mode?: WellbeingP
     try {
       if (isReturnOffer) {
         await markReturnOfferFlowCompleted();
+        await syncRoutineReminderNotification(null).catch((error) => {
+          if (__DEV__) {
+            console.warn('Unable to remove the daily onboarding reminder', error);
+          }
+        });
         const active = await presentSubscriptionPaywall({ force: true });
         if (active) {
           router.replace({ pathname: '/(tabs)', params: { onboardingArrival: '1' } });

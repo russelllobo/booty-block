@@ -1,5 +1,6 @@
 import {
   isReturnOfferDue,
+  isReturnOfferPending,
   localDayKey,
   type ReturnOfferState,
 } from '../lib/returnOffer';
@@ -36,6 +37,13 @@ describe('return offer timing', () => {
     };
 
     expect(isReturnOfferDue(state, at('2026-08-06T09:00:00'))).toBe(false);
+    expect(isReturnOfferPending(state)).toBe(false);
+  });
+
+  it('keeps the secondary flow pending after the onboarding paywall is left', () => {
+    expect(isReturnOfferPending({
+      onboardingPaywallSeenAt: at('2026-08-04T09:00:00'),
+    })).toBe(true);
   });
 
   it('uses a stable sortable key for local calendar days', () => {

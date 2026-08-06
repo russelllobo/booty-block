@@ -27,6 +27,7 @@ import { NativeRollingNumber } from '../../components/NativeRollingNumber';
 import { PeachIcon } from '../../components/PeachIcon';
 import { PEACH_PATCH_3D_SUPPORTED, PeachPatch3D } from '../../components/PeachPatch3D';
 import { Screen } from '../../components/Screen';
+import { UnlockAppsGuide, type GuideStep } from '../../components/UnlockAppsGuide';
 import {
   MAX_SQUAT_SESSION_PEACHES,
   PEACHES_PER_MINUTE,
@@ -82,6 +83,8 @@ export default function Home() {
   const params = useLocalSearchParams<{
     onboardingArrival?: '1';
     openUnlock?: '1' | 'spend';
+    unlockGuide?: '1';
+    unlockGuideStep?: '1' | '2' | '3';
   }>();
   const previewParams = useGlobalSearchParams<{ postPurchasePreview?: '1' }>();
   const posthog = usePostHog();
@@ -119,6 +122,12 @@ export default function Home() {
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [celebratingSubscription, setCelebratingSubscription] = useState(false);
   const [showcaseStep, setShowcaseStep] = useState<HomeShowcaseStep | null>(null);
+  const [unlockGuideVisible, setUnlockGuideVisible] = useState(false);
+  const unlockGuideInitialStep: GuideStep = params.unlockGuideStep === '3'
+    ? 2
+    : params.unlockGuideStep === '2'
+      ? 1
+      : 0;
   const [journeyCardWidth, setJourneyCardWidth] = useState(() => Math.max(0, windowWidth - 48));
   const [journeyCardPage, setJourneyCardPage] = useState(0);
   const unlockPromptProgress = useRef(new Animated.Value(0)).current;
@@ -158,6 +167,10 @@ export default function Home() {
       ONBOARDING_STEP_TOTAL,
     );
   }, [params.onboardingArrival, posthog]);
+
+  useEffect(() => {
+    if (params.unlockGuide === '1') setUnlockGuideVisible(true);
+  }, [params.unlockGuide]);
 
   useEffect(() => {
     if (
@@ -832,6 +845,14 @@ export default function Home() {
             : journeyShowcaseTargetRef}
         onAdvance={advanceShowcase}
         onChooseApps={chooseAppsFromShowcase}
+      />
+      <UnlockAppsGuide
+        initialStep={unlockGuideInitialStep}
+        visible={unlockGuideVisible}
+        onFinish={() => {
+          setUnlockGuideVisible(false);
+          router.setParams({ unlockGuide: undefined });
+        }}
       />
 
     </Screen>

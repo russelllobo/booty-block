@@ -7,7 +7,10 @@ jest.mock('react-native-device-activity', () => ({
   refreshManagedSettingsStore: jest.fn(),
   resetBlocks: jest.fn(),
   stopMonitoring: jest.fn(),
+  updateShield: jest.fn(),
+  updateShieldWithId: jest.fn(),
   userDefaultsClear: jest.fn(),
+  userDefaultsClearWithPrefix: jest.fn(),
   userDefaultsRemove: jest.fn(),
 }));
 
@@ -34,5 +37,37 @@ describe('screenTimeService.releaseAllBlocks', () => {
     expect(DeviceActivity.resetBlocks).toHaveBeenCalledWith('bootyblock-pro-access-inactive');
     expect(DeviceActivity.refreshManagedSettingsStore).toHaveBeenCalledTimes(1);
     expect(DeviceActivity.userDefaultsClear).not.toHaveBeenCalled();
+  });
+});
+
+describe('screenTimeService.configureShield', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('sends an unlock notification from the primary shield button', () => {
+    screenTimeService.configureShield();
+
+    expect(DeviceActivity.updateShield).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primaryButtonLabel: "Let's squat 🍑",
+      }),
+      {
+        primary: {
+          behavior: 'close',
+          actions: [
+            {
+              type: 'sendNotification',
+              payload: expect.objectContaining({
+                title: 'Your apps are blocked!',
+                body: 'Tap to squat and unlock them.',
+                userInfo: expect.objectContaining({ kind: 'shield_unlock' }),
+              }),
+            },
+          ],
+        },
+      },
+      'bootyblock-configure-shield',
+    );
   });
 });

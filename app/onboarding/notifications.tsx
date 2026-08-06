@@ -31,7 +31,7 @@ export function NotificationPermissionContent({
   onComplete = () => router.replace('/onboarding/social-proof'),
 }: NotificationPermissionContentProps) {
   const posthog = usePostHog();
-  const { routineReminderTime } = useBootyblock();
+  const { isSubscribed, routineReminderTime } = useBootyblock();
   const [loading, setLoading] = useState(false);
   const { height, width } = useWindowDimensions();
   const promptRowWidth = Math.min(width - 40, 360);
@@ -91,7 +91,7 @@ export function NotificationPermissionContent({
           status: result.status,
           granted: result.granted,
         });
-        if (result.granted) {
+        if (result.granted && !isSubscribed) {
           await syncRoutineReminderNotification(routineReminderTime).catch((error) => {
             if (__DEV__) {
               console.warn('Unable to schedule the daily routine reminder', error);

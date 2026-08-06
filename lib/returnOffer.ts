@@ -25,6 +25,10 @@ export function isReturnOfferDue(state: ReturnOfferState | null, now = Date.now(
   return localDayKey(state.onboardingPaywallSeenAt) < localDayKey(now);
 }
 
+export function isReturnOfferPending(state: ReturnOfferState | null) {
+  return Boolean(state && !state.returnFlowCompletedAt);
+}
+
 export async function getReturnOfferState(): Promise<ReturnOfferState | null> {
   try {
     const raw = await AsyncStorage.getItem(RETURN_OFFER_KEY);

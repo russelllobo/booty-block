@@ -1,6 +1,10 @@
 import * as Notifications from 'expo-notifications';
 
-import { syncRoutineReminderNotification } from '../lib/services/routineReminder';
+import {
+  getRoutineReminderDestination,
+  shouldScheduleRoutineReminder,
+  syncRoutineReminderNotification,
+} from '../lib/services/routineReminder';
 
 jest.mock('expo-notifications', () => ({
   AndroidImportance: { MAX: 5 },
@@ -64,7 +68,7 @@ describe('syncRoutineReminderNotification', () => {
         sound: 'default',
         data: {
           kind: 'routine_reminder',
-          url: '/plan',
+          url: '/onboarding',
         },
       },
       trigger: {
@@ -106,5 +110,46 @@ describe('syncRoutineReminderNotification', () => {
     expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('routine');
     expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
     expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('only schedules for an unsubscribed user who can still continue onboarding', () => {
+    expect(shouldScheduleRoutineReminder({
+      isSubscribed: false,
+      onboardingComplete: false,
+      returnOfferPending: false,
+    })).toBe(true);
+    expect(shouldScheduleRoutineReminder({
+      isSubscribed: false,
+      onboardingComplete: true,
+      returnOfferPending: true,
+    })).toBe(true);
+    expect(shouldScheduleRoutineReminder({
+      isSubscribed: true,
+      onboardingComplete: false,
+      returnOfferPending: false,
+    })).toBe(false);
+    expect(shouldScheduleRoutineReminder({
+      isSubscribed: false,
+      onboardingComplete: true,
+      returnOfferPending: false,
+    })).toBe(false);
+  });
+
+  it('routes reminder taps to the correct onboarding flow', () => {
+    expect(getRoutineReminderDestination({
+      isSubscribed: false,
+      onboardingComplete: false,
+      returnOfferPending: false,
+    })).toBe('resume-onboarding');
+    expect(getRoutineReminderDestination({
+      isSubscribed: false,
+      onboardingComplete: true,
+      returnOfferPending: true,
+    })).toBe('return-offer');
+    expect(getRoutineReminderDestination({
+      isSubscribed: true,
+      onboardingComplete: true,
+      returnOfferPending: true,
+    })).toBeNull();
   });
 });

@@ -8,8 +8,9 @@ import {
   BANK_PROGRESS_EVENT_PREFIX,
   BANKED_USAGE_ACTIVITY,
   SELECTION_ID,
-  SHIELD_OPEN_REQUEST_KEY,
   SHIELD_ID,
+  SHIELD_OPEN_REQUEST_KEY,
+  SHIELD_UNLOCK_NOTIFICATION_KIND,
   UNLOCK_ACTIVITY,
   USAGE_WINDOW_DEPLETED_EVENT,
   USAGE_WINDOW_PROGRESS_EVENT_PREFIX,
@@ -29,15 +30,6 @@ export type ScreenTimeApplicationMetadata = {
   id: string;
   displayName?: string;
   iconDataUri?: string;
-};
-
-type ShieldActionWithUrl = Omit<DeviceActivity.ShieldAction, 'type'> & {
-  type: 'openUrl';
-  url: string;
-};
-
-type ShieldActionsWithUrl = Omit<DeviceActivity.ShieldActions, 'primary'> & {
-  primary: ShieldActionWithUrl;
 };
 
 type ShieldConfigurationWithVariants = DeviceActivity.ShieldConfiguration & {
@@ -193,8 +185,8 @@ function buildShieldConfiguration(useLogo: boolean): DeviceActivity.ShieldConfig
   const configuration: ShieldConfigurationWithVariants = {
     title: 'Blocked for your booty',
     titleVariants: SHIELD_TITLE_VARIANTS,
-    subtitle: 'Open bootyblock, complete 10 squats, and unlock your apps.',
-    primaryButtonLabel: 'Open bootyblock',
+    subtitle: 'Tap below, then open the notification to complete 10 squats.',
+    primaryButtonLabel: "Let's squat 🍑",
     iconSystemName: useLogo ? undefined : 'figure.strengthtraining.traditional',
     iconAppGroupRelativePath: useLogo ? SHIELD_LOGO_FILE_NAME : undefined,
     iconTint: useLogo ? undefined : shieldPalette.raspberry,
@@ -253,30 +245,43 @@ export const screenTimeService = {
   configureShield() {
     if (!isAvailable()) return;
 
-    const shieldActions: ShieldActionsWithUrl = {
+    const shieldActions: DeviceActivity.ShieldActions = {
       primary: {
         behavior: 'close',
-        type: 'openUrl',
-        url: 'bootyblock://unlock',
+        actions: [
+          {
+            type: 'sendNotification',
+            payload: {
+              title: 'Your apps are blocked!',
+              body: 'Tap to squat and unlock them.',
+              sound: 'default',
+              interruptionLevel: 'active',
+              userInfo: {
+                kind: SHIELD_UNLOCK_NOTIFICATION_KIND,
+                url: '/session?purpose=unlock',
+              },
+            },
+          },
+        ],
       },
     };
 
     DeviceActivity.userDefaultsClearWithPrefix('shieldConfigurationForSelection');
     DeviceActivity.userDefaultsClearWithPrefix('shieldActionsForSelection');
     const shieldConfiguration = buildShieldConfiguration(shieldLogoReady);
-    DeviceActivity.updateShield(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, 'bootyblock-configure-shield');
-    DeviceActivity.updateShieldWithId(shieldConfiguration, shieldActions as unknown as DeviceActivity.ShieldActions, SHIELD_ID);
+    DeviceActivity.updateShield(shieldConfiguration, shieldActions, 'bootyblock-configure-shield');
+    DeviceActivity.updateShieldWithId(shieldConfiguration, shieldActions, SHIELD_ID);
     void copyShieldLogoToAppGroup().then((logoReady) => {
       if (!logoReady) return;
       const logoShieldConfiguration = buildShieldConfiguration(true);
       DeviceActivity.updateShield(
         logoShieldConfiguration,
-        shieldActions as unknown as DeviceActivity.ShieldActions,
+        shieldActions,
         'bootyblock-configure-shield-logo',
       );
       DeviceActivity.updateShieldWithId(
         logoShieldConfiguration,
-        shieldActions as unknown as DeviceActivity.ShieldActions,
+        shieldActions,
         SHIELD_ID,
       );
     });

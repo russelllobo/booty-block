@@ -16,14 +16,26 @@ import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-c
 
 import { XpRewardToast } from '../components/XpRewardToast';
 import {
+  SHIELD_UNLOCK_NOTIFICATION_KIND,
+} from '../constants/bootyblock';
+import {
   POSTHOG_API_KEY,
   POSTHOG_ENABLED,
   POSTHOG_HOST,
   screenAnalytics,
 } from '../lib/analytics';
 import { getOnboardingResumeHref } from '../lib/onboardingProgress';
-import { shouldShowReturnOffer } from '../lib/returnOffer';
-import { syncRoutineReminderNotification } from '../lib/services/routineReminder';
+import {
+  getReturnOfferState,
+  isReturnOfferPending,
+  shouldShowReturnOffer,
+} from '../lib/returnOffer';
+import {
+  getRoutineReminderDestination,
+  isRoutineReminderNotification,
+  shouldScheduleRoutineReminder,
+  syncRoutineReminderNotification,
+} from '../lib/services/routineReminder';
 import { screenTimeService } from '../lib/services/screenTime';
 import { tiktokService } from '../lib/services/tiktok';
 import { BootyblockProvider, useBootyblock } from '../lib/store/BootyblockProvider';
@@ -71,18 +83,35 @@ function NotificationObserver() {
     isSubscribed,
     onboardingComplete,
     routineReminderTime,
+    subscriptionHydrated,
   } = useBootyblock();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !hydrated) return;
+    if (Platform.OS === 'web' || !hydrated || !subscriptionHydrated) return;
 
-    void syncRoutineReminderNotification(routineReminderTime).catch((error) => {
+    let active = true;
+    void (async () => {
+      const returnOfferPending = isReturnOfferPending(await getReturnOfferState());
+      if (!active) return;
+
+      const reminderTime = shouldScheduleRoutineReminder({
+        isSubscribed,
+        onboardingComplete,
+        returnOfferPending,
+      }) ? routineReminderTime : null;
+
+      await syncRoutineReminderNotification(reminderTime);
+    })().catch((error) => {
       if (__DEV__) {
-        console.warn('Unable to sync the daily routine reminder', error);
+        console.warn('Unable to sync the daily onboarding reminder', error);
       }
     });
-  }, [hydrated, routineReminderTime]);
+
+    return () => {
+      active = false;
+    };
+  }, [hydrated, isSubscribed, onboardingComplete, routineReminderTime, subscriptionHydrated]);
 
   useEffect(() => {
     if (Platform.OS === 'web' || !hydrated) return;
@@ -145,30 +174,61 @@ function NotificationObserver() {
   }, [hydrated, isSubscribed, onboardingComplete, pathname]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || !hydrated || !subscriptionHydrated) return;
 
     async function openNotification(notification: Notifications.Notification) {
-      const url = notification.request.content.data?.url;
-      if (url === '/plan' || url === '/(tabs)/plan') {
-        if (onboardingComplete && !isSubscribed && await shouldShowReturnOffer()) {
-          router.replace('/return-offer');
-          return;
+      if (notification.request.content.data?.kind === SHIELD_UNLOCK_NOTIFICATION_KIND) {
+        if (onboardingComplete) {
+          if (!isSubscribed && await shouldShowReturnOffer()) {
+            router.replace('/return-offer');
+            return;
+          }
+          router.push({ pathname: '/session', params: { purpose: 'unlock' } });
+        } else {
+          router.replace(await getOnboardingResumeHref());
         }
-        router.push({ pathname: '/session', params: { purpose: 'unlock' } });
+        return;
+      }
+
+      if (!isRoutineReminderNotification(notification)) return;
+
+      const returnOfferPending = isReturnOfferPending(await getReturnOfferState());
+      const destination = getRoutineReminderDestination({
+        isSubscribed,
+        onboardingComplete,
+        returnOfferPending,
+      });
+
+      if (destination === 'return-offer') {
+        router.replace('/return-offer');
+      } else if (destination === 'resume-onboarding') {
+        router.replace(await getOnboardingResumeHref());
       }
     }
 
     const lastResponse = Notifications.getLastNotificationResponse();
     if (lastResponse?.notification) {
       void openNotification(lastResponse.notification);
+      if (
+        isRoutineReminderNotification(lastResponse.notification)
+        || lastResponse.notification.request.content.data?.kind === SHIELD_UNLOCK_NOTIFICATION_KIND
+      ) {
+        Notifications.clearLastNotificationResponse();
+      }
     }
 
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       void openNotification(response.notification);
+      if (
+        isRoutineReminderNotification(response.notification)
+        || response.notification.request.content.data?.kind === SHIELD_UNLOCK_NOTIFICATION_KIND
+      ) {
+        Notifications.clearLastNotificationResponse();
+      }
     });
 
     return () => subscription.remove();
-  }, [isSubscribed, onboardingComplete]);
+  }, [hydrated, isSubscribed, onboardingComplete, subscriptionHydrated]);
 
   return null;
 }

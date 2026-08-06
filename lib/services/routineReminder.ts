@@ -9,9 +9,42 @@ type RoutineReminderTime = {
   minute: number;
 };
 
+type RoutineReminderState = {
+  isSubscribed: boolean;
+  onboardingComplete: boolean;
+  returnOfferPending: boolean;
+};
+
+export type RoutineReminderDestination = 'resume-onboarding' | 'return-offer' | null;
+
+export function shouldScheduleRoutineReminder({
+  isSubscribed,
+  onboardingComplete,
+  returnOfferPending,
+}: RoutineReminderState) {
+  return !isSubscribed && (!onboardingComplete || returnOfferPending);
+}
+
+export function getRoutineReminderDestination({
+  isSubscribed,
+  onboardingComplete,
+  returnOfferPending,
+}: RoutineReminderState): RoutineReminderDestination {
+  if (isSubscribed) return null;
+  if (returnOfferPending) return 'return-offer';
+  if (!onboardingComplete) return 'resume-onboarding';
+  return null;
+}
+
+export function isRoutineReminderNotification(notification: Notifications.Notification) {
+  return notification.request.content.data?.kind === ROUTINE_REMINDER_KIND;
+}
+
 function isRoutineReminder(request: Notifications.NotificationRequest) {
   return request.content.data?.kind === ROUTINE_REMINDER_KIND;
 }
+
+let reminderSyncQueue: Promise<void> = Promise.resolve();
 
 async function cancelScheduledRoutineReminders() {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
@@ -22,7 +55,7 @@ async function cancelScheduledRoutineReminders() {
   );
 }
 
-export async function syncRoutineReminderNotification(time: RoutineReminderTime | null) {
+async function performRoutineReminderSync(time: RoutineReminderTime | null) {
   if (Platform.OS === 'web') return;
 
   await cancelScheduledRoutineReminders();
@@ -45,7 +78,7 @@ export async function syncRoutineReminderNotification(time: RoutineReminderTime 
       sound: 'default',
       data: {
         kind: ROUTINE_REMINDER_KIND,
-        url: '/plan',
+        url: '/onboarding',
       },
     },
     trigger: {
@@ -55,4 +88,16 @@ export async function syncRoutineReminderNotification(time: RoutineReminderTime 
       channelId: ROUTINE_REMINDER_CHANNEL,
     },
   });
+}
+
+export function syncRoutineReminderNotification(time: RoutineReminderTime | null) {
+  const sync = reminderSyncQueue.then(
+    () => performRoutineReminderSync(time),
+    () => performRoutineReminderSync(time),
+  );
+  reminderSyncQueue = sync.then(
+    () => undefined,
+    () => undefined,
+  );
+  return sync;
 }
