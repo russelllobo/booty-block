@@ -8,6 +8,7 @@ const BIRD_TOP_PADDING = 18;
 const FULL_SQUAT_DEPTH = 0.72;
 const FULL_SQUAT_KNEE_ANGLE = 105;
 const SQUAT_CALIBRATION_COMPLETION = 0.96;
+const RETURN_TO_STANDING_DEPTH = 0.3;
 
 export type FlappySquatRewardInput = {
   score: number;
@@ -78,6 +79,11 @@ export function calculateSquatCalibrationProgress({
 
 export function isSquatCalibrationComplete(progress: number) {
   return clamp(progress, 0, 1) >= SQUAT_CALIBRATION_COMPLETION;
+}
+
+export function hasReturnedToStanding(normalizedDepth: number) {
+  return Number.isFinite(normalizedDepth)
+    && normalizedDepth <= RETURN_TO_STANDING_DEPTH;
 }
 
 export function smoothDepth(previous: number, next: number, factor = 0.2) {

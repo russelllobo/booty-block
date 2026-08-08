@@ -20,6 +20,7 @@ import {
   calculateFlappySquatReward,
   clamp,
   FLAPPY_SQUAT_GAME_ID,
+  hasReturnedToStanding,
   isSquatCalibrationComplete,
   mapDepthToBirdY,
   normalizeCalibratedPoseDepth,
@@ -65,7 +66,6 @@ const COUNTDOWN_START = 3;
 const STANDING_CALIBRATION_SAMPLES = 1;
 const RETURN_STANDING_SAMPLES = 1;
 const MIN_CALIBRATION_RANGE = 0.12;
-const STARTING_POSE_THRESHOLD = 0.16;
 const PREVIEW_HEIGHT = 380;
 const HOPPER_PREVIEW_HEIGHT = 360;
 const PREVIEW_TICK_MS = 40;
@@ -425,6 +425,7 @@ export default function Games() {
     // Always open at the standing/top position. The game loop immediately
     // follows live pose depth from here, so squatting still moves the bird.
     depthRef.current = 0;
+    latestDepthRef.current = 0;
     gameStartedAtRef.current = Date.now();
     setStatus('playing');
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -512,14 +513,17 @@ export default function Games() {
       return;
     }
 
-    const returnedToTop = normalizeCalibratedPoseDepth(
+    const returnedToTop = hasReturnedToStanding(normalizeCalibratedPoseDepth(
       rawDepthRef.current,
       standingDepthRef.current,
       lowestSquatDepthRef.current,
-    ) <= STARTING_POSE_THRESHOLD;
+    ));
 
-    const stableStandingPose = Platform.OS === 'web' || pose.phase === 'standing';
-    if (!returnedToTop || !stableStandingPose) {
+    // Some installed native trackers keep reporting `rising` after they have
+    // already counted the squat. The calibrated body depth is the reliable
+    // signal here: once the player is physically back near their own standing
+    // baseline, continue immediately instead of waiting on a stale phase.
+    if (!returnedToTop) {
       returnStandingSamplesRef.current = [];
       return;
     }
@@ -528,9 +532,10 @@ export default function Games() {
     if (returnStandingSamplesRef.current.length < RETURN_STANDING_SAMPLES) return;
 
     depthRef.current = 0;
+    latestDepthRef.current = 0;
     setCountdown(COUNTDOWN_START);
     setStatus('countdown');
-  }, [bodyVisible, pose.metrics.depth, pose.phase, status]);
+  }, [bodyVisible, pose.metrics.depth, status]);
 
   useEffect(() => {
     if (status !== 'countdown') return;

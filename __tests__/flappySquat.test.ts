@@ -1,6 +1,7 @@
 import {
   calculateSquatCalibrationProgress,
   calculateFlappySquatReward,
+  hasReturnedToStanding,
   isSquatCalibrationComplete,
   mapDepthToBirdY,
   normalizeCalibratedPoseDepth,
@@ -59,6 +60,13 @@ describe('flappy squat game logic', () => {
   it('requires a genuinely deep squat instead of trusting an early native bottom phase', () => {
     expect(isSquatCalibrationComplete(0.95)).toBe(false);
     expect(isSquatCalibrationComplete(0.96)).toBe(true);
+  });
+
+  it('recognizes a normal return to standing without requiring a native phase change', () => {
+    expect(hasReturnedToStanding(0.3)).toBe(true);
+    expect(hasReturnedToStanding(0.12)).toBe(true);
+    expect(hasReturnedToStanding(0.31)).toBe(false);
+    expect(hasReturnedToStanding(0.8)).toBe(false);
   });
 
   it('uses the less advanced body signal so a shallow bend cannot fill calibration', () => {
