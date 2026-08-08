@@ -262,9 +262,11 @@ export default function Games() {
   const rawDepthRef = useRef(0);
   const standingDepthRef = useRef(0);
   const standingKneeAngleRef = useRef(168);
+  const standingHipAngleRef = useRef(168);
   const lowestSquatDepthRef = useRef(1);
   const standingSamplesRef = useRef<number[]>([]);
   const standingKneeSamplesRef = useRef<number[]>([]);
+  const standingHipSamplesRef = useRef<number[]>([]);
   const squatSamplesRef = useRef<number[]>([]);
   const squatProgressMaxRef = useRef(0);
   const returnStandingSamplesRef = useRef<number[]>([]);
@@ -453,6 +455,7 @@ export default function Games() {
     if (!bodyVisible) {
       standingSamplesRef.current = [];
       standingKneeSamplesRef.current = [];
+      standingHipSamplesRef.current = [];
       return;
     }
 
@@ -460,12 +463,16 @@ export default function Games() {
     if (!stableStandingPose) {
       standingSamplesRef.current = [];
       standingKneeSamplesRef.current = [];
+      standingHipSamplesRef.current = [];
       return;
     }
 
     standingSamplesRef.current.push(rawDepthRef.current);
     if (pose.metrics.kneeAngle > 0) {
       standingKneeSamplesRef.current.push(pose.metrics.kneeAngle);
+    }
+    if (pose.metrics.hipAngle > 0) {
+      standingHipSamplesRef.current.push(pose.metrics.hipAngle);
     }
     if (standingSamplesRef.current.length < STANDING_CALIBRATION_SAMPLES) return;
 
@@ -475,10 +482,13 @@ export default function Games() {
     if (standingKneeSamplesRef.current.length > 0) {
       standingKneeAngleRef.current = median(standingKneeSamplesRef.current);
     }
+    if (standingHipSamplesRef.current.length > 0) {
+      standingHipAngleRef.current = median(standingHipSamplesRef.current);
+    }
     squatSamplesRef.current = [];
     squatProgressMaxRef.current = 0;
     setStatus('calibratingSquat');
-  }, [bodyVisible, pose.metrics.depth, pose.metrics.kneeAngle, pose.phase, status]);
+  }, [bodyVisible, pose.metrics.depth, pose.metrics.hipAngle, pose.metrics.kneeAngle, pose.phase, status]);
 
   useEffect(() => {
     if (status !== 'calibratingSquat') return;
@@ -513,16 +523,21 @@ export default function Games() {
       return;
     }
 
-    const returnedToTop = hasReturnedToStanding(normalizeCalibratedPoseDepth(
-      rawDepthRef.current,
-      standingDepthRef.current,
-      lowestSquatDepthRef.current,
-    ));
+    const returnedToTop = hasReturnedToStanding({
+      normalizedDepth: normalizeCalibratedPoseDepth(
+        rawDepthRef.current,
+        standingDepthRef.current,
+        lowestSquatDepthRef.current,
+      ),
+      kneeAngle: pose.metrics.kneeAngle,
+      standingKneeAngle: standingKneeAngleRef.current,
+      hipAngle: pose.metrics.hipAngle,
+      standingHipAngle: standingHipAngleRef.current,
+    });
 
     // Some installed native trackers keep reporting `rising` after they have
-    // already counted the squat. The calibrated body depth is the reliable
-    // signal here: once the player is physically back near their own standing
-    // baseline, continue immediately instead of waiting on a stale phase.
+    // already counted the squat. Use the calibrated height and leg angles so
+    // camera-perspective drift in any single signal cannot strand the player.
     if (!returnedToTop) {
       returnStandingSamplesRef.current = [];
       return;
@@ -535,7 +550,7 @@ export default function Games() {
     latestDepthRef.current = 0;
     setCountdown(COUNTDOWN_START);
     setStatus('countdown');
-  }, [bodyVisible, pose.metrics.depth, status]);
+  }, [bodyVisible, pose.metrics.depth, pose.metrics.hipAngle, pose.metrics.kneeAngle, status]);
 
   useEffect(() => {
     if (status !== 'countdown') return;
@@ -690,9 +705,11 @@ export default function Games() {
     latestDepthRef.current = 0;
     standingDepthRef.current = 0;
     standingKneeAngleRef.current = 168;
+    standingHipAngleRef.current = 168;
     lowestSquatDepthRef.current = 1;
     standingSamplesRef.current = [];
     standingKneeSamplesRef.current = [];
+    standingHipSamplesRef.current = [];
     squatSamplesRef.current = [];
     squatProgressMaxRef.current = 0;
     returnStandingSamplesRef.current = [];

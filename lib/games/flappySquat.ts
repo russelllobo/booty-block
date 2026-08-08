@@ -8,7 +8,11 @@ const BIRD_TOP_PADDING = 18;
 const FULL_SQUAT_DEPTH = 0.72;
 const FULL_SQUAT_KNEE_ANGLE = 105;
 const SQUAT_CALIBRATION_COMPLETION = 0.96;
-const RETURN_TO_STANDING_DEPTH = 0.3;
+const RETURN_TO_STANDING_DEPTH = 0.42;
+const RETURN_KNEE_TOLERANCE = 22;
+const RETURN_HIP_TOLERANCE = 22;
+const MIN_RETURN_KNEE_ANGLE = 135;
+const MIN_RETURN_HIP_ANGLE = 140;
 
 export type FlappySquatRewardInput = {
   score: number;
@@ -81,9 +85,32 @@ export function isSquatCalibrationComplete(progress: number) {
   return clamp(progress, 0, 1) >= SQUAT_CALIBRATION_COMPLETION;
 }
 
-export function hasReturnedToStanding(normalizedDepth: number) {
-  return Number.isFinite(normalizedDepth)
+export function hasReturnedToStanding({
+  normalizedDepth,
+  kneeAngle,
+  standingKneeAngle,
+  hipAngle,
+  standingHipAngle,
+}: {
+  normalizedDepth: number;
+  kneeAngle: number;
+  standingKneeAngle: number;
+  hipAngle: number;
+  standingHipAngle: number;
+}) {
+  const depthReturned = Number.isFinite(normalizedDepth)
     && normalizedDepth <= RETURN_TO_STANDING_DEPTH;
+  const kneeReturned = kneeAngle > 0
+    && standingKneeAngle >= MIN_RETURN_KNEE_ANGLE
+    && kneeAngle >= Math.max(MIN_RETURN_KNEE_ANGLE, standingKneeAngle - RETURN_KNEE_TOLERANCE);
+  const hipReturned = hipAngle > 0
+    && standingHipAngle >= MIN_RETURN_HIP_ANGLE
+    && hipAngle >= Math.max(MIN_RETURN_HIP_ANGLE, standingHipAngle - RETURN_HIP_TOLERANCE);
+
+  // Camera perspective can make any one measurement drift. Returning to the
+  // player's calibrated height OR recovering either major leg angle is enough
+  // to show that they have stood back up after a confirmed full squat.
+  return depthReturned || kneeReturned || hipReturned;
 }
 
 export function smoothDepth(previous: number, next: number, factor = 0.2) {

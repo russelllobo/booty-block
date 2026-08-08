@@ -1,6 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import type { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { DeviceActivitySelectionSheetViewPersisted } from 'react-native-device-activity';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppWindow, Clock3, LockKeyhole, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -18,8 +19,10 @@ import {
 import { Text } from '../../components/AppText';
 import { HomeShowcase, type HomeShowcaseStep } from '../../components/HomeShowcase';
 import { Screen } from '../../components/Screen';
+import { SELECTION_ID } from '../../constants/bootyblock';
 import { colors, shadow } from '../../constants/theme';
 import { formatBootyLockTime, MAX_BOOTY_LOCKS, type BootyLock } from '../../lib/bootyLocks';
+import { screenTimeService } from '../../lib/services/screenTime';
 import { useBootyblock } from '../../lib/store/BootyblockProvider';
 
 const wordSizes = [20, 16, 18, 15, 17, 14, 16, 13];
@@ -81,13 +84,16 @@ export default function LockList() {
     subscriptionConfigured,
     subscriptionError,
     hasAppAccess,
+    markSelectionConfigured,
     requestSubscriptionAccess,
+    screenTimeStatus,
     setBootyLockEnabled,
     setBootyLockTime,
     addBootyLock,
   } = useBootyblock();
   const [editingLock, setEditingLock] = useState<BootyLock | null>(null);
   const [draftDate, setDraftDate] = useState(new Date());
+  const [nativePickerOpen, setNativePickerOpen] = useState(false);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [showcaseStep, setShowcaseStep] = useState<HomeShowcaseStep | null>(null);
   const timingsShowcaseTargetRef = useRef<View>(null);
@@ -100,6 +106,9 @@ export default function LockList() {
     [selectionSummary],
   );
   const displayedAppCount = displayedApps.length;
+  const nativePickerReady = Platform.OS === 'ios'
+    && screenTimeService.isAvailable()
+    && screenTimeStatus === 'approved';
 
   useEffect(() => {
     if (params.showcase === 'timings') setShowcaseStep('timings');
@@ -107,7 +116,11 @@ export default function LockList() {
 
   async function updateLockedApps() {
     if (hasAppAccess) {
-      router.push('/locked-apps');
+      if (nativePickerReady) {
+        setNativePickerOpen(true);
+      } else {
+        router.push('/locked-apps');
+      }
       return;
     }
 
@@ -115,7 +128,11 @@ export default function LockList() {
     try {
       const subscribed = await requestSubscriptionAccess();
       if (subscribed) {
-        router.push('/locked-apps');
+        if (nativePickerReady) {
+          setNativePickerOpen(true);
+        } else {
+          router.push('/locked-apps');
+        }
       } else if (!subscriptionConfigured) {
         Alert.alert(
           'RevenueCat setup needed',
@@ -124,6 +141,21 @@ export default function LockList() {
       }
     } finally {
       setSubscriptionBusy(false);
+    }
+  }
+
+  async function closeNativePicker() {
+    // The native bridge persists picker changes on a short debounce. Keep its
+    // host mounted until the final selection has reached shared storage.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const configured = await markSelectionConfigured();
+    setNativePickerOpen(false);
+    if (!configured) {
+      Alert.alert(
+        'Choose at least one app',
+        'At least one app, category, or website must remain selected.',
+        [{ text: 'Choose apps', onPress: () => setNativePickerOpen(true) }],
+      );
     }
   }
 
@@ -190,7 +222,13 @@ export default function LockList() {
       </View>
 
       <View className="gap-4">
-        <View style={styles.section}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Change locked apps"
+          disabled={subscriptionBusy}
+          onPress={() => void updateLockedApps()}
+          style={({ pressed }) => [styles.section, pressed && styles.pressed]}
+        >
           <View className="flex-row items-center justify-between px-4 pb-3 pt-4">
             <View className="flex-row items-center gap-2">
               <LockKeyhole size={16} stroke={colors.raspberry} strokeWidth={2.8} />
@@ -236,12 +274,7 @@ export default function LockList() {
             )}
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={subscriptionBusy}
-            onPress={() => void updateLockedApps()}
-            style={({ pressed }) => [styles.updateButton, pressed && styles.pressed]}
-          >
+          <View style={styles.updateButton}>
             {subscriptionBusy ? (
               <ActivityIndicator color={colors.white} />
             ) : (
@@ -250,8 +283,8 @@ export default function LockList() {
                 <Text className="text-[15px] font-black text-white">update locked apps</Text>
               </>
             )}
-          </Pressable>
-        </View>
+          </View>
+        </Pressable>
 
         <View ref={timingsShowcaseTargetRef} collapsable={false} style={styles.section}>
           <View className="flex-row items-start justify-between px-4 pb-2 pt-4">
@@ -303,6 +336,17 @@ export default function LockList() {
           router.replace({ pathname: '/(tabs)/settings', params: { showcase: 'support' } });
         }}
       />
+
+      {nativePickerOpen && nativePickerReady ? (
+        <DeviceActivitySelectionSheetViewPersisted
+          familyActivitySelectionId={SELECTION_ID}
+          includeEntireCategory
+          headerText="Choose apps for bootyblock"
+          footerText="These apps will lock at your enabled booty lock times."
+          onDismissRequest={() => void closeNativePicker()}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
 
       <Modal
         transparent

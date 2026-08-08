@@ -63,10 +63,35 @@ describe('flappy squat game logic', () => {
   });
 
   it('recognizes a normal return to standing without requiring a native phase change', () => {
-    expect(hasReturnedToStanding(0.3)).toBe(true);
-    expect(hasReturnedToStanding(0.12)).toBe(true);
-    expect(hasReturnedToStanding(0.31)).toBe(false);
-    expect(hasReturnedToStanding(0.8)).toBe(false);
+    const standingAngles = {
+      standingKneeAngle: 168,
+      standingHipAngle: 168,
+    };
+
+    expect(hasReturnedToStanding({
+      normalizedDepth: 0.4,
+      kneeAngle: 110,
+      hipAngle: 112,
+      ...standingAngles,
+    })).toBe(true);
+    expect(hasReturnedToStanding({
+      normalizedDepth: 0.7,
+      kneeAngle: 150,
+      hipAngle: 130,
+      ...standingAngles,
+    })).toBe(true);
+    expect(hasReturnedToStanding({
+      normalizedDepth: 0.7,
+      kneeAngle: 110,
+      hipAngle: 150,
+      ...standingAngles,
+    })).toBe(true);
+    expect(hasReturnedToStanding({
+      normalizedDepth: 0.7,
+      kneeAngle: 120,
+      hipAngle: 128,
+      ...standingAngles,
+    })).toBe(false);
   });
 
   it('uses the less advanced body signal so a shallow bend cannot fill calibration', () => {
